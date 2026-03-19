@@ -38,7 +38,9 @@ export async function POST(req: Request) {
       messageId: m.id,
       phone: m.phone_number,
       templateId: template.template_id,
-      params: []
+      templateLanguage: 'en_US',
+      params: [],
+      isDirectText: false
     }
   }));
 

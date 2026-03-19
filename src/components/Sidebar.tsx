@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, Folder, LayoutTemplate, Send, LogOut } from 'lucide-react';
+import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Inbox', href: '/inbox', icon: MessageSquare },
   { name: 'Contacts', href: '/contacts', icon: Users },
   { name: 'Groups', href: '/groups', icon: Folder },
   { name: 'Templates', href: '/templates', icon: LayoutTemplate },
