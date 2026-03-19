@@ -22,14 +22,30 @@ export default function Dashboard() {
   }, []);
 
   const initFacebookSDK = () => {
-    window.fbAsyncInit = function() {
-      window.FB.init({
-        appId      : process.env.NEXT_PUBLIC_FB_APP_ID,
-        cookie     : true,
-        xfbml      : true,
-        version    : 'v19.0'
-      });
+    const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+    
+    // Function that actually performs the initialization
+    const doInit = () => {
+      if (window.FB && appId) {
+        window.FB.init({
+          appId      : appId,
+          cookie     : true,
+          xfbml      : true,
+          version    : 'v19.0'
+        });
+        console.log('FB SDK initialized successfully');
+      }
     };
+
+    if (window.FB) {
+      // SDK already loaded, init directly
+      doInit();
+    } else {
+      // Wait for SDK to load
+      window.fbAsyncInit = function() {
+        doInit();
+      };
+    }
   };
 
   const fetchTenant = async () => {

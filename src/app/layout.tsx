@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: 'Multi-tenant WhatsApp campaign manager',
 };
 
+import Script from 'next/script';
+
 export default function RootLayout({
   children,
 }: {
@@ -18,7 +20,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased selection:bg-blue-100 selection:text-blue-900 bg-gray-50 text-gray-900`}>
         {children}
-        <script async defer crossOrigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+        <Script 
+          src="https://connect.facebook.net/en_US/sdk.js"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+          defer
+        />
       </body>
     </html>
   );
