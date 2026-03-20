@@ -71,12 +71,12 @@ export default function Dashboard() {
     setError(null);
     setShowGuidedFallback(false);
 
-    // Phase 1: Use a single stable business scope to avoid the "At least one permission" error
+    // Phase 1: Link identity using a neutral business scope to avoid the WhatsApp picker
     window.FB.login((response: any) => {
       if (response.authResponse) {
         const accessToken = response.authResponse.accessToken;
         if (accessToken) {
-          // Store token immediately
+          // Store token immediately (Phase 1)
           connectMetaAccount(accessToken, true);
         } else {
           setConnecting(false);
@@ -86,7 +86,7 @@ export default function Dashboard() {
         setConnecting(false);
       }
     }, {
-      scope: 'whatsapp_business_messaging'
+      scope: 'pages_show_list'
     });
   };
 
