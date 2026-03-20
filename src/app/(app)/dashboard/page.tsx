@@ -25,7 +25,24 @@ export default function Dashboard() {
   useEffect(() => {
     fetchTenant();
     initFacebookSDK();
+    checkQueryParams();
   }, []);
+
+  const checkQueryParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('meta_success');
+    const error = params.get('meta_error');
+    if (success === 'linked') {
+       // Clear error and trigger any post-link logic if needed
+       setError(null);
+       // We'll also clear the query params to prevent re-processing on refresh
+       window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (error) {
+      setError(decodeURIComponent(error));
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  };
 
   const initFacebookSDK = () => {
     const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
@@ -62,45 +79,41 @@ export default function Dashboard() {
   };
 
   const handleFBLogin = () => {
-    if (!window.FB) {
-      alert('Facebook SDK not loaded yet. Please wait a moment.');
+    const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+    const tenantId = tenant?.id;
+    if (!appId || !tenantId) {
+      setError('App Configuration missing or workspace ID not found.');
       return;
     }
 
-    setConnecting(true);
-    setError(null);
-    setShowGuidedFallback(false);
-
-    console.log('Initiating Step 1: Facebook Login (Identity Only)...');
-    // Using minimal scopes first to ensure the popup closes after "Continue as Name"
-    window.FB.login((response: any) => {
-      console.log('Step 1 Response:', response);
-      if (response.authResponse) {
-        const accessToken = response.authResponse.accessToken;
-        if (accessToken) {
-          console.log('Got token, storing identity link...');
-          connectMetaAccount(accessToken, true); // storeOnly: true
-        } else {
-          setConnecting(false);
-          setError('Failed to get access token from Meta.');
-        }
-      } else {
-        console.log('User cancelled Step 1 or login failed');
-        setConnecting(false);
-      }
-    }, {
-      // NOTE: If public_profile fails, user might need to enable a permission like 'business_management'
-      scope: 'public_profile' 
-    });
+    const origin = window.location.origin;
+    const redirectUri = encodeURIComponent(`${origin}/api/auth/meta/callback`);
+    const state = encodeURIComponent(tenantId);
+    
+    // STEP 1: Direct OAuth URL (Public Profile & Email)
+    const oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=public_profile,email&response_type=code&state=${state}`;
+    
+    console.log('Redirecting to Meta Step 1 OAuth...');
+    window.location.href = oauthUrl;
   };
 
   const handleWhatsAppConnect = () => {
-    if (!window.FB) return;
+    if (!window.FB) {
+       alert('Facebook SDK not loaded yet. Please wait a moment.');
+       return;
+    }
+
+    const configId = process.env.NEXT_PUBLIC_FB_CONFIG_ID;
+    if (!configId) {
+       setError('WhatsApp Configuration ID is missing (NEXT_PUBLIC_FB_CONFIG_ID).');
+       return;
+    }
 
     setIsDiscovering(true);
     setError(null);
 
-    console.log('Initiating Step 2: WhatsApp Permissions...');
+    console.log('Initiating Step 2: WhatsApp Permissions via JS SDK...');
+    // STEP 2: JS SDK with config_id (NO email/public_profile scopes here)
     window.FB.login((response: any) => {
       console.log('Step 2 Response:', response);
       if (response.authResponse) {
@@ -113,11 +126,11 @@ export default function Dashboard() {
           setError('Failed to get WhatsApp permissions.');
         }
       } else {
-        console.log('User cancelled Step 2 or it redirected to help');
+        console.log('User cancelled Step 2');
         setIsDiscovering(false);
       }
     }, {
-      scope: 'whatsapp_business_management,whatsapp_business_messaging'
+      config_id: configId
     });
   };
 
@@ -161,12 +174,8 @@ export default function Dashboard() {
       
       const data = await res.json();
       if (res.ok) {
-        if (storeOnly) {
-          fetchTenant(); // Step 1 complete -> Refresh to show Step 2
-        } else {
-          setShowGuidedFallback(false);
-          fetchTenant();
-        }
+        setShowGuidedFallback(false);
+        fetchTenant();
       } else {
         if (data.error === 'NO_WABA_FOUND' || data.error === 'NO_PHONE_FOUND') {
           setShowGuidedFallback(true);
@@ -217,9 +226,9 @@ export default function Dashboard() {
               <MessageCircle className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Step 1: Link your Facebook</h3>
+              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Step 1: Link your Meta Account</h3>
               <p className="text-sm text-gray-600 mt-1 max-w-lg leading-relaxed">
-                Log in with your Meta profile to establish the connection. This quick step ensures your session is saved even if you're not ready for WhatsApp yet.
+                Connect your Meta profile to establish a secure link. This is required before enabling WhatsApp features.
               </p>
             </div>
           </div>
@@ -245,7 +254,7 @@ export default function Dashboard() {
                 <span className="ml-3 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider rounded border border-blue-100">FB Linked</span>
               </div>
               <p className="text-sm text-gray-600 mt-1 max-w-lg leading-relaxed">
-                Great! Your profile is linked. Now, select the WhatsApp Business account you want to use for this workspace.
+                Your profile is linked! Now, click below to select your WhatsApp Business Account.
               </p>
             </div>
           </div>
@@ -253,7 +262,7 @@ export default function Dashboard() {
             onClick={handleWhatsAppConnect}
             className="px-8 py-4 bg-gray-900 text-white hover:bg-black rounded-xl font-bold shadow-lg transition-all active:scale-95 whitespace-nowrap flex items-center text-lg"
           >
-            Link WhatsApp Account
+            Connect WhatsApp
           </button>
         </div>
       )}
@@ -268,7 +277,7 @@ export default function Dashboard() {
               </div>
               <h3 className="text-2xl font-bold text-gray-900">Finalize your WhatsApp Setup</h3>
               <p className="text-gray-600 mt-4 leading-relaxed">
-                Your Meta identity is linked, but you haven't finished setting up a business account. Meta requires a validated WhatsApp profile before we can start.
+                You've linked your Meta profile, but we couldn't find a validated WhatsApp account. Meta requires a validated WhatsApp profile before we can start.
               </p>
               
               <div className="mt-8 space-y-6">
