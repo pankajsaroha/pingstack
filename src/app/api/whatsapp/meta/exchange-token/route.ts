@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { code, accessToken, reDiscover } = await req.json();
+    const { code, accessToken, reDiscover, storeOnly } = await req.json();
     const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
     const appSecret = process.env.FB_APP_SECRET;
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       tokenToUse = decrypt(existing.access_token);
       console.log('Re-using stored token for discovery...');
     } else {
-      // 2. Exchange for long-lived token if new token/code provided
+      // 2. Exchange for long-lived token
       console.log('Exchanging/Refreshing Meta token...');
       const exchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${accessToken || code}`;
       const exchangeRes = await fetch(exchangeUrl);
@@ -39,18 +39,34 @@ export async function POST(req: Request) {
       if (exchangeData.access_token) {
         tokenToUse = exchangeData.access_token;
         console.log('Long-lived token acquired');
+      } else {
+        return NextResponse.json({ error: 'EXCHANGE_FAILED', message: exchangeData.error?.message || 'Token exchange failed' }, { status: 400 });
       }
     }
 
     const encryptedToken = encrypt(tokenToUse);
 
-    // 3. Discover WABAs
-    console.log('Discovering WhatsApp Business Accounts...');
+    // 3. Store Only Phase (New: Save token immediately)
+    if (storeOnly) {
+      console.log('Phase 1: Storing token only...');
+      await db.from('whatsapp_accounts').upsert({
+        tenant_id: tenantId,
+        provider: 'META',
+        access_token: encryptedToken,
+        status: 'PENDING_SETUP',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'tenant_id' });
+      
+      return NextResponse.json({ success: true, message: 'Token stored successfully' });
+    }
+
+    // 4. Discovery Phase (WABA)
+    console.log('Phase 2: Discovering WhatsApp Business Accounts...');
     const wabaRes = await fetch(`https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?access_token=${tokenToUse}`);
     const wabaData = await wabaRes.json();
 
     if (!wabaData.data || wabaData.data.length === 0) {
-      // Save token even if discovery fails
+      // Save progress
       await db.from('whatsapp_accounts').upsert({
         tenant_id: tenantId,
         provider: 'META',
@@ -65,16 +81,13 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    // 4. Discover Phone Numbers (Check first WABA)
+    // 5. Discovery Phase (Phone)
     const waba = wabaData.data[0];
     const wabaId = waba.id;
-    console.log(`Found WABA: ${wabaId}. Discovering phone numbers...`);
-
     const phoneRes = await fetch(`https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?access_token=${tokenToUse}`);
     const phoneData = await phoneRes.json();
 
     if (!phoneData.data || phoneData.data.length === 0) {
-      // Save token + WABA ID even if phone discovery fails
       await db.from('whatsapp_accounts').upsert({
         tenant_id: tenantId,
         provider: 'META',
@@ -86,40 +99,26 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ 
         error: 'NO_PHONE_FOUND', 
-        message: 'No phone numbers found in your WhatsApp Business Account.',
+        message: 'No phone numbers found in your WABA.',
         wabaId
       }, { status: 404 });
     }
 
-    // 5. Pickup first phone number
+    // 6. Activation
     const phone = phoneData.data[0];
-    const phoneNumberId = phone.id;
-    const displayPhone = phone.display_phone_number;
-
-    console.log(`Discovered Phone ID: ${phoneNumberId} (${displayPhone})`);
-
-    // 6. Final activation
     const { error: dbError } = await db.from('whatsapp_accounts').upsert({
       tenant_id: tenantId,
       provider: 'META',
       business_id: wabaId,
-      phone_number_id: phoneNumberId,
+      phone_number_id: phone.id,
       access_token: encryptedToken,
       status: 'ACTIVE',
       updated_at: new Date().toISOString()
     }, { onConflict: 'tenant_id' });
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      return NextResponse.json({ error: 'FAILED_TO_SAVE', message: dbError.message }, { status: 500 });
-    }
+    if (dbError) throw dbError;
 
-    return NextResponse.json({ 
-      success: true, 
-      wabaId, 
-      phoneNumberId, 
-      displayPhone 
-    });
+    return NextResponse.json({ success: true, phoneNumberId: phone.id });
 
   } catch (err: any) {
     console.error('Meta Exchange Error:', err);

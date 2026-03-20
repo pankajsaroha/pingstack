@@ -75,7 +75,8 @@ export default function Dashboard() {
       if (response.authResponse) {
         const accessToken = response.authResponse.accessToken;
         if (accessToken) {
-          connectMetaAccount(accessToken);
+          // Phase 1: Store Token Only
+          connectMetaAccount(accessToken, true);
         } else {
           setConnecting(false);
           setError('Failed to get access token from Facebook.');
@@ -103,8 +104,8 @@ export default function Dashboard() {
         fetchTenant();
       } else {
         if (data.error === 'NO_WABA_FOUND' || data.error === 'NO_PHONE_FOUND') {
-          // Still missing, stay on fallback
-          setError('We still couldn\'t find your WhatsApp Business details. Please ensure you\'ve finished the setup on Meta.');
+          // Still missing, stay on fallback or show guided
+          setShowGuidedFallback(true);
         } else {
           setError(data.message || 'Failed to re-discover account.');
         }
@@ -116,7 +117,7 @@ export default function Dashboard() {
     }
   };
 
-  const connectMetaAccount = async (accessToken: string) => {
+  const connectMetaAccount = async (accessToken: string, storeOnly: boolean = false) => {
     setIsDiscovering(true);
     setError(null);
     
@@ -124,13 +125,19 @@ export default function Dashboard() {
       const res = await fetch('/api/whatsapp/meta/exchange-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken })
+        body: JSON.stringify({ accessToken, storeOnly })
       });
       
       const data = await res.json();
       if (res.ok) {
-        setShowGuidedFallback(false);
-        fetchTenant();
+        if (storeOnly) {
+          // Phase 1 Success -> Start Phase 2 (Discovery)
+          setConnecting(false);
+          handleReDiscover();
+        } else {
+          setShowGuidedFallback(false);
+          fetchTenant();
+        }
       } else {
         if (data.error === 'NO_WABA_FOUND' || data.error === 'NO_PHONE_FOUND') {
           setShowGuidedFallback(true);
@@ -141,8 +148,10 @@ export default function Dashboard() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setConnecting(false);
-      setIsDiscovering(false);
+      if (!storeOnly) {
+        setConnecting(false);
+        setIsDiscovering(false);
+      }
     }
   };
 
@@ -180,7 +189,7 @@ export default function Dashboard() {
             <div>
               <h3 className="text-xl font-bold text-gray-900 tracking-tight">Connect WhatsApp</h3>
               <p className="text-sm text-gray-600 mt-1 max-w-lg leading-relaxed">
-                Don't worry if you don't have a Meta Business account yet—you can create one in the next step. We'll guide you through connecting your number directly to Meta's infrastructure.
+                Connect your WhatsApp Business account directly via Meta. Don't worry if you don't have a business account yet—you can create one in the next step.
               </p>
             </div>
           </div>
@@ -225,7 +234,7 @@ export default function Dashboard() {
                 <div className="flex items-start">
                   <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-0.5">3</div>
                   <div>
-                    <h4 className="font-bold text-gray-900">Verify with OTP</h4>
+                    <h4 className="font-bold text-gray-900">Verify it with OTP</h4>
                     <p className="text-sm text-gray-500 mt-1">Meta will send a 6-digit code to verify your ownership. Takes about 2-3 minutes total.</p>
                   </div>
                 </div>
