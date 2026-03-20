@@ -61,7 +61,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleFBLogin = () => {
+  const handleConnectWhatsApp = () => {
     if (!window.FB) {
       alert('Facebook SDK not loaded yet. Please wait a moment.');
       return;
@@ -71,50 +71,21 @@ export default function Dashboard() {
     setError(null);
     setShowGuidedFallback(false);
 
-    // Phase 1: Use original stable scopes but only for linking
-    console.log('Initiating Phase 1 Login...');
+    console.log('Initiating Meta Connection...');
     window.FB.login((response: any) => {
-      console.log('FB Phase 1 Response:', response);
+      console.log('FB Login Response:', response);
       if (response.authResponse) {
         const accessToken = response.authResponse.accessToken;
         if (accessToken) {
-          console.log('Got Phase 1 Access Token, storing...');
-          connectMetaAccount(accessToken, true);
-        } else {
-          setConnecting(false);
-          setError('Failed to get access token from Facebook.');
-        }
-      } else {
-        console.log('User cancelled or failed Phase 1');
-        setConnecting(false);
-      }
-    }, {
-      scope: 'whatsapp_business_management,whatsapp_business_messaging'
-    });
-  };
-
-  const handleWhatsAppConnect = () => {
-    if (!window.FB) return;
-
-    setIsDiscovering(true);
-    setError(null);
-
-    // Phase 2: Full discovery with same scopes
-    console.log('Initiating Phase 2 WhatsApp Connection...');
-    window.FB.login((response: any) => {
-      console.log('FB Phase 2 Response:', response);
-      if (response.authResponse) {
-        const accessToken = response.authResponse.accessToken;
-        if (accessToken) {
-          console.log('Got Phase 2 Access Token, starting discovery...');
+          console.log('Success! Storing token and starting discovery...');
           connectMetaAccount(accessToken, false);
         } else {
-          setIsDiscovering(false);
-          setError('Failed to get permissions from Facebook.');
+          setConnecting(false);
+          setError('Failed to get access token from Meta.');
         }
       } else {
-        console.log('User cancelled or failed Phase 2');
-        setIsDiscovering(false);
+        console.log('Login cancelled or failed');
+        setConnecting(false);
       }
     }, {
       scope: 'whatsapp_business_management,whatsapp_business_messaging'
@@ -161,14 +132,8 @@ export default function Dashboard() {
       
       const data = await res.json();
       if (res.ok) {
-        if (storeOnly) {
-          // Phase 1 Success -> Now allow Phase 2
-          setConnecting(false);
-          fetchTenant(); // Refresh to show "FB Linked" UI
-        } else {
-          setShowGuidedFallback(false);
-          fetchTenant();
-        }
+        setShowGuidedFallback(false);
+        fetchTenant(); // Update status
       } else {
         if (data.error === 'NO_WABA_FOUND' || data.error === 'NO_PHONE_FOUND') {
           setShowGuidedFallback(true);
@@ -190,8 +155,8 @@ export default function Dashboard() {
 
   const whatsappAccount = tenant?.whatsapp_account;
   const isConnected = whatsappAccount?.status === 'ACTIVE';
-  const isFBLinked = whatsappAccount?.status === 'PENDING_SETUP' || isConnected;
   const isConnecting = connecting || isDiscovering;
+  const isLinkedButIncomplete = whatsappAccount?.status === 'PENDING_SETUP' || showGuidedFallback;
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -210,67 +175,40 @@ export default function Dashboard() {
         )}
       </div>
       
-      {/* State 1: Completely Disconnected */}
-      {!isFBLinked && !isConnecting && (
+      {!isConnected && !isConnecting && !isLinkedButIncomplete && (
         <div className="mb-8 bg-blue-50/50 border border-blue-200 p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-sm">
           <div className="flex items-center mb-6 md:mb-0">
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mr-6 shadow-inner">
               <MessageCircle className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Step 1: Link your Facebook</h3>
+              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Connect with Facebook</h3>
               <p className="text-sm text-gray-600 mt-1 max-w-lg leading-relaxed">
-                Connect your Facebook account to PingStack first. Once linked, you can connect your WhatsApp Business number.
+                Log in and select your WhatsApp account. Don't worry if you don't have a business account yet—you'll see instructions to create one.
               </p>
             </div>
           </div>
           <button 
-            onClick={handleFBLogin}
+            onClick={handleConnectWhatsApp}
             disabled={connecting}
             className="px-8 py-4 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 whitespace-nowrap flex items-center text-lg"
           >
-            Connect with Facebook
+            Connect WhatsApp
           </button>
         </div>
       )}
 
-      {/* State 2: FB Linked, but WhatsApp not configured */}
-      {isFBLinked && !isConnected && !isConnecting && !showGuidedFallback && (
-        <div className="mb-8 bg-white border border-gray-200 p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-md">
-          <div className="flex items-center mb-6 md:mb-0">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mr-6">
-              <CheckSquare className="w-8 h-8" />
-            </div>
-            <div>
-              <div className="flex items-center">
-                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Step 2: Connect WhatsApp</h3>
-                <span className="ml-3 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider rounded border border-blue-100">FB Linked</span>
-              </div>
-              <p className="text-sm text-gray-600 mt-1 max-w-lg leading-relaxed">
-                Your Facebook account is linked! Now, let's connect your WhatsApp Business Account.
-              </p>
-            </div>
-          </div>
-          <button 
-            onClick={handleWhatsAppConnect}
-            className="px-8 py-4 bg-gray-900 text-white hover:bg-black rounded-xl font-bold shadow-lg transition-all active:scale-95 whitespace-nowrap flex items-center text-lg"
-          >
-            Connect WhatsApp Business
-          </button>
-        </div>
-      )}
-
-      {/* Guided Fallback Screen (Detailed) */}
-      {(showGuidedFallback || (isFBLinked && !isConnected)) && !isConnecting && showGuidedFallback && (
+      {/* Linked but missing details fallback */}
+      {isLinkedButIncomplete && !isConnected && !isConnecting && (
         <div className="mb-8 bg-amber-50/50 border border-amber-200 p-10 rounded-2xl shadow-sm animate-in slide-in-from-top-4 duration-500">
           <div className="flex flex-col lg:flex-row gap-10 items-start">
             <div className="lg:w-2/3">
               <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
                 <AlertCircle className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900">Finish Setting Up WhatsApp</h3>
+              <h3 className="text-2xl font-bold text-gray-900">Finalize your WhatsApp Setup</h3>
               <p className="text-gray-600 mt-4 leading-relaxed">
-                We couldn't find a WhatsApp Business Account. Please ensures you have a business profile and a verified number on Meta.
+                You've linked your Meta profile, but we couldn't find a validated WhatsApp account. Follow these 3 quick steps on Meta:
               </p>
               
               <div className="mt-8 space-y-6">
@@ -303,7 +241,7 @@ export default function Dashboard() {
               <p className="text-sm text-gray-500 mb-6">If you've finished the setup on Meta, click below to update your connection.</p>
               
               <button 
-                onClick={handleWhatsAppConnect}
+                onClick={handleConnectWhatsApp}
                 className="w-full px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-95 text-center mb-3 block"
               >
                 Connect WhatsApp Business
@@ -338,7 +276,7 @@ export default function Dashboard() {
             <p className="font-bold text-sm">Connection Failed</p>
             <p className="text-xs mt-1">{error}</p>
             <button 
-              onClick={handleFBLogin}
+              onClick={handleConnectWhatsApp}
               className="mt-3 text-xs font-bold underline hover:no-underline"
             >
               Try Again
