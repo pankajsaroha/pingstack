@@ -88,6 +88,34 @@ export default function Dashboard() {
     });
   };
 
+  const handleReDiscover = async () => {
+    setIsDiscovering(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/whatsapp/meta/exchange-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reDiscover: true })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowGuidedFallback(false);
+        fetchTenant();
+      } else {
+        if (data.error === 'NO_WABA_FOUND' || data.error === 'NO_PHONE_FOUND') {
+          // Still missing, stay on fallback
+          setError('We still couldn\'t find your WhatsApp Business details. Please ensure you\'ve finished the setup on Meta.');
+        } else {
+          setError(data.message || 'Failed to re-discover account.');
+        }
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   const connectMetaAccount = async (accessToken: string) => {
     setIsDiscovering(true);
     setError(null);
@@ -106,8 +134,6 @@ export default function Dashboard() {
       } else {
         if (data.error === 'NO_WABA_FOUND' || data.error === 'NO_PHONE_FOUND') {
           setShowGuidedFallback(true);
-          // Store token in state to allow retry without re-login if needed
-          // Or just let user click retest
         } else {
           setError(data.message || 'Failed to connect Meta account.');
         }
@@ -126,7 +152,7 @@ export default function Dashboard() {
 
   const whatsappAccount = tenant?.whatsapp_account;
   const isConnected = whatsappAccount?.status === 'ACTIVE';
-  const isConnecting = connecting || isDiscovering || whatsappAccount?.status === 'PENDING';
+  const isConnecting = connecting || isDiscovering || (whatsappAccount?.status === 'PENDING_SETUP' && !showGuidedFallback);
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -145,7 +171,7 @@ export default function Dashboard() {
         )}
       </div>
       
-      {!isConnected && !isConnecting && !showGuidedFallback && (
+      {!isConnected && !isConnecting && !showGuidedFallback && whatsappAccount?.status !== 'PENDING_SETUP' && (
         <div className="mb-8 bg-blue-50/50 border border-blue-200 p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-sm">
           <div className="flex items-center mb-6 md:mb-0">
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mr-6 shadow-inner">
@@ -154,7 +180,7 @@ export default function Dashboard() {
             <div>
               <h3 className="text-xl font-bold text-gray-900 tracking-tight">Connect WhatsApp</h3>
               <p className="text-sm text-gray-600 mt-1 max-w-lg leading-relaxed">
-                Connect your WhatsApp Business account directly via Meta. Start sending campaigns from your own business number in seconds.
+                Don't worry if you don't have a Meta Business account yet—you can create one in the next step. We'll guide you through connecting your number directly to Meta's infrastructure.
               </p>
             </div>
           </div>
@@ -168,40 +194,63 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Guided Fallback Screen */}
-      {showGuidedFallback && (
-        <div className="mb-8 bg-amber-50 border border-amber-200 p-8 rounded-2xl shadow-sm animate-in slide-in-from-top-4 duration-500">
-          <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
-              <AlertCircle className="w-8 h-8" />
+      {/* Guided Fallback Screen (Detailed) */}
+      {(showGuidedFallback || whatsappAccount?.status === 'PENDING_SETUP') && !isConnected && !isConnecting && (
+        <div className="mb-8 bg-amber-50/50 border border-amber-200 p-10 rounded-2xl shadow-sm animate-in slide-in-from-top-4 duration-500">
+          <div className="flex flex-col lg:flex-row gap-10 items-start">
+            <div className="lg:w-2/3">
+              <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
+                <AlertCircle className="w-7 h-7" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900">Finish Setting Up WhatsApp</h3>
+              <p className="text-gray-600 mt-4 leading-relaxed">
+                Your Facebook account is connected, but you need to finalize your WhatsApp Business profile on Meta to start sending messages.
+              </p>
+              
+              <div className="mt-8 space-y-6">
+                <div className="flex items-start">
+                  <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-0.5">1</div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">Create a Business Account</h4>
+                    <p className="text-sm text-gray-500 mt-1">Visit the Meta Business Suite and create a profile for your business if you don't have one.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-0.5">2</div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">Add Your WhatsApp Number</h4>
+                    <p className="text-sm text-gray-500 mt-1">Link your business phone number to your WhatsApp Business Account.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-0.5">3</div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">Verify with OTP</h4>
+                    <p className="text-sm text-gray-500 mt-1">Meta will send a 6-digit code to verify your ownership. Takes about 2-3 minutes total.</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">Finish Setting Up WhatsApp</h3>
-            <p className="text-gray-600 mt-4 leading-relaxed">
-              We connected to your Facebook account, but your **WhatsApp Business Profile** isn't fully set up yet. You need to create a WhatsApp Business Account and add a verified phone number on Meta first.
-            </p>
-            
-            <div className="mt-8 flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
+
+            <div className="lg:w-1/3 bg-white p-6 rounded-2xl border border-amber-100 shadow-sm self-stretch flex flex-col justify-center">
+              <h4 className="font-bold text-gray-900 mb-4">Ready to test?</h4>
+              <p className="text-sm text-gray-500 mb-6">Once you've finished these steps on Meta, click below to link your account.</p>
+              
               <a 
-                href="https://developers.facebook.com/apps" 
+                href="https://business.facebook.com/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-95 w-full sm:w-auto"
+                className="w-full px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-95 text-center mb-3 block"
               >
-                Complete Setup on Meta
+                Go to Meta Business Suite
               </a>
               <button 
-                onClick={handleConnectWhatsApp}
-                className="px-8 py-3 bg-white border border-gray-200 text-gray-900 rounded-xl font-bold hover:bg-gray-50 transition-all active:scale-95 w-full sm:w-auto"
+                onClick={handleReDiscover}
+                className="w-full px-6 py-3 bg-white border border-gray-200 text-gray-900 rounded-xl font-bold hover:bg-gray-50 transition-all active:scale-95"
               >
                 I've Completed Setup
               </button>
             </div>
-            <button 
-              onClick={() => setShowGuidedFallback(false)}
-              className="mt-6 text-sm font-medium text-gray-400 hover:text-gray-600 underline"
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}
