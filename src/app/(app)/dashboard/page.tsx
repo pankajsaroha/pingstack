@@ -85,9 +85,7 @@ export default function Dashboard() {
       } else {
         setConnecting(false);
       }
-    }, {
-      scope: 'public_profile'
-    });
+    }); // No scope object here
   };
 
   const handleWhatsAppConnect = () => {
