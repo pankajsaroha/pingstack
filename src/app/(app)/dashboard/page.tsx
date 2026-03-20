@@ -86,7 +86,7 @@ export default function Dashboard() {
         setConnecting(false);
       }
     }, {
-      scope: 'public_profile,email'
+      scope: 'public_profile'
     });
   };
 
