@@ -71,22 +71,25 @@ export default function Dashboard() {
     setError(null);
     setShowGuidedFallback(false);
 
-    // Phase 1: Link identity using a neutral business scope to avoid the WhatsApp picker
+    // Phase 1: Use original stable scopes but only for linking
+    console.log('Initiating Phase 1 Login...');
     window.FB.login((response: any) => {
+      console.log('FB Phase 1 Response:', response);
       if (response.authResponse) {
         const accessToken = response.authResponse.accessToken;
         if (accessToken) {
-          // Store token immediately (Phase 1)
+          console.log('Got Phase 1 Access Token, storing...');
           connectMetaAccount(accessToken, true);
         } else {
           setConnecting(false);
           setError('Failed to get access token from Facebook.');
         }
       } else {
+        console.log('User cancelled or failed Phase 1');
         setConnecting(false);
       }
     }, {
-      scope: 'pages_show_list'
+      scope: 'whatsapp_business_management,whatsapp_business_messaging'
     });
   };
 
@@ -96,18 +99,21 @@ export default function Dashboard() {
     setIsDiscovering(true);
     setError(null);
 
-    // Phase 2: Request specific WhatsApp scopes
+    // Phase 2: Full discovery with same scopes
+    console.log('Initiating Phase 2 WhatsApp Connection...');
     window.FB.login((response: any) => {
+      console.log('FB Phase 2 Response:', response);
       if (response.authResponse) {
         const accessToken = response.authResponse.accessToken;
         if (accessToken) {
-          // Store and Discover
+          console.log('Got Phase 2 Access Token, starting discovery...');
           connectMetaAccount(accessToken, false);
         } else {
           setIsDiscovering(false);
           setError('Failed to get permissions from Facebook.');
         }
       } else {
+        console.log('User cancelled or failed Phase 2');
         setIsDiscovering(false);
       }
     }, {
