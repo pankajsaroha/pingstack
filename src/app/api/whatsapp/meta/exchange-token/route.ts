@@ -7,98 +7,88 @@ export async function POST(req: Request) {
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    console.log('--- Meta Token Exchange Start ---');
-    const { code } = await req.json();
-    if (!code) return NextResponse.json({ error: 'Code is required' }, { status: 400 });
-
+    const { code, accessToken } = await req.json();
     const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
     const appSecret = process.env.FB_APP_SECRET;
 
     if (!appId || !appSecret) {
-      console.error('Missing FB_APP_ID or FB_APP_SECRET');
-      return NextResponse.json({ error: 'Server configuration error (Meta keys missing)' }, { status: 500 });
+      return NextResponse.json({ error: 'Meta App credentials not configured' }, { status: 500 });
     }
 
-    // 1. Exchange code for access token
-    console.log('Step 1: Exchanging code for access token...');
-    const tokenRes = await fetch(
-      `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&code=${code}`
-    );
-    const tokenData = await tokenRes.json();
+    let finalToken = accessToken;
 
-    if (!tokenRes.ok) {
-      console.error('Token exchange failed:', tokenData.error);
-      return NextResponse.json({ error: tokenData.error?.message || 'Failed to exchange token' }, { status: 500 });
+    // 1. Exchange for long-lived token if necessary
+    console.log('Exchanging/Refreshing Meta token...');
+    const exchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${accessToken || code}`;
+    const exchangeRes = await fetch(exchangeUrl);
+    const exchangeData = await exchangeRes.json();
+
+    if (exchangeData.access_token) {
+      finalToken = exchangeData.access_token;
+      console.log('Long-lived token acquired');
     }
 
-    const accessToken = tokenData.access_token;
-    console.log('Token received successfully.');
-
-    // 2. Fetch Debug Token 
-    console.log('Step 2: verifying token via debug_token...');
-    const debugRes = await fetch(
-      `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`
-    );
-    const debugData = await debugRes.json();
-
-    if (!debugRes.ok || !debugData.data) {
-      console.error('Debug token failed:', debugData.error);
-      return NextResponse.json({ error: 'Failed to verify token' }, { status: 500 });
-    }
-
-    // 3. Fetch WABA
-    console.log('Step 3: Fetching WhatsApp Business Accounts...');
-    const wabaRes = await fetch(
-      `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?access_token=${accessToken}`
-    );
+    // 2. Discover WABAs
+    console.log('Discovering WhatsApp Business Accounts...');
+    const wabaRes = await fetch(`https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?access_token=${finalToken}`);
     const wabaData = await wabaRes.json();
-    
-    if (!wabaRes.ok || !wabaData.data || wabaData.data.length === 0) {
-      console.error('No WABA found or fetch failed:', wabaData.error || 'Empty');
-      return NextResponse.json({ error: 'No WhatsApp Business Account found' }, { status: 404 });
+
+    if (!wabaData.data || wabaData.data.length === 0) {
+      return NextResponse.json({ 
+        error: 'NO_WABA_FOUND', 
+        message: 'No WhatsApp Business Accounts found for this user.' 
+      }, { status: 404 });
     }
 
-    const businessId = wabaData.data[0].id;
-    console.log(`WABA found: ${businessId}`);
+    // 3. Discover Phone Numbers (Check first WABA)
+    const waba = wabaData.data[0];
+    const wabaId = waba.id;
+    console.log(`Found WABA: ${wabaId}. Discovering phone numbers...`);
 
-    // 4. Fetch Phone Number ID
-    console.log('Step 4: Fetching Phone Numbers...');
-    const phoneRes = await fetch(
-      `https://graph.facebook.com/v19.0/${businessId}/phone_numbers?access_token=${accessToken}`
-    );
+    const phoneRes = await fetch(`https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?access_token=${finalToken}`);
     const phoneData = await phoneRes.json();
 
-    if (!phoneRes.ok || !phoneData.data || phoneData.data.length === 0) {
-      console.error('No phone number found or fetch failed:', phoneData.error || 'Empty');
-      return NextResponse.json({ error: 'No phone number found' }, { status: 404 });
+    if (!phoneData.data || phoneData.data.length === 0) {
+      return NextResponse.json({ 
+        error: 'NO_PHONE_FOUND', 
+        message: 'No phone numbers found in your WhatsApp Business Account.' 
+      }, { status: 404 });
     }
 
-    const phoneNumberId = phoneData.data[0].id;
-    console.log(`Phone ID found: ${phoneNumberId}`);
+    // 4. Pickup first phone number
+    const phone = phoneData.data[0];
+    const phoneNumberId = phone.id;
+    const displayPhone = phone.display_phone_number;
 
-    // 5. Encrypt and store
-    console.log('Step 5: Encrypting and saving to DB...');
-    const encryptedToken = encrypt(accessToken);
+    console.log(`Discovered Phone ID: ${phoneNumberId} (${displayPhone})`);
 
-    const { error: upsertError } = await db.from('whatsapp_accounts').upsert({
+    // 5. Encrypt and save
+    const encryptedToken = encrypt(finalToken);
+
+    const { error: dbError } = await db.from('whatsapp_accounts').upsert({
       tenant_id: tenantId,
       provider: 'META',
-      business_id: businessId,
+      business_id: wabaId,
       phone_number_id: phoneNumberId,
       access_token: encryptedToken,
       status: 'ACTIVE',
       updated_at: new Date().toISOString()
-    }, { onConflict: 'phone_number_id' });
+    }, { onConflict: 'tenant_id' });
 
-    if (upsertError) {
-      console.error('DB Upsert error:', upsertError);
-      return NextResponse.json({ error: upsertError.message }, { status: 500 });
+    if (dbError) {
+      console.error('Database error:', dbError);
+      return NextResponse.json({ error: 'FAILED_TO_SAVE', message: dbError.message }, { status: 500 });
     }
 
-    console.log('--- Meta Token Exchange Success ---');
-    return NextResponse.json({ success: true, phoneNumberId });
+    return NextResponse.json({ 
+      success: true, 
+      wabaId, 
+      phoneNumberId, 
+      displayPhone 
+    });
+
   } catch (err: any) {
-    console.error('Token exchange error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Meta Exchange Error:', err);
+    return NextResponse.json({ error: 'INTERNAL_ERROR', message: err.message }, { status: 500 });
   }
 }

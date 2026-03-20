@@ -16,6 +16,12 @@ export default function Dashboard() {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [showGuidedFallback, setShowGuidedFallback] = useState(false);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+
+  // Feature Flag logic (ignoring old Gupshup/Embedded flag for now as we pivot)
+  const isMetaSignupEnabled = true; 
+
   useEffect(() => {
     fetchTenant();
     initFacebookSDK();
@@ -23,8 +29,6 @@ export default function Dashboard() {
 
   const initFacebookSDK = () => {
     const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
-    
-    // Function that actually performs the initialization
     const doInit = () => {
       if (window.FB && appId) {
         window.FB.init({
@@ -36,15 +40,10 @@ export default function Dashboard() {
         console.log('FB SDK initialized successfully');
       }
     };
-
     if (window.FB) {
-      // SDK already loaded, init directly
       doInit();
     } else {
-      // Wait for SDK to load
-      window.fbAsyncInit = function() {
-        doInit();
-      };
+      window.fbAsyncInit = function() { doInit(); };
     }
   };
 
@@ -70,48 +69,54 @@ export default function Dashboard() {
 
     setConnecting(true);
     setError(null);
+    setShowGuidedFallback(false);
 
     window.FB.login((response: any) => {
       if (response.authResponse) {
-        const code = response.authResponse.code;
-        if (code) {
-          exchangeToken(code);
+        const accessToken = response.authResponse.accessToken;
+        if (accessToken) {
+          connectMetaAccount(accessToken);
         } else {
-          // Fallback if code isn't directly in authResponse (depends on FB config)
-          // For Embedded Signup, we usually get a code.
           setConnecting(false);
-          setError('Failed to get authorization code from Meta.');
+          setError('Failed to get access token from Facebook.');
         }
       } else {
         setConnecting(false);
-        console.log('User cancelled login or did not fully authorize.');
       }
     }, {
-      scope: 'whatsapp_business_management,whatsapp_business_messaging',
-      extras: {
-        feature: 'whatsapp_embedded_signup'
-      }
+      scope: 'whatsapp_business_management,whatsapp_business_messaging'
     });
   };
 
-  const exchangeToken = async (code: string) => {
+  const connectMetaAccount = async (accessToken: string) => {
+    setIsDiscovering(true);
+    setError(null);
+    
     try {
       const res = await fetch('/api/whatsapp/meta/exchange-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ accessToken })
       });
       
       const data = await res.json();
       if (res.ok) {
+        setShowGuidedFallback(false);
         fetchTenant();
       } else {
-        setError(data.error || 'Failed to exchange token with Meta.');
+        if (data.error === 'NO_WABA_FOUND' || data.error === 'NO_PHONE_FOUND') {
+          setShowGuidedFallback(true);
+          // Store token in state to allow retry without re-login if needed
+          // Or just let user click retest
+        } else {
+          setError(data.message || 'Failed to connect Meta account.');
+        }
       }
     } catch (err: any) {
       setError(err.message);
     } finally {
       setConnecting(false);
+      setIsDiscovering(false);
     }
   };
 
@@ -121,7 +126,7 @@ export default function Dashboard() {
 
   const whatsappAccount = tenant?.whatsapp_account;
   const isConnected = whatsappAccount?.status === 'ACTIVE';
-  const isConnecting = connecting || whatsappAccount?.status === 'PENDING';
+  const isConnecting = connecting || isDiscovering || whatsappAccount?.status === 'PENDING';
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -131,23 +136,25 @@ export default function Dashboard() {
           <p className="text-gray-500 mt-1">Manage your native Meta WhatsApp Cloud integration.</p>
         </div>
         {isConnected && (
-          <div className="flex items-center px-4 py-2 bg-green-50 text-green-700 rounded-xl text-sm font-medium border border-green-200">
-            <CheckCircle2 className="w-4 h-4 mr-2" />
-            Meta API Connected
+          <div className="flex items-center space-x-3">
+             <div className="flex items-center px-4 py-2 bg-green-50 text-green-700 rounded-xl text-sm font-medium border border-green-200">
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              WhatsApp Connected
+            </div>
           </div>
         )}
       </div>
       
-      {!isConnected && !isConnecting && (
+      {!isConnected && !isConnecting && !showGuidedFallback && (
         <div className="mb-8 bg-blue-50/50 border border-blue-200 p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-sm">
           <div className="flex items-center mb-6 md:mb-0">
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mr-6 shadow-inner">
               <MessageCircle className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Connect WhatsApp via Meta</h3>
+              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Connect WhatsApp</h3>
               <p className="text-sm text-gray-600 mt-1 max-w-lg leading-relaxed">
-                PingStack now uses the native Meta WhatsApp Cloud API. Sign in with Facebook to immediately start sending messages from your business number.
+                Connect your WhatsApp Business account directly via Meta. Start sending campaigns from your own business number in seconds.
               </p>
             </div>
           </div>
@@ -156,21 +163,58 @@ export default function Dashboard() {
             disabled={connecting}
             className="px-8 py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 whitespace-nowrap flex items-center"
           >
-            {connecting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
-            Connect Now
+            Connect with Facebook
           </button>
         </div>
       )}
 
-      {isConnecting && (
-        <div className="mb-8 bg-gray-50 border border-gray-200 p-8 rounded-2xl flex items-center justify-between shadow-sm animate-pulse">
-           <div className="flex items-center">
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mr-4" />
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Connecting to Meta...</h3>
-              <p className="text-sm text-gray-500">Exchanging credentials and setting up your WhatsApp Business Account.</p>
+      {/* Guided Fallback Screen */}
+      {showGuidedFallback && (
+        <div className="mb-8 bg-amber-50 border border-amber-200 p-8 rounded-2xl shadow-sm animate-in slide-in-from-top-4 duration-500">
+          <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
+              <AlertCircle className="w-8 h-8" />
             </div>
+            <h3 className="text-2xl font-bold text-gray-900">Finish Setting Up WhatsApp</h3>
+            <p className="text-gray-600 mt-4 leading-relaxed">
+              We connected to your Facebook account, but your **WhatsApp Business Profile** isn't fully set up yet. You need to create a WhatsApp Business Account and add a verified phone number on Meta first.
+            </p>
+            
+            <div className="mt-8 flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
+              <a 
+                href="https://developers.facebook.com/apps" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-95 w-full sm:w-auto"
+              >
+                Complete Setup on Meta
+              </a>
+              <button 
+                onClick={handleConnectWhatsApp}
+                className="px-8 py-3 bg-white border border-gray-200 text-gray-900 rounded-xl font-bold hover:bg-gray-50 transition-all active:scale-95 w-full sm:w-auto"
+              >
+                I've Completed Setup
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowGuidedFallback(false)}
+              className="mt-6 text-sm font-medium text-gray-400 hover:text-gray-600 underline"
+            >
+              Cancel
+            </button>
           </div>
+        </div>
+      )}
+
+      {(connecting || isDiscovering) && (
+        <div className="mb-8 bg-white border border-gray-200 p-12 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm">
+           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-6" />
+           <h3 className="text-xl font-bold text-gray-900 tracking-tight">
+             {isDiscovering ? 'Discovering your account...' : 'Connecting to Meta...'}
+           </h3>
+           <p className="text-sm text-gray-500 mt-2 max-w-xs">
+             {isDiscovering ? 'We are searching for your WhatsApp Business Account and Phone Number on Meta.' : 'Opening Facebook authorization...'}
+           </p>
         </div>
       )}
 
@@ -204,7 +248,7 @@ export default function Dashboard() {
           <p className="mt-3 text-4xl font-bold text-gray-900">0</p>
         </div>
       </div>
-      
+
       <div className="mt-8 bg-white/80 backdrop-blur-md p-10 rounded-2xl border border-gray-200/60 shadow-[0_2px_10px_rgba(0,0,0,0.02)] min-h-[350px] flex flex-col items-center justify-center text-center">
         <div className="w-16 h-16 bg-gray-900 rounded-3xl flex items-center justify-center mb-6 shadow-xl rotate-3">
           <MessageCircle className="w-8 h-8 text-white" />
@@ -220,3 +264,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
