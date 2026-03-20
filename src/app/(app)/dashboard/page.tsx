@@ -71,7 +71,7 @@ export default function Dashboard() {
     setError(null);
     setShowGuidedFallback(false);
 
-    // Phase 1: Minimal scopes to ensure the popup closes quickly after "Continue"
+    // Phase 1: Use a single stable business scope to avoid the "At least one permission" error
     window.FB.login((response: any) => {
       if (response.authResponse) {
         const accessToken = response.authResponse.accessToken;
@@ -85,7 +85,9 @@ export default function Dashboard() {
       } else {
         setConnecting(false);
       }
-    }); // No scope object here
+    }, {
+      scope: 'whatsapp_business_messaging'
+    });
   };
 
   const handleWhatsAppConnect = () => {
