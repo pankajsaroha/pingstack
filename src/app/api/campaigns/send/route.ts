@@ -10,7 +10,12 @@ export async function POST(req: Request) {
   if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 });
 
   // 1. Get Campaign and Template
-  const { data: campaign, error: cErr } = await db.from('campaigns').select('*, templates(template_id)').eq('id', campaignId).eq('tenant_id', tenantId).single();
+  const { data: campaign, error: cErr } = await db.from('campaigns')
+    .select('*, templates(name, language)')
+    .eq('id', campaignId)
+    .eq('tenant_id', tenantId)
+    .single();
+
   if (cErr || !campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
 
   // 2. Gather unique contacts
@@ -47,7 +52,8 @@ export async function POST(req: Request) {
     data: {
       messageId: m.id,
       phone: m.phone_number,
-      templateId: campaign.templates.template_id,
+      templateId: (campaign.templates as any).name,
+      templateLanguage: (campaign.templates as any).language || 'en_US',
       params: []
     }
   }));

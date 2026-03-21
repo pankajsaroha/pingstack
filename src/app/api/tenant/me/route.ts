@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   
   // Get WhatsApp account info
   const { data: whatsappAccount, error: wError } = await db.from('whatsapp_accounts')
-    .select('id, provider, status, phone_number_id')
+    .select('id, provider, status, phone_number_id, business_id')
     .eq('tenant_id', tenantId)
     .single();
 

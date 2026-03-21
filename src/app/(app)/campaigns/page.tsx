@@ -169,9 +169,16 @@ export default function Campaigns() {
                     onChange={e => setFormData({ ...formData, template_id: e.target.value })}
                   >
                     <option value="">Select a template...</option>
-                    {templates.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                    {templates.filter(t => t.status === 'APPROVED').map(t => (
+                      <option key={t.id} value={t.id}>{t.name} (Approved)</option>
                     ))}
+                    {templates.filter(t => t.status !== 'APPROVED').length > 0 && (
+                      <optgroup label="Pending/Rejected (Not Selectable)">
+                        {templates.filter(t => t.status !== 'APPROVED').map(t => (
+                          <option key={t.id} value="" disabled>{t.name} ({t.status})</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
                 <div>
