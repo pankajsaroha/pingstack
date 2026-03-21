@@ -38,12 +38,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  const response = NextResponse.next();
-  response.headers.set('x-tenant-id', payload.tenantId);
-  response.headers.set('x-user-id', payload.userId);
-  response.headers.set('x-user-role', payload.role);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-tenant-id', payload.tenantId);
+  requestHeaders.set('x-user-id', payload.userId);
+  requestHeaders.set('x-user-role', payload.role);
 
-  return response;
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {

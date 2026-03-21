@@ -32,33 +32,58 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unsupported file format. Please upload CSV or Excel.' }, { status: 400 });
     }
 
-    const contactsToInsert = records.map((record: any) => ({
+    const contactsToProcess = records.map((record: any) => ({
       tenant_id: tenantId,
       name: record.name || record.Name || null,
-      phone_number: String(record.phone || record.phone_number || record.Phone || record.PhoneNumber || '')
+      phone_number: String(record.phone || record.phone_number || record.Phone || record.PhoneNumber || '').replace(/[\s\-\(\)]/g, '')
     })).filter((c: any) => c.phone_number && c.phone_number.trim() !== '');
 
-    if (contactsToInsert.length === 0) {
+    if (contactsToProcess.length === 0) {
       return NextResponse.json({ error: 'No valid contacts found in file' }, { status: 400 });
     }
 
-    const { data: contacts, error } = await db.from('contacts')
-      .upsert(contactsToInsert, { onConflict: 'tenant_id,phone_number' })
-      .select('id');
+    // Step 1: Collect ALL unique phone numbers from this import
+    const importedPhones = Array.from(new Set(contactsToProcess.map((c: any) => c.phone_number)));
 
-    if (error) throw error;
+    // Step 2: Fetch existing contacts to see which ones to skip for insertion
+    const { data: existingContacts } = await db
+      .from('contacts')
+      .select('phone_number')
+      .eq('tenant_id', tenantId)
+      .in('phone_number', importedPhones);
 
-    if (groupId && contacts) {
-      const groupContacts = contacts.map(c => ({
-        tenant_id: tenantId,
-        group_id: groupId,
-        contact_id: c.id
-      }));
-      await db.from('group_contacts').upsert(groupContacts, { onConflict: 'group_id,contact_id' });
+    const existingPhonesSet = new Set(existingContacts?.map((c: any) => c.phone_number) || []);
+    const newContacts = contactsToProcess.filter((c: any) => !existingPhonesSet.has(c.phone_number));
+
+    // Unique check within the file for new contacts
+    const finalNewContacts = Array.from(new Map(newContacts.map((c: any) => [c.phone_number, c])).values());
+
+    if (finalNewContacts.length > 0) {
+      const { error: insertError } = await db.from('contacts').insert(finalNewContacts);
+      if (insertError) throw insertError;
     }
 
-    return NextResponse.json({ message: `Successfully uploaded ${contacts?.length || 0} contacts` });
+    // Step 3: Handle Group Assignment for ALL imported contacts (new + existing)
+    if (groupId) {
+      const { data: allMatchedContacts } = await db
+        .from('contacts')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .in('phone_number', importedPhones);
+
+      if (allMatchedContacts && allMatchedContacts.length > 0) {
+        const groupContacts = allMatchedContacts.map((c: any) => ({
+          tenant_id: tenantId,
+          group_id: groupId,
+          contact_id: c.id
+        }));
+        await db.from('group_contacts').upsert(groupContacts, { onConflict: 'group_id,contact_id' });
+      }
+    }
+
+    return NextResponse.json({ message: `Successfully processed ${importedPhones.length} contacts` });
   } catch (err: any) {
+    console.error('CSV Upload Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

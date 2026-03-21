@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Plus, Search, Send, Trash2 } from 'lucide-react';
+import { Upload, Plus, Search, Send, Trash2, Loader2, Globe } from 'lucide-react';
+import Script from 'next/script';
 
 export default function Contacts() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -44,6 +46,45 @@ export default function Contacts() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleGoogleImport = () => {
+    if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+      alert('Google Client ID not configured');
+      return;
+    }
+
+    const client = (window as any).google.accounts.oauth2.initTokenClient({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/contacts.readonly',
+      callback: async (response: any) => {
+        if (response.error) {
+          console.error(response);
+          return;
+        }
+
+        setIsImporting(true);
+        try {
+          const res = await fetch('/api/contacts/import/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: response.access_token })
+          });
+          const data = await res.json();
+          if (data.success) {
+            alert(`Successfully imported ${data.count} contacts!`);
+            fetchContacts();
+          } else {
+            alert(data.error || 'Import failed');
+          }
+        } catch (e) {
+          alert('Google import failed');
+        } finally {
+          setIsImporting(false);
+        }
+      },
+    });
+    client.requestAccessToken();
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,14 +230,28 @@ export default function Contacts() {
             </>
           )}
           <input 
+            id="file-upload"
             type="file" 
-            accept=".csv, .xlsx, .xls" 
+            accept=".csv,.xlsx" 
             className="hidden" 
-            ref={fileInputRef} 
             onChange={handleFileUpload} 
           />
           <button 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleGoogleImport}
+            disabled={isImporting}
+            className="px-6 py-3 bg-white border border-gray-100 rounded-2xl font-black text-xs text-gray-700 hover:bg-gray-50 transition-all shadow-xl active:scale-95 flex items-center justify-center min-w-[160px]"
+          >
+            {isImporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Globe className="w-4 h-4 mr-2 text-blue-500" />
+                Import from Google
+              </>
+            )}
+          </button>
+          <button 
+            onClick={() => document.getElementById('file-upload')?.click()}
             disabled={uploading}
             className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-colors"
           >
@@ -353,6 +408,7 @@ export default function Contacts() {
           </div>
         </div>
       )}
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
     </div>
   );
 }

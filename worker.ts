@@ -4,22 +4,26 @@ import { sendMetaTemplateMessage, sendMetaTextMessage } from './src/lib/whatsapp
 import { sendWhatsAppMessage, sendWhatsAppTextMessage } from './src/lib/gupshup';
 import { db } from './src/lib/db';
 import { decrypt } from './src/lib/encryption';
-import dotenv from 'dotenv';
-
-dotenv.config({ path: '.env.local' });
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
 });
 
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('❌ CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing. Check .env.local path.');
+}
+
 const worker = new Worker('message-queue', async (job: Job) => {
   const { messageId, phone, templateId, templateLanguage, components, isDirectText, textContent } = job.data;
 
   console.log(`Fetching WhatsApp credentials for message ${messageId}...`);
   
-  const { data: message } = await db.from('messages').select('tenant_id').eq('id', messageId).single();
-  if (!message) throw new Error('Message not found');
+  const { data: message, error: dbError } = await db.from('messages').select('tenant_id').eq('id', messageId).single();
+  if (dbError || !message) {
+    console.error(`❌ DB Error fetching message ${messageId}:`, dbError);
+    throw new Error('Message not found or RLS denial');
+  }
 
   const { data: whatsappAccount } = await db.from('whatsapp_accounts')
     .select('*')

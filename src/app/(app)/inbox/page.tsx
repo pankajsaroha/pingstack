@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, User, Clock, CheckCircle2, MessageCircle, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Inbox() {
@@ -12,6 +12,7 @@ export default function Inbox() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +103,57 @@ export default function Inbox() {
       console.error(err);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedMessageIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedMessageIds.size} messages?`)) return;
+
+    try {
+      const res = await fetch('/api/messages/bulk-delete', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || '' 
+        },
+        body: JSON.stringify({ ids: Array.from(selectedMessageIds) })
+      });
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => !selectedMessageIds.has(m.id)));
+        setSelectedMessageIds(new Set());
+      } else {
+        alert('Failed to delete messages');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting messages');
+    }
+  };
+
+  const toggleMessageSelection = (id: string) => {
+    const next = new Set(selectedMessageIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedMessageIds(next);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Are you sure you want to delete this message?')) return;
+
+    try {
+      const res = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: { 'x-tenant-id': tenant?.id || '' }
+      });
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      } else {
+        alert('Failed to delete message');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting message');
     }
   };
 
@@ -234,6 +286,25 @@ export default function Inbox() {
                   <p className="text-[10px] text-gray-400 font-black tracking-widest uppercase">WhatsApp ID: {activeConversation.contact.phone_number}</p>
                 </div>
               </div>
+              
+              {selectedMessageIds.size > 0 && (
+                <div className="flex items-center space-x-3">
+                  <span className="text-xs font-bold text-gray-500">{selectedMessageIds.size} selected</span>
+                  <button 
+                    onClick={() => setSelectedMessageIds(new Set())}
+                    className="text-xs font-bold text-gray-500 hover:text-gray-900"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleBulkDelete}
+                    className="flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1.5" />
+                    Delete Selected
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Messages Area */}
@@ -245,8 +316,27 @@ export default function Inbox() {
               ) : (
                 messages.map((msg) => {
                   const isOutbound = msg.direction === 'outbound';
+                  const isSelected = selectedMessageIds.has(msg.id);
                   return (
-                    <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
+                    <div key={msg.id} className={`flex group items-center ${isOutbound ? 'justify-end' : 'justify-start'}`}>
+                      {/* Selection Checkbox */}
+                      <div className={`mr-2 transition-all ${selectedMessageIds.size > 0 || isSelected ? 'opacity-100 w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-6 overflow-hidden'}`}>
+                         <input 
+                          type="checkbox" 
+                          checked={isSelected}
+                          onChange={() => toggleMessageSelection(msg.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
+                         />
+                      </div>
+
+                      {!isOutbound && (
+                        <button 
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-opacity self-center mr-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                       <div className={`max-w-[70%] sm:max-w-[60%] rounded-2xl px-4 py-3 shadow-sm relative ${
                         isOutbound 
                           ? 'bg-gray-900 text-white rounded-br-sm' 
@@ -256,14 +346,24 @@ export default function Inbox() {
                         <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-gray-400' : 'text-gray-400'}`}>
                           <span className="text-[9px] font-bold uppercase">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           {isOutbound && (
-                            <span className="ml-1 flex items-center scale-75 origin-right">
-                              {msg.status === 'pending' && <Clock className="w-3 h-3" />}
-                              {msg.status === 'sent' && <CheckCircle2 className="w-3 h-3 text-gray-400" />}
-                              {(msg.status === 'delivered' || msg.status === 'read') && <CheckCircle2 className="w-3 h-3 text-blue-400" />}
+                            <span className="ml-1 flex items-center">
+                              {msg.status === 'pending' && <Clock className="w-3 h-3 text-gray-400" />}
+                              {msg.status === 'sent' && <Check className="w-3.5 h-3.5 text-gray-400" />}
+                              {msg.status === 'delivered' && <CheckCheck className="w-3.5 h-3.5 text-gray-400" />}
+                              {msg.status === 'read' && <CheckCheck className="w-3.5 h-3.5 text-blue-400" />}
+                              {msg.status === 'failed' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
                             </span>
                           )}
                         </div>
                       </div>
+                      {isOutbound && (
+                        <button 
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-opacity self-center ml-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   );
                 })

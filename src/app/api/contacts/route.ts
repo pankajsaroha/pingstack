@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { checkLimit } from '@/lib/limits';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -14,15 +15,41 @@ export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { name, phone_number } = await req.json();
-  if (!phone_number) return NextResponse.json({ error: 'Phone number required' }, { status: 400 });
+  try {
+    const body = await req.json();
+    const { name, phone_number } = body;
 
-  const { data, error } = await db.from('contacts')
-    .insert({ tenant_id: tenantId, name, phone_number })
-    .select().single();
+    if (!phone_number) {
+      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+    }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json(data);
+    const canAddContact = await checkLimit(tenantId, 'contacts');
+    if (!canAddContact) {
+      return NextResponse.json({ error: 'Upgrade to continue. You have reached your contacts limit.' }, { status: 403 });
+    }
+
+    const { data, error } = await db.from('contacts')
+      .insert({ 
+        tenant_id: tenantId, 
+        name: name || null, 
+        phone_number 
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Add contact error:', error);
+      return NextResponse.json({ 
+        error: error.message,
+        code: error.code 
+      }, { status: 400 });
+    }
+
+    return NextResponse.json(data);
+  } catch (err: any) {
+    console.error('Contact processing error:', err);
+    return NextResponse.json({ error: 'Invalid request body or processing error' }, { status: 400 });
+  }
 }
 
 export async function DELETE(req: Request) {
