@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Inbox() {
@@ -13,6 +13,7 @@ export default function Inbox() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -216,8 +217,8 @@ export default function Inbox() {
   return (
     <div className="h-[calc(100vh-6rem)] flex bg-white/80 backdrop-blur-md rounded-2xl border border-gray-200/60 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden -mx-2 sm:mx-0">
       
-      {/* Conversations Sidebar */}
-      <div className="w-1/3 flex flex-col border-r border-gray-200/60 bg-gray-50/30">
+      {/* Conversations Sidebar (Master List) */}
+      <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-gray-200/60 bg-gray-50/30`}>
         <div className="p-4 border-b border-gray-200/60 flex items-center justify-between">
           <h2 className="text-xl font-bold tracking-tight text-gray-900">Inbox</h2>
           <div className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
@@ -238,7 +239,10 @@ export default function Inbox() {
                 return (
                    <div 
                    key={conv.contact.id}
-                   onClick={() => setActiveContactId(conv.contact.id)}
+                   onClick={() => {
+                      setActiveContactId(conv.contact.id);
+                      setShowChatOnMobile(true);
+                    }}
                    className={`p-4 border-b border-gray-100 cursor-pointer transition-colors relative ${
                      isActive ? 'bg-white shadow-sm ring-1 ring-black/5 z-10' : 'hover:bg-gray-50'
                    }`}
@@ -271,19 +275,25 @@ export default function Inbox() {
         </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-[#Fefefe] relative">
+      {/* Chat Area (Detail View) */}
+      <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-[#Fefefe] relative`}>
         {activeContactId && activeConversation ? (
           <>
             {/* Chat Header */}
-            <div className="h-16 px-6 border-b border-gray-200/60 flex items-center bg-white/90 backdrop-blur-md z-10 sticky top-0 justify-between">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center mr-3 shadow-lg">
+            <div className="h-16 px-4 sm:px-6 border-b border-gray-200/60 flex items-center bg-white/90 backdrop-blur-md z-10 sticky top-0 justify-between">
+              <div className="flex items-center min-w-0">
+                <button 
+                  onClick={() => setShowChatOnMobile(false)}
+                  className="md:hidden p-2 -ml-2 mr-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-500" />
+                </button>
+                <div className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center mr-3 shadow-lg shrink-0">
                   <User className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="font-black text-gray-900 tracking-tight">{activeConversation.contact.name || 'External Contact'}</h3>
-                  <p className="text-[10px] text-gray-400 font-black tracking-widest uppercase">WhatsApp ID: {activeConversation.contact.phone_number}</p>
+                <div className="truncate">
+                  <h3 className="font-black text-gray-900 tracking-tight truncate">{activeConversation.contact.name || 'External Contact'}</h3>
+                  <p className="text-[10px] text-gray-400 font-black tracking-widest uppercase truncate">WA: {activeConversation.contact.phone_number}</p>
                 </div>
               </div>
               

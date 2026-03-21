@@ -207,28 +207,59 @@ export default function Contacts() {
   const isAllSelected = contacts.length > 0 && selectedIds.size === contacts.length;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Contacts</h1>
-        <div className="flex space-x-3">
+    <div className="pb-10">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <h1 className="text-3xl font-black tracking-tight text-gray-900 ring-offset-4">Contacts</h1>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {selectedIds.size > 0 && (
-            <>
+            <div className="flex gap-2 w-full sm:w-auto">
               <button 
                 onClick={handleDeleteSelected}
-                className="flex items-center px-4 py-2 border border-red-200 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-200 rounded-2xl shadow-sm text-xs font-black text-red-700 bg-red-50 hover:bg-red-100 transition-all active:scale-95"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected
+                <span className="sm:hidden">Delete</span>
+                <span className="hidden sm:inline">Delete Selected</span>
               </button>
               <button 
                 onClick={() => setShowSendModal(true)}
-                className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-transparent rounded-2xl shadow-sm text-xs font-black text-white bg-blue-600 hover:bg-blue-700 transition-all active:scale-95"
               >
                 <Send className="mr-2 h-4 w-4" />
-                Send Message ({selectedIds.size})
+                <span className="sm:hidden">Send ({selectedIds.size})</span>
+                <span className="hidden sm:inline">Send Message ({selectedIds.size})</span>
               </button>
-            </>
+            </div>
           )}
+          
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-transparent rounded-2xl shadow-lg text-xs font-black text-white bg-gray-900 hover:bg-black transition-all active:scale-95"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add
+            </button>
+            
+            <button 
+              onClick={handleGoogleImport}
+              disabled={isImporting}
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-white border border-gray-100 rounded-2xl font-black text-[10px] sm:text-xs text-gray-700 hover:bg-gray-50 transition-all shadow-md active:scale-95 uppercase tracking-wider"
+            >
+              {isImporting ? <Loader2 className="w-4 h-4 animate-spin text-blue-500" /> : <Globe className="w-4 h-4 mr-2 text-blue-500" />}
+              Google
+            </button>
+
+            <button 
+              onClick={() => document.getElementById('file-upload')?.click()}
+              disabled={uploading}
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-white border border-gray-100 rounded-2xl font-black text-[10px] sm:text-xs text-gray-700 hover:bg-gray-50 transition-all shadow-md active:scale-95 uppercase tracking-wider"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin text-green-500" /> : <Upload className="w-4 h-4 mr-2 text-green-500" />}
+              File
+            </button>
+          </div>
+
           <input 
             id="file-upload"
             type="file" 
@@ -236,35 +267,6 @@ export default function Contacts() {
             className="hidden" 
             onChange={handleFileUpload} 
           />
-          <button 
-            onClick={handleGoogleImport}
-            disabled={isImporting}
-            className="px-6 py-3 bg-white border border-gray-100 rounded-2xl font-black text-xs text-gray-700 hover:bg-gray-50 transition-all shadow-xl active:scale-95 flex items-center justify-center min-w-[160px]"
-          >
-            {isImporting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <Globe className="w-4 h-4 mr-2 text-blue-500" />
-                Import from Google
-              </>
-            )}
-          </button>
-          <button 
-            onClick={() => document.getElementById('file-upload')?.click()}
-            disabled={uploading}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-colors"
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {uploading ? 'Uploading...' : 'Import File'}
-          </button>
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 transition-colors"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Contact
-          </button>
         </div>
       </div>
 
@@ -283,44 +285,84 @@ export default function Contacts() {
         </div>
         
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading contacts...</div>
+          <div className="p-20 text-center flex flex-col items-center justify-center grayscale opacity-50">
+             <Loader2 className="w-8 h-8 animate-spin mb-4" />
+             <p className="text-xs font-black uppercase tracking-widest text-gray-500">Syncing your contacts library...</p>
+          </div>
         ) : contacts.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No contacts found. Import an Excel/CSV file or add one manually to get started.</div>
+          <div className="p-20 text-center flex flex-col items-center justify-center opacity-50">
+             <Globe className="w-12 h-12 text-gray-200 mb-4" />
+             <p className="text-sm font-bold text-gray-500">No contacts found</p>
+             <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">Import an Excel/CSV file or connect Google Contacts to get started.</p>
+          </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200/60">
-            <thead className="bg-gray-50/80">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left w-12">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={toggleAll}
-                    className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
-                  />
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added On</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200/60">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200/60">
+                <thead className="bg-gray-50/80">
+                  <tr>
+                    <th scope="col" className="px-6 py-4 text-left w-12">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        onChange={toggleAll}
+                        className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                      />
+                    </th>
+                    <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                    <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Phone Number</th>
+                    <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Added On</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100/60">
+                  {contacts.map((contact) => (
+                    <tr key={contact.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap w-12 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(contact.id)}
+                          onChange={() => toggleSelection(contact.id)}
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer transition-transform active:scale-90"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm font-bold text-gray-900">{contact.name || 'Anonymous'}</p>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-400 font-mono tracking-tight">{contact.phone_number}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs font-black text-gray-300 uppercase tracking-tight">{new Date(contact.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="sm:hidden divide-y divide-gray-100">
               {contacts.map((contact) => (
-                <tr key={contact.id} className="hover:bg-gray-50/80 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap w-12 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(contact.id)}
-                      onChange={() => toggleSelection(contact.id)}
-                      className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{contact.name || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{contact.phone_number}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(contact.created_at).toLocaleDateString()}</td>
-                </tr>
+                <div 
+                  key={contact.id} 
+                  onClick={() => toggleSelection(contact.id)}
+                  className={`p-4 flex items-center justify-between active:bg-gray-50 transition-colors ${selectedIds.has(contact.id) ? 'bg-blue-50/30' : ''}`}
+                >
+                  <div className="flex items-center">
+                     <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-4 transition-colors ${
+                       selectedIds.has(contact.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'
+                     }`}>
+                        {selectedIds.has(contact.id) && <Plus className="w-3 h-3 text-white" />}
+                     </div>
+                     <div>
+                        <p className="font-bold text-gray-900 text-sm">{contact.name || 'No Name'}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-0.5">{contact.phone_number}</p>
+                     </div>
+                  </div>
+                  <span className="text-[9px] text-gray-300 font-black uppercase tracking-tight">
+                     {new Date(contact.created_at).toLocaleDateString([], {month: 'short', day: 'numeric'})}
+                  </span>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
 

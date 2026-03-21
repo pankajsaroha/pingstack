@@ -4,7 +4,10 @@ import { checkLimit } from '@/lib/limits';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!tenantId || tenantId === 'undefined') {
+    console.error('API GET contacts: Missing or invalid x-tenant-id');
+    return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
+  }
 
   const { data, error } = await db.from('contacts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -13,7 +16,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!tenantId || tenantId === 'undefined') {
+    console.error('API POST contacts: Missing or invalid x-tenant-id');
+    return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
+  }
 
   try {
     const body = await req.json();
@@ -47,14 +53,14 @@ export async function POST(req: Request) {
 
     return NextResponse.json(data);
   } catch (err: any) {
-    console.error('Contact processing error:', err);
-    return NextResponse.json({ error: 'Invalid request body or processing error' }, { status: 400 });
+    console.error('Contact processing error:', err, 'TenantID:', req.headers.get('x-tenant-id'));
+    return NextResponse.json({ error: err.message || 'Processing error' }, { status: 400 });
   }
 }
 
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!tenantId || tenantId === 'undefined') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const { ids } = await req.json();

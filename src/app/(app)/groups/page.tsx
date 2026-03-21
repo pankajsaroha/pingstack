@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Folder, Trash2, Upload, Globe, Loader2 } from 'lucide-react';
+import { Plus, Folder, Trash2, Upload, Globe, Loader2, X, ChevronLeft } from 'lucide-react';
 import Script from 'next/script';
 
 export default function Groups() {
@@ -347,7 +347,7 @@ export default function Groups() {
                     setShowDetailModal(true);
                     fetchGroupContacts(group.id);
                   }}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer hover:underline flex items-center"
+                  className="text-xs font-black text-blue-600 hover:text-blue-700 transition-colors cursor-pointer hover:underline flex items-center py-2 px-3 -mr-3 sm:mr-0 rounded-lg hover:bg-blue-50"
                 >
                   <Plus className="w-3 h-3 mr-1" />
                   Add Contacts
@@ -432,9 +432,9 @@ export default function Groups() {
 
       {/* Group Detail Modal */}
       {showDetailModal && activeGroup && (
-         <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden border border-gray-100">
-               <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+         <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 z-50">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden border border-gray-100">
+               <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                   <div>
                     <h2 className="text-2xl font-black text-gray-900 tracking-tight">{activeGroup.name}</h2>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Group Details & Contacts</p>
@@ -447,7 +447,7 @@ export default function Groups() {
                     }}
                     className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                   >
-                     <Trash2 className="w-5 h-5 text-gray-400" />
+                     <X className="w-5 h-5 text-gray-400" />
                   </button>
                </div>
                
@@ -503,7 +503,7 @@ export default function Groups() {
                     </div>
                   )}
                </div>
-                              <div className="p-6 border-t border-gray-100 flex justify-end">
+                              <div className="p-4 sm:p-6 border-t border-gray-100 flex justify-end">
                       <button 
                         onClick={() => {
                           setShowDetailModal(false);
@@ -511,7 +511,7 @@ export default function Groups() {
                           setActiveGroupId(null);
                           setSearchTerm('');
                         }}
-                        className="px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-xs hover:bg-black transition-all"
+                        className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-xs hover:bg-black transition-all"
                       >
                          Done
                       </button>

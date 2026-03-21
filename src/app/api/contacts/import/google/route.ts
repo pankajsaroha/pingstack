@@ -3,7 +3,10 @@ import { db } from '@/lib/db';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!tenantId || tenantId === 'undefined') {
+    console.error('API Google Import: Missing or invalid x-tenant-id');
+    return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
+  }
 
   try {
     const { access_token, groupId } = await req.json();
