@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCircle, X } from 'lucide-react';
+import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCircle, X, Sparkles } from 'lucide-react';
 
 const LANGUAGES = [
   { code: 'en_US', label: 'English (US)' },
@@ -13,6 +13,57 @@ const LANGUAGES = [
   { code: 'fr_FR', label: 'French' },
   { code: 'de_DE', label: 'German' },
   { code: 'id_ID', label: 'Indonesian' },
+];
+
+const SAMPLES = [
+  {
+    id: 'fee_en',
+    label: 'Fee Reminder (English)',
+    name: 'school_fee_reminder',
+    category: 'UTILITY',
+    language: 'en_US',
+    bodyText: 'Dear parent, this is a reminder regarding the pending school fee of {{1}} for {{2}}. Please clear it by {{3}} to avoid late charges. - {{4}}'
+  },
+  {
+    id: 'fee_hi',
+    label: 'Fee Reminder (Hindi)',
+    name: 'school_fee_hindi',
+    category: 'UTILITY',
+    language: 'hi_IN',
+    bodyText: 'नमस्ते, आपके बच्चे की स्कूल फीस {{1}}, {{2}} के लिए लंबित है। कृपया इसे {{3}} तक जमा करें। - {{4}}'
+  },
+  {
+    id: 'fee_mix',
+    label: 'Fee Reminder (Hinglish)',
+    name: 'school_fee_hinglish',
+    category: 'UTILITY',
+    language: 'hi_IN',
+    bodyText: 'Hello, aapke bache ki school fees {{1}} for {{2}} pending hai. Please isse {{3}} tak clear karein. Thank you - {{4}}'
+  },
+  {
+    id: 'exam_en',
+    label: 'Exam Schedule (English)',
+    name: 'exam_schedule_en',
+    category: 'UTILITY',
+    language: 'en_US',
+    bodyText: 'Important: The final examination for {{1}} starts from {{2}}. Schedule: {{3}}. Best of luck! - {{4}}'
+  },
+  {
+    id: 'exam_hi',
+    label: 'Exam Schedule (Hindi)',
+    name: 'exam_schedule_hi',
+    category: 'UTILITY',
+    language: 'hi_IN',
+    bodyText: 'महत्वपूर्ण: {{1}} की वार्षिक परीक्षा {{2}} से शुरू हो रही है। समय सारणी: {{3}}। शुभकामनाएँ! - {{4}}'
+  },
+  {
+    id: 'leave_en',
+    label: 'Leave Approval (English)',
+    name: 'leave_approval_en',
+    category: 'UTILITY',
+    language: 'en_US',
+    bodyText: 'Dear {{1}}, your leave request for {{2}} to {{3}} has been approved. - {{4}}'
+  }
 ];
 
 export default function Templates() {
@@ -218,6 +269,33 @@ export default function Templates() {
 
             <form onSubmit={handleCreateTemplate}>
               <div className="space-y-8 mb-10">
+                <div className="p-5 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-[2rem] border border-blue-100/50">
+                  <label className="flex items-center text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 px-1">
+                    <Sparkles className="w-3.5 h-3.5 mr-2" />
+                    Quick Start with Samples
+                  </label>
+                  <select
+                    className="block w-full rounded-2xl border border-white bg-white/80 px-5 py-4 text-sm font-bold shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer"
+                    onChange={(e) => {
+                      const sample = SAMPLES.find(s => s.id === e.target.value);
+                      if (sample) {
+                        setFormData({
+                          name: sample.name,
+                          category: sample.category,
+                          language: sample.language,
+                          bodyText: sample.bodyText
+                        });
+                      }
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select a sample to pre-fill...</option>
+                    {SAMPLES.map(sample => (
+                      <option key={sample.id} value={sample.id}>{sample.label}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Template Name</label>
                   <input
