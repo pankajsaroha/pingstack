@@ -60,6 +60,12 @@ export async function POST(req: Request) {
     const finalContacts = Array.from(new Map(newContacts.map((c: any) => [c.phone_number, c])).values());
 
     if (finalContacts.length > 0) {
+      const { checkLimit } = require('@/lib/limits');
+      const canAdd = await checkLimit(tenantId, 'contacts');
+      if (!canAdd) {
+        return NextResponse.json({ error: 'Contact limit reached for your plan. Upgrade to import more.' }, { status: 403 });
+      }
+      
       const { error: insertError } = await db.from('contacts').insert(finalContacts);
       if (insertError) throw insertError;
     }

@@ -15,6 +15,15 @@ declare global {
 export default function Dashboard() {
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    conversations: 0,
+    templatesApproved: 0,
+    inboundMessages: 0,
+    sent: 0,
+    delivered: 0,
+    read: 0,
+    failed: 0
+  });
   const [totalContacts, setTotalContacts] = useState(0);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +50,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTenant();
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/stats', {
+        headers: { 'x-tenant-id': tenant?.id }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (e) {
+      console.error('Stats fetch failed:', e);
+    }
+  };
 
   const fetchTenant = async () => {
     try {
@@ -374,16 +398,45 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {[
-          { label: 'Conversations', value: '0', color: 'blue' },
-          { label: 'Templates Approved', value: '0', color: 'green' },
-          { label: 'Inbound Messages', value: '0', color: 'amber' }
+          { label: 'Conversations', value: stats.conversations, color: 'blue' },
+          { label: 'Templates Approved', value: stats.templatesApproved, color: 'green' },
+          { label: 'Inbound Messages', value: stats.inboundMessages, color: 'amber' }
         ].map((stat, i) => (
-          <div key={i} className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all cursor-default">
+          <div key={i} className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all cursor-default relative overflow-hidden">
             <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">{stat.label}</h3>
             <p className="text-5xl font-black text-gray-900">{stat.value}</p>
           </div>
         ))}
       </div>
+
+      {stats.sent > 0 && (
+        <div className="mt-12 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-700">
+          <h3 className="text-xl font-black text-gray-900 mb-8 flex items-center">
+            <BarChart3 className="w-5 h-5 mr-3 text-blue-600" />
+            Delivery Performance
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Sent</span>
+               <span className="text-2xl font-black text-gray-900">{stats.sent}</span>
+            </div>
+            <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 transition-all hover:bg-blue-50">
+               <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-2">Delivered</span>
+               <span className="text-2xl font-black text-blue-800">{stats.delivered}</span>
+               <span className="text-[10px] font-bold text-blue-500 block mt-1">{Math.round((stats.delivered/stats.sent)*100)}% reach</span>
+            </div>
+            <div className="p-6 bg-green-50/50 rounded-2xl border border-green-100 transition-all hover:bg-green-50">
+               <span className="text-[10px] font-black text-green-600 uppercase tracking-widest block mb-2">Read</span>
+               <span className="text-2xl font-black text-green-800">{stats.read}</span>
+               <span className="text-[10px] font-bold text-green-500 block mt-1">{Math.round((stats.read/stats.delivered || 1)*100)}% engagement</span>
+            </div>
+            <div className="p-6 bg-red-50/50 rounded-2xl border border-red-100">
+               <span className="text-[10px] font-black text-red-600 uppercase tracking-widest block mb-2">Failed</span>
+               <span className="text-2xl font-black text-red-800">{stats.failed}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-12 bg-gray-900 p-12 rounded-[3rem] border border-gray-800 shadow-2xl shadow-blue-900/10 text-center relative overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent"></div>
