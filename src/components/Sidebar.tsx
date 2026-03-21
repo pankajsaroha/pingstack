@@ -46,7 +46,7 @@ export function Sidebar({
         
         <button 
           onClick={onToggleCollapse}
-          className={`p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors ${isCollapsed ? 'mt-4' : ''}`}
+          className={`hidden md:flex p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors ${isCollapsed ? 'mt-4' : ''}`}
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>

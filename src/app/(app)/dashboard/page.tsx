@@ -247,7 +247,7 @@ export default function Dashboard() {
       )}
 
       {/* Top Section: Always Visible (Plan & Usage) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 mb-12">
         {/* Plan & Usage Card */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-6">

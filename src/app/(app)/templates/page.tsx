@@ -6,7 +6,7 @@ import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCirc
 const LANGUAGES = [
   { code: 'en_US', label: 'English (US)' },
   { code: 'en_GB', label: 'English (UK)' },
-  { code: 'hi_IN', label: 'Hindi' },
+  { code: 'hi', label: 'Hindi' },
   { code: 'es_ES', label: 'Spanish' },
   { code: 'pt_BR', label: 'Portuguese (BR)' },
   { code: 'ar_SA', label: 'Arabic' },
@@ -22,23 +22,23 @@ const SAMPLES = [
     name: 'school_fee_reminder',
     category: 'UTILITY',
     language: 'en_US',
-    bodyText: 'Dear parent, this is a reminder regarding the pending school fee of {{1}} for {{2}}. Please clear it by {{3}} to avoid late charges. - {{4}}'
+    bodyText: 'Dear parent, this is a reminder regarding the pending school fee of {{1}} for your ward in {{2}}. Please clear the amount of {{3}} by {{4}} to avoid late charges. Best regards, School Office.'
   },
   {
     id: 'fee_hi',
     label: 'Fee Reminder (Hindi)',
     name: 'school_fee_hindi',
     category: 'UTILITY',
-    language: 'hi_IN',
-    bodyText: 'नमस्ते, आपके बच्चे की स्कूल फीस {{1}}, {{2}} के लिए लंबित है। कृपया इसे {{3}} तक जमा करें। - {{4}}'
+    language: 'hi',
+    bodyText: 'नमस्ते, आपके बच्चे की स्कूल फीस {{1}}, {{2}} के लिए लंबित है। कृपया {{3}} की राशि को {{4}} तक जमा करें ताकि विलंब शुल्क से बचा जा सके। धन्यवाद, स्कूल कार्यालय।'
   },
   {
     id: 'fee_mix',
     label: 'Fee Reminder (Hinglish)',
     name: 'school_fee_hinglish',
     category: 'UTILITY',
-    language: 'hi_IN',
-    bodyText: 'Hello, aapke bache ki school fees {{1}} for {{2}} pending hai. Please isse {{3}} tak clear karein. Thank you - {{4}}'
+    language: 'hi',
+    bodyText: 'Hello, aapke bache ki school fees {{1}} for {{2}} pending hai. Please {{3}} amount ko {{4}} tak clear karein to avoid late charges. Thank you, School Team.'
   },
   {
     id: 'exam_en',
@@ -46,15 +46,15 @@ const SAMPLES = [
     name: 'exam_schedule_en',
     category: 'UTILITY',
     language: 'en_US',
-    bodyText: 'Important: The final examination for {{1}} starts from {{2}}. Schedule: {{3}}. Best of luck! - {{4}}'
+    bodyText: 'Important: The final examination for {{1}} starts from {{2}}. Please refer to the schedule: {{3}}. Best of luck for your exams! - {{4}} Office.'
   },
   {
     id: 'exam_hi',
     label: 'Exam Schedule (Hindi)',
     name: 'exam_schedule_hi',
     category: 'UTILITY',
-    language: 'hi_IN',
-    bodyText: 'महत्वपूर्ण: {{1}} की वार्षिक परीक्षा {{2}} से शुरू हो रही है। समय सारणी: {{3}}। शुभकामनाएँ! - {{4}}'
+    language: 'hi',
+    bodyText: 'महत्वपूर्ण: {{1}} की वार्षिक परीक्षा {{2}} से शुरू हो रही है। समय सारणी: {{3}}। आपकी परीक्षाओं के लिए शुभकामनाएँ! - {{4}} कार्यालय।'
   },
   {
     id: 'leave_en',
@@ -62,7 +62,7 @@ const SAMPLES = [
     name: 'leave_approval_en',
     category: 'UTILITY',
     language: 'en_US',
-    bodyText: 'Dear {{1}}, your leave request for {{2}} to {{3}} has been approved. - {{4}}'
+    bodyText: 'Dear {{1}}, your leave request for {{2}} to {{3}} has been approved by {{4}}. Have a good day.'
   }
 ];
 
@@ -91,9 +91,14 @@ export default function Templates() {
       const url = sync ? '/api/whatsapp/meta/templates' : '/api/templates';
       const res = await fetch(url);
       const data = await res.json();
-      if (Array.isArray(data)) setTemplates(data);
-    } catch (e) {
+      if (res.ok) {
+        if (Array.isArray(data)) setTemplates(data);
+      } else {
+        alert(data.error || 'Failed to sync templates');
+      }
+    } catch (e: any) {
       console.error(e);
+      alert('Network error: ' + e.message);
     } finally {
       setLoading(false);
       setSyncing(false);
@@ -117,7 +122,10 @@ export default function Templates() {
         fetchTemplates(true); // Sync after creation
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to create template');
+        const msg = err.dbError 
+          ? `${err.error}\n\nDatabase Error: ${err.dbError.message || JSON.stringify(err.dbError)}`
+          : err.error || 'Failed to create template';
+        alert(msg);
       }
     } catch (e) {
       console.error(e);

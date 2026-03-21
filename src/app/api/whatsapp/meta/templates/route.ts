@@ -32,22 +32,50 @@ export async function GET(req: Request) {
     const metaData = await metaRes.json();
 
     if (metaData.error) {
-      return NextResponse.json({ error: metaData.error.message }, { status: 400 });
+      console.error('Meta message_templates GET failed:', metaData.error);
+      return NextResponse.json({
+        error: metaData.error.message || 'Meta API Error',
+        details: metaData.error
+      }, { status: 400 });
     }
 
     const metaTemplates = metaData.data || [];
 
-    // 3. Sync with local DB
-    // We update statuses for existing templates
+    // 3. Sync with local DB (Upsert)
     for (const mt of metaTemplates) {
-       await db.from('templates')
-         .update({ 
-           status: mt.status,
-           category: mt.category,
-           language: mt.language
-         })
-         .eq('tenant_id', tenantId)
-         .eq('name', mt.name);
+      const bodyComponent = mt.components?.find((c: any) => c.type === 'BODY');
+      const bodyText = bodyComponent?.text || '';
+
+      // Check if exists
+      const { data: existing } = await db
+        .from('templates')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('name', mt.name)
+        .maybeSingle();
+
+      if (existing) {
+        await db.from('templates')
+          .update({
+            status: mt.status,
+            category: mt.category,
+            language: mt.language,
+            content: bodyText,
+            template_id: mt.id
+          })
+          .eq('id', existing.id);
+      } else {
+        await db.from('templates')
+          .insert({
+            tenant_id: tenantId,
+            name: mt.name,
+            status: mt.status,
+            category: mt.category,
+            language: mt.language,
+            content: bodyText,
+            template_id: mt.id
+          });
+      }
     }
 
     // Return the updated templates from our DB
@@ -96,7 +124,7 @@ export async function POST(req: Request) {
     // 2. Call Meta API to create template
     // POST /v19.0/{WABA_ID}/message_templates
     const metaUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates`;
-    
+
     const metaResponse = await fetch(metaUrl, {
       method: 'POST',
       headers: {
@@ -140,7 +168,10 @@ export async function POST(req: Request) {
 
     if (dbError) {
       console.error('DB Store Template Error:', dbError);
-      return NextResponse.json({ error: 'Template created on Meta but failed to store locally.' }, { status: 500 });
+      return NextResponse.json({
+        error: 'Template created on Meta but failed to store locally.',
+        dbError: dbError
+      }, { status: 500 });
     }
 
     return NextResponse.json(template);
