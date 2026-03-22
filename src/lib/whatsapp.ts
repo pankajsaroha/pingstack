@@ -15,7 +15,7 @@ export const sendMetaWhatsAppMessage = async (
       },
       body: JSON.stringify({
         messaging_product: 'whatsapp',
-        to: to,
+        to: to.replace(/\D/g, ''), // NORMALIZE: Strip all non-digits (e.g., +, spaces)
         ...payload
       })
     });

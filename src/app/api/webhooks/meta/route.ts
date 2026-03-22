@@ -61,13 +61,16 @@ export async function POST(req: Request) {
               if (msgType === 'text') {
                 const textContext = msg.text.body;
 
+                // NORMALIZE: Meta sends 91..., but we might have stored +91...
+                const cleanPhone = fromPhone.replace(/^\+/, '');
+
                 // Find or create contact
                 let contactId;
                 const { data: existingContact } = await db.from('contacts')
                   .select('id')
+                  .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${cleanPhone}`)
                   .eq('tenant_id', tenantId)
-                  .eq('phone_number', fromPhone)
-                  .single();
+                  .maybeSingle();
 
                 if (existingContact) {
                   contactId = existingContact.id;

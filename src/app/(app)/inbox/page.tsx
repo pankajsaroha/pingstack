@@ -15,12 +15,13 @@ export default function Inbox() {
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialSelectionMade = useRef(false);
 
   useEffect(() => {
     fetchStatusAndData();
     const interval = setInterval(fetchStatusAndData, 5000); // 5s polling as requested
     return () => clearInterval(interval);
-  }, []);
+  }, []); // Only the interval uses this, data changes will handle selection
 
   useEffect(() => {
     if (activeContactId) {
@@ -50,8 +51,11 @@ export default function Inbox() {
           if (res.ok) {
             const data = await res.json();
             setConversations(data);
-            if (!activeContactId && data.length > 0) {
+            
+            // Only auto-select first conversation IF none is already selected AND it's the first load
+            if (!activeContactId && data.length > 0 && !initialSelectionMade.current) {
               setActiveContactId(data[0].contact.id);
+              initialSelectionMade.current = true;
             }
           }
         }
@@ -352,7 +356,7 @@ export default function Inbox() {
                           ? 'bg-gray-900 text-white rounded-br-sm' 
                           : 'bg-white border border-gray-200/60 text-gray-900 rounded-bl-sm'
                       }`}>
-                        <p className="text-[15px] whitespace-pre-wrap leading-relaxed">{msg.content || '[Media Message]'}</p>
+                        <p className="text-[15px] whitespace-pre-wrap leading-relaxed">{msg.content || '[Template Message]'}</p>
                         <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-gray-400' : 'text-gray-400'}`}>
                           <span className="text-[9px] font-bold uppercase">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           {isOutbound && (

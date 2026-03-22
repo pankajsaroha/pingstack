@@ -85,7 +85,14 @@ const worker = new Worker('message-queue', async (job: Job) => {
     if (resolvedTemplate) {
       templateId = (resolvedTemplate as any).name;
       templateLanguage = (resolvedTemplate as any).language || 'en_US';
+      const templateContent = (resolvedTemplate as any).content || '';
+      
       console.log(`[Worker] FINAL RESOLUTION for job: Name=${templateId}, Lang=${templateLanguage}`);
+      
+      // Update message with resolved content for Inbox display
+      if (templateContent) {
+        await db.from('messages').update({ content: templateContent }).eq('id', messageId);
+      }
     }
   }
 
