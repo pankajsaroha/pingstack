@@ -21,14 +21,36 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 // 1. Messaging Worker (Processes individual message jobs)
 // ---------------------------------------------------------
 const worker = new Worker('message-queue', async (job: Job) => {
-  const { messageId, phone, templateId, templateLanguage, components, isDirectText, textContent } = job.data;
+  const { messageId, phone, isDirectText, textContent, components } = job.data;
+  let { templateId, templateLanguage } = job.data;
 
   console.log(`[Worker] Processing message ${messageId} for ${phone}...`);
   
-  const { data: message, error: dbError } = await db.from('messages').select('tenant_id').eq('id', messageId).single();
+  // 1. Fetch message and its campaign/template context
+  const { data: message, error: dbError } = await db
+    .from('messages')
+    .select('tenant_id, campaign_id')
+    .eq('id', messageId)
+    .single();
+
   if (dbError || !message) {
     console.error(`❌ [Worker] DB Error fetching message ${messageId}:`, dbError);
     throw new Error('Message not found or RLS denial');
+  }
+
+  // 2. Resolve Template Name/Language from DB (Ensures we skip stale numeric IDs in retried jobs)
+  if (!isDirectText && message.campaign_id) {
+    const { data: campaign } = await db
+      .from('campaigns')
+      .select('templates(name, language)')
+      .eq('id', message.campaign_id)
+      .single();
+    
+    if (campaign?.templates) {
+      templateId = (campaign.templates as any).name;
+      templateLanguage = (campaign.templates as any).language || 'en_US';
+      console.log(`[Worker] Resolved template for job: ${templateId} (${templateLanguage})`);
+    }
   }
 
   const { data: whatsappAccount } = await db.from('whatsapp_accounts')
