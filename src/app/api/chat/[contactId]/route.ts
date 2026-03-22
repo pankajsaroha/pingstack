@@ -6,15 +6,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ contactI
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { contactId } = await params;
+  const { searchParams } = new URL(req.url);
+  const limit = parseInt(searchParams.get('limit') || '50');
+  const before = searchParams.get('before');
 
-  const { data, error } = await db.from('messages')
+  let query = db.from('messages')
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('contact_id', contactId)
-    .order('created_at', { ascending: true }); 
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
+  if (before) {
+    query = query.lt('created_at', before);
+  }
+
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  
+  // Return reversed to maintain chronological order in UI
+  return NextResponse.json(data?.reverse() || []);
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {

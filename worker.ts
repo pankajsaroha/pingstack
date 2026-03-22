@@ -274,25 +274,32 @@ cron.schedule('* * * * *', async () => {
 const backfillMissingContent = async () => {
   console.log('[Startup] Running content backfill for old messages...');
   try {
-    const { data: messages } = await db
+    const { data: messages, error: bError } = await db
       .from('messages')
       .select('id, tenant_id, campaign_id')
       .is('content', null)
       .eq('direction', 'outbound')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(100);
 
-    if (!messages || messages.length === 0) return;
+    if (bError) throw bError;
+    if (!messages || messages.length === 0) {
+      console.log('[Startup] No messages found for backfill.');
+      return;
+    }
 
+    console.log(`[Startup] Resolving content for ${messages.length} messages...`);
+    let count = 0;
     for (const msg of messages) {
        if (msg.campaign_id) {
-         const { data: campaign } = await db.from('campaigns').select('templates(content)').eq('id', msg.campaign_id).single();
+         const { data: campaign } = await db.from('campaigns').select('templates(content)').eq('id', msg.campaign_id).maybeSingle();
          if (campaign?.templates) {
             await db.from('messages').update({ content: (campaign.templates as any).content }).eq('id', msg.id);
+            count++;
          }
        }
     }
-    console.log(`✅ [Startup] Backfilled content for ${messages.length} messages.`);
+    console.log(`✅ [Startup] Backfilled content for ${count}/${messages.length} messages.`);
   } catch (err) {
     console.error('❌ [Startup] Backfill failed:', err);
   }

@@ -12,9 +12,12 @@ export default function Inbox() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const initialSelectionMade = useRef(false);
 
   useEffect(() => {
@@ -25,13 +28,17 @@ export default function Inbox() {
 
   useEffect(() => {
     if (activeContactId) {
+      setMessages([]);
+      setHasMore(true);
       fetchMessages(activeContactId);
     }
   }, [activeContactId]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!loadingMore) {
+        scrollToBottom();
+    }
+  }, [messages, loadingMore]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -67,15 +74,38 @@ export default function Inbox() {
     }
   };
 
-  const fetchMessages = async (contactId: string) => {
+  const fetchMessages = async (contactId: string, isLoadMore = false) => {
+    if (isLoadMore && (!hasMore || loadingMore)) return;
+
+    if (isLoadMore) setLoadingMore(true);
+    
     try {
-      const res = await fetch(`/api/chat/${contactId}`);
+      const before = isLoadMore && messages.length > 0 ? messages[0].created_at : '';
+      const url = `/api/chat/${contactId}?limit=30${before ? `&before=${before}` : ''}`;
+      
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data);
+        if (data.length < 30) setHasMore(false);
+        
+        if (isLoadMore) {
+          // Prepend messages
+          setMessages(prev => [...data, ...prev]);
+          // Maintain scroll position (simple version)
+        } else {
+          setMessages(data);
+        }
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop === 0 && hasMore && !loadingMore && messages.length > 0) {
+        fetchMessages(activeContactId!, true);
     }
   };
 
@@ -322,7 +352,15 @@ export default function Inbox() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5">
+            <div 
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto p-6 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5"
+            >
+              {loadingMore && (
+                <div className="flex justify-center p-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                </div>
+              )}
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-gray-400 text-sm">
                   Conversation initialized
