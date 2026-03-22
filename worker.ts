@@ -41,11 +41,16 @@ const worker = new Worker('message-queue', async (job: Job) => {
     .from('messages')
     .select('tenant_id, campaign_id')
     .eq('id', messageId)
-    .single();
+    .maybeSingle();
 
-  if (dbError || !message) {
+  if (dbError) {
     console.error(`❌ [Worker] DB Error fetching message ${messageId}:`, dbError);
-    throw new Error('Message not found or RLS denial');
+    throw new Error('Database error during message fetch');
+  }
+
+  if (!message) {
+    console.warn(`⚠️ [Worker] Message ${messageId} not found in DB. Skipping job ${job.id}.`);
+    return; // Complete job silently
   }
 
   // 2. Resolve Template Name/Language from DB (Ensures we skip stale numeric IDs in retried jobs)
@@ -209,17 +214,42 @@ cron.schedule('* * * * *', async () => {
         continue;
       }
 
-      const jobs = insertedMsgs.map(m => ({
-        name: 'send-whatsapp',
-        data: {
-          messageId: m.id,
-          phone: m.phone_number,
-          templateId: campaign.templates?.name, // Use 'name' for Meta Cloud API
-          templateLanguage: campaign.templates?.language || 'en_US',
-          params: [],
-          isDirectText: false
+      const jobs = validContacts.map(c => {
+        const msgRecord = insertedMsgs.find(im => im.phone_number === c.phone_number);
+        let renderedContent = campaign.templates?.content || '';
+        const params: any[] = [];
+
+        // Basic variable resolution: {{name}}
+        if (renderedContent.includes('{{name}}')) {
+          const nameValue = c.name || 'Customer';
+          renderedContent = renderedContent.replace(/{{name}}/g, nameValue);
+          params.push({ type: 'text', text: nameValue });
         }
-      }));
+
+        return {
+          name: 'send-whatsapp',
+          data: {
+            messageId: msgRecord?.id,
+            phone: c.phone_number,
+            templateId: campaign.templates?.name,
+            templateLanguage: campaign.templates?.language || 'en_US',
+            components: params.length > 0 ? [{ type: 'body', parameters: params }] : [],
+            isDirectText: false
+          }
+        };
+      });
+
+      // Update messages with rendered content for Inbox display
+      for (const contact of validContacts) {
+        let content = campaign.templates?.content || '';
+        if (content.includes('{{name}}')) {
+          content = content.replace(/{{name}}/g, contact.name || 'Customer');
+        }
+        const msgRecord = insertedMsgs.find(im => im.phone_number === contact.phone_number);
+        if (msgRecord) {
+          await db.from('messages').update({ content }).eq('id', msgRecord.id);
+        }
+      }
 
       await messageQueue.addBulk(jobs);
       
@@ -234,17 +264,40 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
-worker.on('completed', (job) => {
-  console.log(`[Worker] Job ${job.id} completed!`);
-});
-
-worker.on('failed', (job, err) => {
-  console.error(`❌ [Worker] Job ${job?.id} failed: ${err.message}`);
-});
-
 // ---------------------------------------------------------
-// 3. Startup Repair (Optional: Retry failed jobs on deploy)
+// 3. Startup Routines (Self-Healing & Backfill)
 // ---------------------------------------------------------
+
+/**
+ * Resolves and saves content for old messages that show [Template Message]
+ */
+const backfillMissingContent = async () => {
+  console.log('[Startup] Running content backfill for old messages...');
+  try {
+    const { data: messages } = await db
+      .from('messages')
+      .select('id, tenant_id, campaign_id')
+      .is('content', null)
+      .eq('direction', 'outbound')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (!messages || messages.length === 0) return;
+
+    for (const msg of messages) {
+       if (msg.campaign_id) {
+         const { data: campaign } = await db.from('campaigns').select('templates(content)').eq('id', msg.campaign_id).single();
+         if (campaign?.templates) {
+            await db.from('messages').update({ content: (campaign.templates as any).content }).eq('id', msg.id);
+         }
+       }
+    }
+    console.log(`✅ [Startup] Backfilled content for ${messages.length} messages.`);
+  } catch (err) {
+    console.error('❌ [Startup] Backfill failed:', err);
+  }
+};
+
 const retryFailedJobs = async () => {
   try {
     const failedJobs = await messageQueue.getFailed();
@@ -258,7 +311,11 @@ const retryFailedJobs = async () => {
   }
 };
 
-retryFailedJobs();
+// Start all routines
+(async () => {
+  await backfillMissingContent();
+  await retryFailedJobs();
+})();
 
 console.log('🚀 PingStack Engine (Worker + Scheduler) is live.');
 console.log(`[Config] Redis: ${redisUrl.split('@')[1] || redisUrl}`);
