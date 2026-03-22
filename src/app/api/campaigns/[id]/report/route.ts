@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+// Build fix: Use native db client
 import { db } from '@/lib/db';
 
 export async function GET(
