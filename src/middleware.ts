@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/jwt';
 
-const publicPaths = ['/login', '/register', '/api/auth/login', '/api/auth/register-tenant', '/api/webhook/gupshup'];
+const publicPaths = [
+  '/login', 
+  '/register', 
+  '/api/auth/login', 
+  '/api/auth/register-tenant', 
+  '/api/webhook/gupshup',
+  '/api/webhooks/meta'
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
