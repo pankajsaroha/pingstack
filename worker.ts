@@ -39,16 +39,32 @@ const worker = new Worker('message-queue', async (job: Job) => {
   }
 
   // 2. Resolve Template Name/Language from DB (Ensures we skip stale numeric IDs in retried jobs)
-  if (!isDirectText && message.campaign_id) {
-    const { data: campaign } = await db
-      .from('campaigns')
-      .select('templates(name, language)')
-      .eq('id', message.campaign_id)
-      .single();
+  if (!isDirectText) {
+    let resolvedTemplate = null;
     
-    if (campaign?.templates) {
-      templateId = (campaign.templates as any).name;
-      templateLanguage = (campaign.templates as any).language || 'en_US';
+    if (message.campaign_id) {
+      const { data: campaign } = await db
+        .from('campaigns')
+        .select('templates(name, language)')
+        .eq('id', message.campaign_id)
+        .single();
+      if (campaign?.templates) resolvedTemplate = campaign.templates;
+    } 
+    
+    // Fallback if campaign_id was missing (for older failed messages)
+    if (!resolvedTemplate && templateId && !isNaN(Number(templateId))) {
+      const { data: template } = await db
+        .from('templates')
+        .select('name, language')
+        .eq('template_id', templateId)
+        .eq('tenant_id', message.tenant_id)
+        .maybeSingle();
+      if (template) resolvedTemplate = template;
+    }
+    
+    if (resolvedTemplate) {
+      templateId = (resolvedTemplate as any).name;
+      templateLanguage = (resolvedTemplate as any).language || 'en_US';
       console.log(`[Worker] Resolved template for job: ${templateId} (${templateLanguage})`);
     }
   }
@@ -149,6 +165,7 @@ cron.schedule('* * * * *', async () => {
       // e. Create messages and push to BullMQ
       const messagesToInsert = validContacts.map(c => ({
         tenant_id: tenantId,
+        campaign_id: campaign.id, // CRITICAL FIX: Ensure campaign connection
         contact_id: c.id,
         phone_number: c.phone_number,
         status: 'pending'
