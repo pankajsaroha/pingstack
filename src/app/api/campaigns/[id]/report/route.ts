@@ -1,15 +1,18 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const tenantId = request.headers.get('x-tenant-id');
+  if (!tenantId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const campaignId = params.id;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('messages')
     .select(`
       id,
@@ -21,6 +24,7 @@ export async function GET(
       )
     `)
     .eq('campaign_id', campaignId)
+    .eq('tenant_id', tenantId) // Ensure multi-tenancy security
     .order('updated_at', { ascending: false });
 
   if (error) {
