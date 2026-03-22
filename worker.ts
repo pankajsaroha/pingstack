@@ -13,6 +13,15 @@ const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
 });
 
+// --- CRASH PROTECTION ---
+process.on('uncaughtException', (err) => {
+  console.error('💥 [CRASH] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 [CRASH] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('❌ CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing. Check .env.local path.');
 }
@@ -24,7 +33,8 @@ const worker = new Worker('message-queue', async (job: Job) => {
   const { messageId, phone, isDirectText, textContent, components } = job.data;
   let { templateId, templateLanguage } = job.data;
 
-  console.log(`[Worker] Processing message ${messageId} for ${phone}...`);
+  console.log(`[Worker] --- NEW JOB START: ${job.id} ---`);
+  console.log(`[Worker] Job Data: msg=${messageId}, phone=${phone}, tpl=${templateId}, lang=${templateLanguage}`);
   
   // 1. Fetch message and its campaign/template context
   const { data: message, error: dbError } = await db
@@ -43,29 +53,39 @@ const worker = new Worker('message-queue', async (job: Job) => {
     let resolvedTemplate = null;
     
     if (message.campaign_id) {
+      console.log(`[Worker] Searching by campaign_id: ${message.campaign_id}`);
       const { data: campaign } = await db
         .from('campaigns')
         .select('templates(name, language)')
         .eq('id', message.campaign_id)
         .single();
-      if (campaign?.templates) resolvedTemplate = campaign.templates;
+      if (campaign?.templates) {
+        resolvedTemplate = campaign.templates;
+        console.log(`[Worker] Found template via campaign: ${(resolvedTemplate as any).name}`);
+      }
     } 
     
     // Fallback if campaign_id was missing (for older failed messages)
     if (!resolvedTemplate && templateId && !isNaN(Number(templateId))) {
+      console.log(`[Worker] Searching fallback by numeric template_id: ${templateId} for tenant ${message.tenant_id}`);
       const { data: template } = await db
         .from('templates')
         .select('name, language')
         .eq('template_id', templateId)
         .eq('tenant_id', message.tenant_id)
         .maybeSingle();
-      if (template) resolvedTemplate = template;
+      if (template) {
+        resolvedTemplate = template;
+        console.log(`[Worker] Found template via fallback ID lookup: ${template.name}`);
+      } else {
+        console.warn(`[Worker] Fallback lookup failed for ID ${templateId}. This explains the #132001 error if it persists.`);
+      }
     }
     
     if (resolvedTemplate) {
       templateId = (resolvedTemplate as any).name;
       templateLanguage = (resolvedTemplate as any).language || 'en_US';
-      console.log(`[Worker] Resolved template for job: ${templateId} (${templateLanguage})`);
+      console.log(`[Worker] FINAL RESOLUTION for job: Name=${templateId}, Lang=${templateLanguage}`);
     }
   }
 
@@ -113,7 +133,12 @@ const worker = new Worker('message-queue', async (job: Job) => {
       
     throw new Error(String(result.error));
   }
-}, { connection: connection as any });
+}, { 
+  connection: connection as any,
+  lockDuration: 60000,      // Keep lock for 60s
+  stalledInterval: 30000,   // Check for stalls every 30s
+  maxStalledCount: 5        // Allow 5 stalls before permanent fail
+});
 
 // ---------------------------------------------------------
 // 2. Campaign Scheduler (Advanced Automation)
