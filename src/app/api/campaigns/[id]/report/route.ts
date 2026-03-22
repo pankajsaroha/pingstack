@@ -4,14 +4,14 @@ import { db } from '@/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const tenantId = request.headers.get('x-tenant-id');
   if (!tenantId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const campaignId = params.id;
+  const { id: campaignId } = await params;
 
   const { data, error } = await db
     .from('messages')
