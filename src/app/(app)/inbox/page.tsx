@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import Toast from '@/components/Toast';
 
 export default function Inbox() {
   const [tenant, setTenant] = useState<any>(null);
@@ -12,6 +13,7 @@ export default function Inbox() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
@@ -157,12 +159,13 @@ export default function Inbox() {
       if (res.ok) {
         setMessages(prev => prev.filter(m => !selectedMessageIds.has(m.id)));
         setSelectedMessageIds(new Set());
+        setToast({ message: 'Messages deleted successfully', type: 'success' });
       } else {
-        alert('Failed to delete messages');
+        setToast({ message: 'Failed to delete messages', type: 'error' });
       }
     } catch (err) {
       console.error(err);
-      alert('Error deleting messages');
+      setToast({ message: 'Error deleting messages', type: 'error' });
     }
   };
 
@@ -183,12 +186,13 @@ export default function Inbox() {
       });
       if (res.ok) {
         setMessages(prev => prev.filter(m => m.id !== messageId));
+        setToast({ message: 'Message deleted', type: 'success' });
       } else {
-        alert('Failed to delete message');
+        setToast({ message: 'Failed to delete message', type: 'error' });
       }
     } catch (err) {
       console.error(err);
-      alert('Error deleting message');
+      setToast({ message: 'Error deleting message', type: 'error' });
     }
   };
 
@@ -460,6 +464,14 @@ export default function Inbox() {
           </div>
         )}
       </div>
+
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 }

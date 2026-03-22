@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Send, Activity, X, Search, Loader2 } from 'lucide-react';
+import Toast from '@/components/Toast';
 
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', template_id: '', group_id: '' });
   const [isScheduled, setIsScheduled] = useState(false);
@@ -89,10 +92,11 @@ export default function Campaigns() {
     if (!formData.name || !formData.template_id || !formData.group_id) return;
 
     if (isScheduled && !scheduledAt) {
-      alert('Please select a schedule time.');
+      setToast({ message: 'Please select a schedule time.', type: 'info' });
       return;
     }
 
+    setSubmitting(true);
     try {
       // 1. Create Campaign
       const cRes = await fetch('/api/campaigns', {
@@ -119,10 +123,12 @@ export default function Campaigns() {
 
         if (!sRes.ok) {
           const errorData = await sRes.json();
-          alert('Error: ' + errorData.error);
+          setToast({ message: 'Error: ' + errorData.error, type: 'error' });
+        } else {
+          setToast({ message: 'Campaign queued successfully!', type: 'success' });
         }
       } else {
-        alert('Campaign scheduled successfully!');
+        setToast({ message: 'Campaign scheduled successfully!', type: 'success' });
       }
 
       setFormData({ name: '', template_id: '', group_id: '' });
@@ -131,7 +137,9 @@ export default function Campaigns() {
       setShowModal(false);
       fetchData();
     } catch (e: any) {
-      alert('Error: ' + e.message);
+      setToast({ message: 'Error: ' + e.message, type: 'error' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -326,14 +334,24 @@ export default function Campaigns() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-3 border border-transparent rounded-xl shadow-lg text-sm font-black text-white bg-black hover:bg-gray-900 transition-all active:scale-95"
+                  disabled={submitting}
+                  className="px-6 py-3 border border-transparent rounded-xl shadow-lg text-sm font-black text-white bg-black hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center"
                 >
-                  {isScheduled ? 'Schedule Campaign' : 'Send Campaign Now'}
+                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {submitting ? 'Processing...' : (isScheduled ? 'Schedule Campaign' : 'Send Campaign Now')}
                 </button>
               </div>
             </form>
           </div>
         </div>
+      )}
+
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
       )}
 
       {/* Detailed Report Modal */}
