@@ -75,7 +75,7 @@ export default function Contacts() {
           });
           const data = await res.json();
           if (data.success) {
-            setToast({ message: `Successfully imported ${data.count} contacts!`, type: 'success' });
+            setToast({ message: `Imported ${data.count} contacts`, type: 'success' });
             fetchContacts();
           } else {
             setToast({ message: data.error || 'Import failed', type: 'error' });
@@ -104,7 +104,7 @@ export default function Contacts() {
         body: formData,
       });
       if (res.ok) {
-        setToast({ message: 'Contacts uploaded successfully!', type: 'success' });
+        setToast({ message: 'Contacts uploaded', type: 'success' });
         fetchContacts();
       } else {
         const data = await res.json();
@@ -161,7 +161,7 @@ export default function Contacts() {
         setShowSendModal(false);
         setSelectedTemplate('');
         setSelectedIds(new Set());
-        setToast({ message: 'Messages queued successfully!', type: 'success' });
+        setToast({ message: 'Messages queued', type: 'success' });
       } else {
         const data = await res.json();
         setToast({ message: 'Error: ' + data.error, type: 'error' });

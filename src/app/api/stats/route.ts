@@ -16,13 +16,20 @@ export async function GET(req: Request) {
 
     const approvedTemplates = templates?.filter(t => t.status === 'APPROVED').length || 0;
 
-    // 2. Aggregate Message Statuses
+    // 2. Count Total Contacts (Fixes 0 issue)
+    const { count: totalContacts } = await db
+      .from('contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+
+    // 3. Aggregate Message Statuses
     const { data: messages } = await db
       .from('messages')
       .select('status, contact_id, direction')
       .eq('tenant_id', tenantId);
 
     const stats = {
+      totalContacts: totalContacts || 0,
       conversations: Array.from(new Set(messages?.map(m => m.contact_id))).length || 0,
       templatesApproved: approvedTemplates,
       inboundMessages: messages?.filter(m => (m as any).direction === 'inbound').length || 0,

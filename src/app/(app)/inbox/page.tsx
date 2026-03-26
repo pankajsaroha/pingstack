@@ -33,6 +33,7 @@ export default function Inbox() {
       setMessages([]);
       setHasMore(true);
       fetchMessages(activeContactId);
+      markAsRead(activeContactId);
     }
   }, [activeContactId]);
 
@@ -101,7 +102,18 @@ export default function Inbox() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoadingMore(false);
+      if (isLoadMore) setLoadingMore(false);
+    }
+  };
+
+  const markAsRead = async (contactId: string) => {
+    try {
+      await fetch(`/api/chat/${contactId}/read`, {
+        method: 'POST',
+        headers: { 'x-tenant-id': tenant?.id || '' }
+      });
+    } catch (e) {
+      console.error('Failed to mark as read:', e);
     }
   };
 
@@ -159,7 +171,7 @@ export default function Inbox() {
       if (res.ok) {
         setMessages(prev => prev.filter(m => !selectedMessageIds.has(m.id)));
         setSelectedMessageIds(new Set());
-        setToast({ message: 'Messages deleted successfully', type: 'success' });
+        setToast({ message: 'Messages deleted', type: 'success' });
       } else {
         setToast({ message: 'Failed to delete messages', type: 'error' });
       }

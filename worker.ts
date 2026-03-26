@@ -76,7 +76,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
       console.log(`[Worker] Searching by campaign_id: ${message.campaign_id}`);
       const { data: campaign } = await db
         .from('campaigns')
-        .select('templates(name, language)')
+        .select('templates(name, language, content)')
         .eq('id', message.campaign_id)
         .single();
       if (campaign?.templates) {
@@ -90,7 +90,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
       console.log(`[Worker] Searching fallback by numeric template_id: ${templateId} for tenant ${message.tenant_id}`);
       const { data: template } = await db
         .from('templates')
-        .select('name, language')
+        .select('name, language, content')
         .eq('template_id', templateId)
         .eq('tenant_id', message.tenant_id)
         .maybeSingle();
@@ -329,7 +329,7 @@ const requeuePendingMessages = async () => {
     console.log('[Startup] Checking for stuck "pending" messages...');
     const { data: messages, error } = await db
       .from('messages')
-      .select('*, campaigns(templates(name))')
+      .select('*, campaigns(templates(name, content))')
       .eq('status', 'pending')
       .limit(100);
 

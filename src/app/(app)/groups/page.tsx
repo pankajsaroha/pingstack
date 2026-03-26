@@ -183,7 +183,7 @@ export default function Groups() {
             });
             const data = await res.json();
             if (data.success) {
-              setToast({ message: `Group created and ${data.count} contacts imported!`, type: 'success' });
+              setToast({ message: `Group created and ${data.count} contacts imported`, type: 'success' });
               setNewGroupName('');
               setShowModal(false);
               setShowImportModal(false); // Close import modal
@@ -230,7 +230,7 @@ export default function Groups() {
         body: formData,
       });
       if (res.ok) {
-        setToast({ message: 'Contacts uploaded successfully!', type: 'success' });
+        setToast({ message: 'Contacts uploaded', type: 'success' });
         setNewGroupName('');
         setShowModal(false);
         setShowImportModal(false);

@@ -39,16 +39,7 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
       <div className={`flex items-center space-x-4 px-6 py-4 rounded-2xl shadow-2xl border ${bgColors[type]} min-w-[320px] max-w-md`}>
         <div className="flex-shrink-0">{icons[type]}</div>
         <div className="flex-1 text-sm font-bold text-gray-900">{message}</div>
-        <div className="flex items-center space-x-3">
-            <button 
-                onClick={() => {
-                    setIsVisible(false);
-                    setTimeout(onClose, 300);
-                }}
-                className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-colors shadow-sm"
-            >
-                Okay
-            </button>
+        <div className="flex items-center">
             <button 
                 onClick={() => {
                     setIsVisible(false);

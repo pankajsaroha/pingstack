@@ -33,7 +33,8 @@ export async function POST(req: Request) {
     tenant_id: tenantId,
     contact_id: c.id,
     phone_number: c.phone_number,
-    status: 'pending'
+    status: 'pending',
+    content: template.content // POPULATE CONTENT FOR INBOX DISPLAY
   }));
 
   const { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');

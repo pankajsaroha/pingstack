@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const contactsToProcess = records.map((record: any) => ({
       tenant_id: tenantId,
       name: record.name || record.Name || null,
-      phone_number: String(record.phone || record.phone_number || record.Phone || record.PhoneNumber || '').replace(/[\s\-\(\)]/g, '')
+      phone_number: String(record.phone || record.phone_number || record.Phone || record.PhoneNumber || '').replace(/\D/g, '')
     })).filter((c: any) => c.phone_number && c.phone_number.trim() !== '');
 
     if (contactsToProcess.length === 0) {

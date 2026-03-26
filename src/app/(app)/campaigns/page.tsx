@@ -125,10 +125,10 @@ export default function Campaigns() {
           const errorData = await sRes.json();
           setToast({ message: 'Error: ' + errorData.error, type: 'error' });
         } else {
-          setToast({ message: 'Campaign queued successfully!', type: 'success' });
-        }
+          setToast({ message: 'Campaign queued!', type: 'success' });
+       }
       } else {
-        setToast({ message: 'Campaign scheduled successfully!', type: 'success' });
+        setToast({ message: 'Campaign scheduled!', type: 'success' });
       }
 
       setFormData({ name: '', template_id: '', group_id: '' });

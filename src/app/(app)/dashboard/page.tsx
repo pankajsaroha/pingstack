@@ -23,7 +23,8 @@ export default function Dashboard() {
     sent: 0,
     delivered: 0,
     read: 0,
-    failed: 0
+    failed: 0,
+    totalContacts: 0
   });
   const [totalContacts, setTotalContacts] = useState(0);
   const [connecting, setConnecting] = useState(false);
@@ -53,6 +54,14 @@ export default function Dashboard() {
   useEffect(() => {
     fetchTenant();
     fetchStats();
+
+    // Check for checkout success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') {
+      setToast({ message: 'Plan upgraded successfully', type: 'success' });
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   const fetchStats = async () => {
@@ -75,14 +84,6 @@ export default function Dashboard() {
       if (res.ok) {
         const data = await res.json();
         setTenant(data);
-        
-        if (data?.id) {
-          const { count } = await db
-            .from('contacts')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', data.id);
-          setTotalContacts(count || 0);
-        }
       }
     } catch (e) {
       console.error(e);
@@ -313,13 +314,13 @@ export default function Dashboard() {
                   Total Contacts
                 </div>
                 <span className="text-xs font-black text-gray-400">
-                  {totalContacts} / {PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts === Infinity ? '∞' : PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts}
+                  {stats.totalContacts || 0} / {PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts === Infinity ? '∞' : PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts}
                 </span>
               </div>
               <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100">
                 <div 
                   className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-1000"
-                  style={{ width: `${Math.min(100, (totalContacts / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts || 1)) * 100)}%` }}
+                  style={{ width: `${Math.min(100, ((stats.totalContacts || 0) / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts || 1)) * 100)}%` }}
                 />
               </div>
             </div>

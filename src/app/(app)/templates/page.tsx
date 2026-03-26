@@ -122,7 +122,7 @@ export default function Templates() {
         body: JSON.stringify(formData)
       });
       if (res.ok) {
-        setToast({ message: 'Template submitted to Meta successfully', type: 'success' });
+        setToast({ message: 'Template submitted to Meta', type: 'success' });
         setFormData({ name: '', language: 'en_US', category: 'UTILITY', bodyText: '' });
         setShowModal(false);
         fetchTemplates(true); // Sync after creation
@@ -152,7 +152,7 @@ export default function Templates() {
       });
       if (res.ok) {
         setSelectedIds(new Set());
-        setToast({ message: 'Templates deleted successfully', type: 'success' });
+        setToast({ message: 'Templates deleted', type: 'success' });
         fetchTemplates();
       } else {
         const data = await res.json();

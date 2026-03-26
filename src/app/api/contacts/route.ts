@@ -29,6 +29,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
 
+    // NORMALIZE PHONE: Strip + and non-digits
+    const normalizedPhone = String(phone_number).replace(/\D/g, '');
+
     const canAddContact = await checkLimit(tenantId, 'contacts');
     if (!canAddContact) {
       return NextResponse.json({ error: 'Upgrade to continue. You have reached your contacts limit.' }, { status: 403 });
@@ -38,7 +41,7 @@ export async function POST(req: Request) {
       .insert({ 
         tenant_id: tenantId, 
         name: name || null, 
-        phone_number 
+        phone_number: normalizedPhone 
       })
       .select()
       .single();
