@@ -15,15 +15,17 @@ console.log(`[Startup] Connecting to Redis: ${maskedUrl}`);
 
 const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
-  family: 0, // Force IPv4 if needed, usually safer for Railway proxy
+  family: 0,
+  tls: redisUrl.startsWith('rediss://') ? {} : undefined,
 });
 
 connection.on('connect', () => {
-  console.log('✅ [Redis] Connection established successfully.');
+  console.log(`✅ [Redis] Connection established successfully to: ${maskedUrl}`);
+  console.log(`[Redis] Using TLS: ${redisUrl.startsWith('rediss://') ? 'YES' : 'NO'}`);
 });
 
 connection.on('error', (err) => {
-  console.error('❌ [Redis] Connection error:', err);
+  console.error(`❌ [Redis] Connection error for ${maskedUrl}:`, err.message);
 });
 
 // --- CRASH PROTECTION ---
