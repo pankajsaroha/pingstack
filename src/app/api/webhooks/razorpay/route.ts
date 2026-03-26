@@ -27,18 +27,21 @@ export async function POST(req: Request) {
   try {
     switch (event.event) {
       case 'subscription.activated':
-      case 'subscription.authenticated': {
+      case 'subscription.authenticated':
+      case 'subscription.updated': {
         const subscription = event.payload.subscription.entity;
         const tenantId = subscription.notes?.tenantId;
         const planName = subscription.notes?.planName?.toLowerCase();
 
         if (tenantId && planName) {
-          await db.from('tenants').update({
+          const updateData: any = {
             plan_type: planName,
             subscription_status: 'active',
             razorpay_subscription_id: subscription.id,
             current_period_end: new Date(subscription.current_end * 1000).toISOString()
-          }).eq('id', tenantId);
+          };
+          
+          await db.from('tenants').update(updateData).eq('id', tenantId);
         }
         break;
       }

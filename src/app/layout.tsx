@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 import Script from 'next/script';
+import TimezoneSync from '@/components/TimezoneSync';
 
 export default function RootLayout({
   children,
@@ -19,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased selection:bg-blue-100 selection:text-blue-900 bg-gray-50 text-gray-900`}>
+        <TimezoneSync />
         {children}
         <Script 
           src="https://connect.facebook.net/en_US/sdk.js"

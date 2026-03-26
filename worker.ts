@@ -35,7 +35,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
 
   console.log(`[Worker] --- NEW JOB START: ${job.id} ---`);
   console.log(`[Worker] Job Data: msg=${messageId}, phone=${phone}, tpl=${templateId}, lang=${templateLanguage}`);
-  
+
   // 1. Fetch message and its campaign/template context
   const { data: message, error: dbError } = await db
     .from('messages')
@@ -56,7 +56,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
   // 2. Resolve Template Name/Language from DB (Ensures we skip stale numeric IDs in retried jobs)
   if (!isDirectText) {
     let resolvedTemplate = null;
-    
+
     if (message.campaign_id) {
       console.log(`[Worker] Searching by campaign_id: ${message.campaign_id}`);
       const { data: campaign } = await db
@@ -68,8 +68,8 @@ const worker = new Worker('message-queue', async (job: Job) => {
         resolvedTemplate = campaign.templates;
         console.log(`[Worker] Found template via campaign: ${(resolvedTemplate as any).name}`);
       }
-    } 
-    
+    }
+
     // Fallback if campaign_id was missing (for older failed messages)
     if (!resolvedTemplate && templateId && !isNaN(Number(templateId))) {
       console.log(`[Worker] Searching fallback by numeric template_id: ${templateId} for tenant ${message.tenant_id}`);
@@ -86,14 +86,14 @@ const worker = new Worker('message-queue', async (job: Job) => {
         console.warn(`[Worker] Fallback lookup failed for ID ${templateId}. This explains the #132001 error if it persists.`);
       }
     }
-    
+
     if (resolvedTemplate) {
       templateId = (resolvedTemplate as any).name;
       templateLanguage = (resolvedTemplate as any).language || 'en_US';
       const templateContent = (resolvedTemplate as any).content || '';
-      
+
       console.log(`[Worker] FINAL RESOLUTION for job: Name=${templateId}, Lang=${templateLanguage}`);
-      
+
       // Update message with resolved content for Inbox display
       if (templateContent) {
         await db.from('messages').update({ content: templateContent }).eq('id', messageId);
@@ -112,7 +112,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
   }
 
   const provider = whatsappAccount.provider || 'META';
-  
+
   let result;
   if (provider === 'META') {
     const decryptedToken = decrypt(whatsappAccount.access_token);
@@ -142,10 +142,10 @@ const worker = new Worker('message-queue', async (job: Job) => {
     await db.from('messages')
       .update({ status: 'failed', error: String(result.error) })
       .eq('id', messageId);
-      
+
     throw new Error(String(result.error));
   }
-}, { 
+}, {
   connection: connection as any,
   lockDuration: 60000,      // Keep lock for 60s
   stalledInterval: 30000,   // Check for stalls every 30s
@@ -174,12 +174,12 @@ cron.schedule('* * * * *', async () => {
 
     for (const campaign of dueCampaigns) {
       const tenantId = campaign.tenant_id;
-      
+
       // b. Verify Plan & Daily Limit
       const canSend = await checkLimit(tenantId, 'campaigns');
       if (!canSend) {
-          console.warn(`[Scheduler] Skipping campaign ${campaign.id} - Daily limit reached for tenant ${tenantId}`);
-          continue;
+        console.warn(`[Scheduler] Skipping campaign ${campaign.id} - Daily limit reached for tenant ${tenantId}`);
+        continue;
       }
 
       // c. Update status to 'running' to avoid double processing
@@ -252,11 +252,11 @@ cron.schedule('* * * * *', async () => {
       }
 
       await messageQueue.addBulk(jobs);
-      
+
       // f. Finalize campaign
       await db.from('campaigns').update({ status: 'completed' }).eq('id', campaign.id);
       await incrementUsage(tenantId, 'campaigns');
-      
+
       console.log(`✅ [Scheduler] Campaign ${campaign.id} triggered successfully.`);
     }
   } catch (err) {
@@ -280,7 +280,7 @@ const backfillMissingContent = async () => {
       .is('content', null)
       .eq('direction', 'outbound')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(500);
 
     if (bError) throw bError;
     if (!messages || messages.length === 0) {
@@ -291,13 +291,17 @@ const backfillMissingContent = async () => {
     console.log(`[Startup] Resolving content for ${messages.length} messages...`);
     let count = 0;
     for (const msg of messages) {
-       if (msg.campaign_id) {
-         const { data: campaign } = await db.from('campaigns').select('templates(content)').eq('id', msg.campaign_id).maybeSingle();
-         if (campaign?.templates) {
-            await db.from('messages').update({ content: (campaign.templates as any).content }).eq('id', msg.id);
-            count++;
-         }
-       }
+      if (msg.campaign_id) {
+        const { data: campaign } = await db.from('campaigns').select('templates(content)').eq('id', msg.campaign_id).maybeSingle();
+        if (campaign?.templates) {
+          await db.from('messages').update({ content: (campaign.templates as any).content }).eq('id', msg.id);
+          count++;
+        } else {
+          console.warn(`[Startup] Could not resolve template for campaign ${msg.campaign_id}`);
+        }
+      } else {
+        console.warn(`[Startup] Message ${msg.id} missing campaign_id - cannot resolve content.`);
+      }
     }
     console.log(`✅ [Startup] Backfilled content for ${count}/${messages.length} messages.`);
   } catch (err) {

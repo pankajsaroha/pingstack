@@ -328,14 +328,14 @@ export default function Campaigns() {
                     setShowModal(false);
                     setIsScheduled(false);
                   }}
-                  className="px-6 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors"
+                  className="px-6 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-3 border border-transparent rounded-xl shadow-lg text-sm font-black text-white bg-black hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center"
+                  className="px-6 py-3 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-black hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center"
                 >
                   {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {submitting ? 'Processing...' : (isScheduled ? 'Schedule Campaign' : 'Send Campaign Now')}

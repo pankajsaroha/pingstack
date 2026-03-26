@@ -39,15 +39,20 @@ export async function POST(req: Request) {
         break;
       }
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as any; // Cast to any to access current_period_end
+        const subscription = event.data.object as any;
         const customerId = subscription.customer as string;
+        const planName = subscription.metadata?.planName?.toLowerCase();
 
         const { data: tenant } = await db.from('tenants').select('id').eq('stripe_customer_id', customerId).single();
         if (tenant) {
-          await db.from('tenants').update({
+          const updateData: any = {
             subscription_status: subscription.status,
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
-          }).eq('id', tenant.id);
+          };
+          
+          if (planName) updateData.plan_type = planName;
+
+          await db.from('tenants').update(updateData).eq('id', tenant.id);
         }
         break;
       }
@@ -59,7 +64,7 @@ export async function POST(req: Request) {
         if (tenant) {
           await db.from('tenants').update({
             plan_type: 'starter',
-            subscription_status: 'canceled'
+            subscription_status: 'cancelled'
           }).eq('id', tenant.id);
         }
         break;

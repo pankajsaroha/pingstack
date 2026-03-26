@@ -1,7 +1,7 @@
 'use client';
  
 import { Check, Zap, Shield, Star, Rocket } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Script from 'next/script';
 
 declare global {
@@ -62,8 +62,19 @@ const plans = [
 
 export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string>('starter');
+
+  useEffect(() => {
+    fetch('/api/tenant/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.plan_type) setCurrentPlan(data.plan_type);
+      })
+      .catch(console.error);
+  }, []);
 
   const handleUpgrade = async (planName: string) => {
+    if (planName.toLowerCase() === currentPlan.toLowerCase()) return;
     setLoading(planName);
     try {
       const res = await fetch('/api/billing/razorpay/create-subscription', {
@@ -160,11 +171,11 @@ export default function PricingPage() {
 
             <button 
               onClick={() => handleUpgrade(plan.name)}
-              disabled={loading !== null || plan.name === 'Starter'}
+              disabled={loading !== null || plan.name.toLowerCase() === currentPlan.toLowerCase()}
               className={`w-full py-4 rounded-2xl font-black text-sm transition-all active:scale-95 shadow-lg flex items-center justify-center ${
                 plan.popular 
                   ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20' 
-                  : plan.name === 'Starter'
+                  : plan.name.toLowerCase() === currentPlan.toLowerCase()
                   ? 'bg-gray-50 text-gray-400 cursor-default shadow-none border border-gray-100'
                   : 'bg-gray-900 hover:bg-black text-white'
               }`}
@@ -175,7 +186,7 @@ export default function PricingPage() {
                 <>
                   {plan.name === 'Growth' && <Rocket className="w-4 h-4 mr-2" />}
                   {plan.name === 'Pro' && <Zap className="w-4 h-4 mr-2" />}
-                  {plan.cta}
+                  {plan.name.toLowerCase() === currentPlan.toLowerCase() ? 'Current Plan' : 'Upgrade Plan'}
                 </>
               )}
             </button>

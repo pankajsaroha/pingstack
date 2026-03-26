@@ -20,3 +20,24 @@ export async function GET(req: Request) {
     whatsapp_account: whatsappAccount || null
   });
 }
+
+export async function PATCH(req: Request) {
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const { timezone } = body;
+
+    const { data, error } = await db.from('tenants')
+      .update({ timezone })
+      .eq('id', tenantId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
