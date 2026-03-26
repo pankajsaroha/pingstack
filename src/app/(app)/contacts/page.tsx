@@ -11,6 +11,7 @@ export default function Contacts() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -145,6 +146,7 @@ export default function Contacts() {
     e.preventDefault();
     if (!selectedTemplate || selectedIds.size === 0) return;
 
+    setSending(true);
     try {
       const res = await fetch('/api/messages/send', {
         method: 'POST',
@@ -166,6 +168,8 @@ export default function Contacts() {
       }
     } catch (err: any) {
       setToast({ message: 'Error: ' + err.message, type: 'error' });
+    } finally {
+      setSending(false);
     }
   };
 
@@ -443,9 +447,11 @@ export default function Contacts() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                  disabled={sending}
+                  className="px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center"
                 >
-                  Send Now
+                  {sending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {sending ? 'Sending...' : 'Send Now'}
                 </button>
               </div>
             </form>

@@ -338,7 +338,7 @@ export default function Campaigns() {
                   className="px-6 py-3 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-black hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center"
                 >
                   {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {submitting ? 'Processing...' : (isScheduled ? 'Schedule Campaign' : 'Send Campaign Now')}
+                  {submitting ? 'Sending...' : (isScheduled ? 'Schedule Campaign' : 'Send Campaign Now')}
                 </button>
               </div>
             </form>

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import cron from 'node-cron';
@@ -14,6 +15,7 @@ console.log(`[Startup] Connecting to Redis: ${maskedUrl}`);
 
 const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
+  family: 0, // Force IPv4 if needed, usually safer for Railway proxy
 });
 
 connection.on('connect', () => {
@@ -325,7 +327,7 @@ const requeuePendingMessages = async () => {
     console.log('[Startup] Checking for stuck "pending" messages...');
     const { data: messages, error } = await db
       .from('messages')
-      .select('*, campaigns(templates(name, language))')
+      .select('*, campaigns(templates(name))')
       .eq('status', 'pending')
       .limit(100);
 
@@ -342,7 +344,7 @@ const requeuePendingMessages = async () => {
         messageId: msg.id,
         phone: msg.phone_number,
         templateId: (msg.campaigns?.templates as any)?.name,
-        templateLanguage: (msg.campaigns?.templates as any)?.language || 'en_US',
+        templateLanguage: 'en_US', // Default to en_US for now to avoid DB discrepancy
         params: [],
         isDirectText: !msg.campaign_id,
         textContent: msg.content
