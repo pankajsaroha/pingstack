@@ -320,6 +320,42 @@ const backfillMissingContent = async () => {
   }
 };
 
+const requeuePendingMessages = async () => {
+  try {
+    console.log('[Startup] Checking for stuck "pending" messages...');
+    const { data: messages, error } = await db
+      .from('messages')
+      .select('*, campaigns(templates(name, language))')
+      .eq('status', 'pending')
+      .limit(100);
+
+    if (error) throw error;
+    if (!messages || messages.length === 0) {
+      console.log('✅ [Startup] No stuck messages found.');
+      return;
+    }
+
+    console.log(`[Startup] Re-queuing ${messages.length} pending messages...`);
+    const jobs = messages.map(msg => ({
+      name: 'send-whatsapp',
+      data: {
+        messageId: msg.id,
+        phone: msg.phone_number,
+        templateId: (msg.campaigns?.templates as any)?.name,
+        templateLanguage: (msg.campaigns?.templates as any)?.language || 'en_US',
+        params: [],
+        isDirectText: !msg.campaign_id,
+        textContent: msg.content
+      }
+    }));
+
+    await messageQueue.addBulk(jobs);
+    console.log(`✅ [Startup] Successfully re-queued ${messages.length} messages.`);
+  } catch (err) {
+    console.error('❌ [Startup] Pending repair failed:', err);
+  }
+};
+
 const retryFailedJobs = async () => {
   try {
     const failedJobs = await messageQueue.getFailed();
@@ -336,6 +372,7 @@ const retryFailedJobs = async () => {
 // Start all routines
 (async () => {
   await backfillMissingContent();
+  await requeuePendingMessages();
   await retryFailedJobs();
 })();
 
