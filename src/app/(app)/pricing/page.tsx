@@ -36,7 +36,8 @@ const plans = [
       'Advanced Automation',
       'Priority Support',
       'Detailed Campaign Reports',
-      'Contact Grouping'
+      'Contact Grouping',
+      'Schedule for later'
     ],
     cta: 'Upgrade Plan',
     popular: true,

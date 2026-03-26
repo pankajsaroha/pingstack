@@ -294,7 +294,7 @@ export default function Campaigns() {
                         <input 
                           id="scheduled"
                           type="checkbox"
-                          disabled={planType === 'starter'}
+                          disabled={planType !== 'growth'}
                           checked={isScheduled}
                           onChange={(e) => setIsScheduled(e.target.checked)}
                           className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
