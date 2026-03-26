@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Upload, Plus, Search, Send, Trash2, Loader2, Globe } from 'lucide-react';
 import Script from 'next/script';
+import Toast from '@/components/Toast';
 
 export default function Contacts() {
   const [contacts, setContacts] = useState<any[]>([]);
@@ -10,6 +11,7 @@ export default function Contacts() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -50,7 +52,7 @@ export default function Contacts() {
 
   const handleGoogleImport = () => {
     if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-      alert('Google Client ID not configured');
+      setToast({ message: 'Google Client ID not configured', type: 'error' });
       return;
     }
 
@@ -72,13 +74,13 @@ export default function Contacts() {
           });
           const data = await res.json();
           if (data.success) {
-            alert(`Successfully imported ${data.count} contacts!`);
+            setToast({ message: `Successfully imported ${data.count} contacts!`, type: 'success' });
             fetchContacts();
           } else {
-            alert(data.error || 'Import failed');
+            setToast({ message: data.error || 'Import failed', type: 'error' });
           }
         } catch (e) {
-          alert('Google import failed');
+          setToast({ message: 'Google import failed', type: 'error' });
         } finally {
           setIsImporting(false);
         }
@@ -101,14 +103,14 @@ export default function Contacts() {
         body: formData,
       });
       if (res.ok) {
-        alert('Contacts uploaded successfully!');
+        setToast({ message: 'Contacts uploaded successfully!', type: 'success' });
         fetchContacts();
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        setToast({ message: 'Error: ' + data.error, type: 'error' });
       }
     } catch (err) {
-      alert('Upload failed');
+      setToast({ message: 'Upload failed', type: 'error' });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -132,10 +134,10 @@ export default function Contacts() {
         fetchContacts();
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        setToast({ message: 'Error: ' + data.error, type: 'error' });
       }
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      setToast({ message: 'Error: ' + err.message, type: 'error' });
     }
   };
 
@@ -157,13 +159,13 @@ export default function Contacts() {
         setShowSendModal(false);
         setSelectedTemplate('');
         setSelectedIds(new Set());
-        alert('Messages queued successfully!');
+        setToast({ message: 'Messages queued successfully!', type: 'success' });
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        setToast({ message: 'Error: ' + data.error, type: 'error' });
       }
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      setToast({ message: 'Error: ' + err.message, type: 'error' });
     }
   };
 
@@ -182,10 +184,10 @@ export default function Contacts() {
         fetchContacts();
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        setToast({ message: 'Error: ' + data.error, type: 'error' });
       }
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      setToast({ message: 'Error: ' + err.message, type: 'error' });
     }
   };
 
@@ -451,6 +453,14 @@ export default function Contacts() {
         </div>
       )}
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+      
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 }

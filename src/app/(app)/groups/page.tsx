@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Folder, Trash2, Upload, Globe, Loader2, X, ChevronLeft } from 'lucide-react';
 import Script from 'next/script';
+import Toast from '@/components/Toast';
 
 export default function Groups() {
   const [groups, setGroups] = useState<any[]>([]);
@@ -21,6 +22,7 @@ export default function Groups() {
   const [searchTerm, setSearchTerm] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -92,7 +94,7 @@ export default function Groups() {
         fetchGroupContacts(activeGroupId);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to add contacts');
+        setToast({ message: data.error || 'Failed to add contacts', type: 'error' });
       }
     } catch (e) {
       console.error(e);
@@ -141,11 +143,11 @@ export default function Groups() {
         }
       } else {
         const errData = await res.json();
-        alert(errData.error || 'Failed to create group');
+        setToast({ message: errData.error || 'Failed to create group', type: 'error' });
       }
     } catch (e) {
       console.error(e);
-      alert('Error creating group');
+      setToast({ message: 'Error creating group', type: 'error' });
     } finally {
       if (!callback) setIsImporting(false);
     }
@@ -154,12 +156,12 @@ export default function Groups() {
   const handleGoogleImport = (groupId?: string) => {
     const targetGroupId = groupId || activeGroupId;
     if (!targetGroupId && !newGroupName.trim()) {
-      alert('Please enter a group name first');
+      setToast({ message: 'Please enter a group name first', type: 'info' });
       return;
     }
     // ... rest of logic
     if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-      alert('Google Client ID not configured');
+      setToast({ message: 'Google Client ID not configured', type: 'error' });
       return;
     }
 
@@ -181,7 +183,7 @@ export default function Groups() {
             });
             const data = await res.json();
             if (data.success) {
-              alert(`Group created and ${data.count} contacts imported!`);
+              setToast({ message: `Group created and ${data.count} contacts imported!`, type: 'success' });
               setNewGroupName('');
               setShowModal(false);
               setShowImportModal(false); // Close import modal
@@ -189,10 +191,10 @@ export default function Groups() {
               fetchGroups();
               if (activeGroupId) fetchGroupContacts(activeGroupId); // Refresh contacts if in detail view
             } else {
-              alert(data.error || 'Import failed');
+              setToast({ message: data.error || 'Import failed', type: 'error' });
             }
           } catch (e) {
-            alert('Google import failed');
+            setToast({ message: 'Google import failed', type: 'error' });
           } finally {
             setIsImporting(false);
           }
@@ -228,7 +230,7 @@ export default function Groups() {
         body: formData,
       });
       if (res.ok) {
-        alert('Contacts uploaded successfully!');
+        setToast({ message: 'Contacts uploaded successfully!', type: 'success' });
         setNewGroupName('');
         setShowModal(false);
         setShowImportModal(false);
@@ -237,10 +239,10 @@ export default function Groups() {
         fetchGroups();
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        setToast({ message: 'Error: ' + data.error, type: 'error' });
       }
     } catch (err) {
-      alert('Upload failed');
+      setToast({ message: 'Upload failed', type: 'error' });
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -262,10 +264,10 @@ export default function Groups() {
         fetchGroups();
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        setToast({ message: 'Error: ' + data.error, type: 'error' });
       }
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      setToast({ message: 'Error: ' + err.message, type: 'error' });
     }
   };
 
@@ -660,6 +662,14 @@ export default function Groups() {
             </div>
           </div>
         </div>
+      )}
+
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
       )}
     </div>
   );

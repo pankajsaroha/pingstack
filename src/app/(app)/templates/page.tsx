@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCircle, X, Sparkles } from 'lucide-react';
+import Toast from '@/components/Toast';
 
 const LANGUAGES = [
   { code: 'en_US', label: 'English (US)' },
@@ -78,6 +79,7 @@ export default function Templates() {
     bodyText: '' 
   });
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -93,12 +95,15 @@ export default function Templates() {
       const data = await res.json();
       if (res.ok) {
         if (Array.isArray(data)) setTemplates(data);
+        if (sync) {
+          setToast({ message: 'Templates synchronized with Meta', type: 'success' });
+        }
       } else {
-        alert(data.error || 'Failed to sync templates');
+        setToast({ message: data.error || 'Failed to sync templates', type: 'error' });
       }
     } catch (e: any) {
       console.error(e);
-      alert('Network error: ' + e.message);
+      setToast({ message: 'Network error: ' + e.message, type: 'error' });
     } finally {
       setLoading(false);
       setSyncing(false);
@@ -117,15 +122,16 @@ export default function Templates() {
         body: JSON.stringify(formData)
       });
       if (res.ok) {
+        setToast({ message: 'Template submitted to Meta successfully', type: 'success' });
         setFormData({ name: '', language: 'en_US', category: 'UTILITY', bodyText: '' });
         setShowModal(false);
         fetchTemplates(true); // Sync after creation
       } else {
         const err = await res.json();
         const msg = err.dbError 
-          ? `${err.error}\n\nDatabase Error: ${err.dbError.message || JSON.stringify(err.dbError)}`
+          ? `${err.error}. Database Error: ${err.dbError.message || 'Check logs'}`
           : err.error || 'Failed to create template';
-        alert(msg);
+        setToast({ message: msg, type: 'error' });
       }
     } catch (e) {
       console.error(e);
@@ -146,13 +152,14 @@ export default function Templates() {
       });
       if (res.ok) {
         setSelectedIds(new Set());
+        setToast({ message: 'Templates deleted successfully', type: 'success' });
         fetchTemplates();
       } else {
         const data = await res.json();
-        alert('Error: ' + data.error);
+        setToast({ message: 'Error: ' + data.error, type: 'error' });
       }
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      setToast({ message: 'Error: ' + err.message, type: 'error' });
     }
   };
 
@@ -382,6 +389,14 @@ export default function Templates() {
           </div>
         </div>
       </div>
+    )}
+
+    {toast && (
+      <Toast 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={() => setToast(null)} 
+      />
     )}
     </div>
   );

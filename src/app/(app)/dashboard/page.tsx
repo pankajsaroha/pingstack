@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { MessageCircle, CheckCircle2, AlertCircle, Copy, CheckSquare, Loader2, Settings, Zap, Rocket, BarChart3, Users, Book } from 'lucide-react';
 import { db } from '@/lib/db';
 import { PLANS, PlanType } from '@/lib/plans';
+import Toast from '@/components/Toast';
 
 declare global {
   interface Window {
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const [totalContacts, setTotalContacts] = useState(0);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const [manualToken, setManualToken] = useState('');
   const [manualWabaId, setManualWabaId] = useState('');
@@ -38,13 +40,13 @@ export default function Dashboard() {
       const res = await fetch('/api/billing/razorpay/cancel-subscription', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        alert(data.message);
+        setToast({ message: data.message, type: 'success' });
         fetchTenant();
       } else {
-        alert(data.error || 'Failed to cancel subscription');
+        setToast({ message: data.error || 'Failed to cancel subscription', type: 'error' });
       }
     } catch (e) {
-      alert('Cancellation failed');
+      setToast({ message: 'Cancellation failed', type: 'error' });
     }
   };
 
@@ -456,6 +458,14 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+      
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { Check, Zap, Shield, Star, Rocket } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Script from 'next/script';
+import Toast from '@/components/Toast';
 
 declare global {
   interface Window {
@@ -64,6 +65,7 @@ const plans = [
 export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState<string>('starter');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     fetch('/api/tenant/me')
@@ -112,7 +114,7 @@ export default function PricingPage() {
       rzp.open();
 
     } catch (err: any) {
-      alert(err.message || 'Checkout failed');
+      setToast({ message: err.message || 'Checkout failed', type: 'error' });
     } finally {
       setLoading(null);
     }
@@ -207,6 +209,14 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+      
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 }
