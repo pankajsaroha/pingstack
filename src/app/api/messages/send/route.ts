@@ -51,7 +51,9 @@ export async function POST(req: Request) {
     }
   }));
 
+  console.log(`[Queue] Adding ${jobs.length} message jobs to Redis (Bulk Send)...`);
   await messageQueue.addBulk(jobs);
+  console.log(`✅ [Queue] Successfully pushed ${jobs.length} jobs to Redis.`);
   await incrementUsage(tenantId, 'campaigns');
 
   return NextResponse.json({ success: true, queued: jobs.length });

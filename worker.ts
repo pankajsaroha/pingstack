@@ -9,8 +9,19 @@ import { messageQueue } from './src/lib/queue';
 import { checkLimit, incrementUsage } from './src/lib/limits';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const maskedUrl = redisUrl.replace(/:[^:@]+@/, ':****@'); // Mask password if present
+console.log(`[Startup] Connecting to Redis: ${maskedUrl}`);
+
 const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
+});
+
+connection.on('connect', () => {
+  console.log('✅ [Redis] Connection established successfully.');
+});
+
+connection.on('error', (err) => {
+  console.error('❌ [Redis] Connection error:', err);
 });
 
 // --- CRASH PROTECTION ---

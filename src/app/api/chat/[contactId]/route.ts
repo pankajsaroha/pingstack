@@ -52,12 +52,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   if (error || !msg) return NextResponse.json({ error: 'Failed' }, { status: 500 });
 
   const { messageQueue } = await import('@/lib/queue');
+  console.log(`[Queue] Adding direct message job to Redis for contact ${contactId}...`);
   await messageQueue.add('send-whatsapp', {
     messageId: msg.id,
     phone: contact.phone_number,
     isDirectText: true,
     textContent: content
   });
+  console.log(`✅ [Queue] Successfully pushed direct message to Redis.`);
 
   return NextResponse.json(msg);
 }
