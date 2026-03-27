@@ -20,12 +20,14 @@ export async function GET(
       phone_number,
       status,
       updated_at,
+      direction,
       contacts (
         name
       )
     `)
     .eq('campaign_id', campaignId)
-    .eq('tenant_id', tenantId) // Ensure multi-tenancy security
+    .eq('tenant_id', tenantId)
+    .eq('direction', 'outbound')
     .order('updated_at', { ascending: false });
 
   if (error) {
