@@ -220,7 +220,8 @@ cron.schedule('* * * * *', async () => {
         campaign_id: campaign.id, // CRITICAL FIX: Ensure campaign connection
         contact_id: c.id,
         phone_number: c.phone_number,
-        status: 'pending'
+        status: 'pending',
+        direction: 'outbound'
       }));
 
       const { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');

@@ -34,7 +34,8 @@ export async function POST(req: Request) {
     contact_id: c.id,
     phone_number: c.phone_number,
     status: 'pending',
-    content: template.content // POPULATE CONTENT FOR INBOX DISPLAY
+    content: template.content, // POPULATE CONTENT FOR INBOX DISPLAY
+    direction: 'outbound'
   }));
 
   const { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');

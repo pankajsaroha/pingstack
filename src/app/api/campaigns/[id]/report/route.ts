@@ -27,7 +27,6 @@ export async function GET(
     `)
     .eq('campaign_id', campaignId)
     .eq('tenant_id', tenantId)
-    .eq('direction', 'outbound')
     .order('updated_at', { ascending: false });
 
   if (error) {
