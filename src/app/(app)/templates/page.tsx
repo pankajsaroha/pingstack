@@ -179,7 +179,7 @@ export default function Templates() {
           <button 
             onClick={() => fetchTemplates(true)}
             disabled={syncing}
-            className="flex items-center px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-black text-gray-700 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
           >
             <RefreshCw className={`mr-2 h-4 w-4 text-blue-500 ${syncing ? 'animate-spin' : ''}`} />
             Sync with Meta
@@ -187,7 +187,7 @@ export default function Templates() {
           {selectedIds.size > 0 && (
             <button 
               onClick={handleDeleteSelected}
-              className="flex items-center px-4 py-2 border border-red-100 rounded-xl shadow-sm text-sm font-black text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+              className="flex items-center px-4 py-2 border border-red-100 rounded-xl shadow-sm text-sm font-bold text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete ({selectedIds.size})
@@ -195,7 +195,7 @@ export default function Templates() {
           )}
           <button 
             onClick={() => setShowModal(true)}
-            className="flex items-center px-6 py-2 border border-transparent rounded-xl shadow-xl text-sm font-black text-white bg-gray-900 hover:bg-black transition-all active:scale-95"
+            className="flex items-center px-6 py-2 border border-transparent rounded-xl shadow-xl text-sm font-bold text-white bg-gray-900 hover:bg-black transition-all active:scale-95"
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Template

@@ -60,6 +60,10 @@ export async function POST(req: Request) {
   
   console.log(`[Queue] Adding ${jobs.length} message jobs to Redis for campaign ${campaignId}...`);
   await messageQueue.addBulk(jobs);
+  
+  // 5. Mark campaign as completed once triggered
+  await db.from('campaigns').update({ status: 'completed' }).eq('id', campaignId);
+  
   console.log(`✅ [Queue] Successfully pushed ${jobs.length} jobs to Redis.`);
 
   return NextResponse.json({ success: true, queued: jobs.length });

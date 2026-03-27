@@ -36,9 +36,9 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
 
   return (
     <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-      <div className={`flex items-center space-x-4 px-6 py-4 rounded-2xl shadow-2xl border ${bgColors[type]} min-w-[320px] max-w-md`}>
+      <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border ${bgColors[type]} min-w-[320px] max-w-md`}>
         <div className="flex-shrink-0">{icons[type]}</div>
-        <div className="flex-1 text-sm font-bold text-gray-900">{message}</div>
+        <div className="flex-1 text-sm font-semibold text-gray-900">{message}</div>
         <div className="flex items-center">
             <button 
                 onClick={() => {

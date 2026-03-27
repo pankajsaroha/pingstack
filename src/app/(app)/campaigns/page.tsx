@@ -15,6 +15,7 @@ export default function Campaigns() {
   const [formData, setFormData] = useState({ name: '', template_id: '', group_id: '' });
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
+  const [tenant, setTenant] = useState<any>(null);
   const [planType, setPlanType] = useState('starter');
 
   // Report Modal State
@@ -25,28 +26,32 @@ export default function Campaigns() {
   const [reportSearch, setReportSearch] = useState('');
 
   useEffect(() => {
-    fetchData();
-    fetchPlan();
+    fetchTenant().then(() => {
+      fetchData();
+    });
   }, []);
 
-  const fetchPlan = async () => {
+  const fetchTenant = async () => {
     try {
       const res = await fetch('/api/tenant/me');
       if (res.ok) {
         const data = await res.json();
+        setTenant(data);
         setPlanType(data.plan_type || 'starter');
+        return data;
       }
     } catch (e) {
-      console.error('Plan fetch failed:', e);
+      console.error('Tenant fetch failed:', e);
     }
   };
 
   const fetchData = async () => {
     try {
+      const headers = { 'x-tenant-id': tenant?.id || '' };
       const [cRes, tRes, gRes] = await Promise.all([
-        fetch('/api/campaigns'),
-        fetch('/api/templates'),
-        fetch('/api/groups')
+        fetch('/api/campaigns', { headers }),
+        fetch('/api/templates', { headers }),
+        fetch('/api/groups', { headers })
       ]);
       const [cData, tData, gData] = await Promise.all([cRes.json(), tRes.json(), gRes.json()]);
       
@@ -54,7 +59,9 @@ export default function Campaigns() {
         // Fetch stats for each campaign
         const campaignsWithStats = await Promise.all(cData.map(async (c) => {
           try {
-            const sRes = await fetch(`/api/campaigns/${c.id}/status`);
+            const sRes = await fetch(`/api/campaigns/${c.id}/status`, {
+              headers: { 'x-tenant-id': tenant?.id || '' }
+            });
             const sData = await sRes.json();
             return { ...c, stats: sData };
           } catch (e) {
@@ -75,7 +82,9 @@ export default function Campaigns() {
   const fetchReportData = async (campaignId: string) => {
     setReportLoading(true);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/report`);
+      const res = await fetch(`/api/campaigns/${campaignId}/report`, {
+        headers: { 'x-tenant-id': tenant?.id || '' }
+      });
       if (res.ok) {
         const data = await res.json();
         setReportData(data);
@@ -101,7 +110,10 @@ export default function Campaigns() {
       // 1. Create Campaign
       const cRes = await fetch('/api/campaigns', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || ''
+        },
         body: JSON.stringify({ 
           name: formData.name, 
           template_id: formData.template_id,
@@ -117,7 +129,10 @@ export default function Campaigns() {
       if (!isScheduled) {
         const sRes = await fetch('/api/campaigns/send', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-tenant-id': tenant?.id || ''
+          },
           body: JSON.stringify({ campaignId: campaign.id, groupIds: [formData.group_id] })
         });
 
@@ -241,7 +256,7 @@ export default function Campaigns() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 border border-gray-100">
             <h3 className="text-xl font-black text-gray-900 mb-6 tracking-tight">Create New Campaign</h3>
             <form onSubmit={handleCreateCampaign}>
@@ -356,7 +371,7 @@ export default function Campaigns() {
 
       {/* Detailed Report Modal */}
       {showReportModal && activeCampaign && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden border border-gray-100">
             <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
                <div>
