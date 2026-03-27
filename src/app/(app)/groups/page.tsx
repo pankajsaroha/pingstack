@@ -17,6 +17,7 @@ export default function Groups() {
   const [groupContacts, setGroupContacts] = useState<any[]>([]);
   const [availableContacts, setAvailableContacts] = useState<any[]>([]);
   const [selectorIds, setSelectorIds] = useState<Set<string>>(new Set());
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,19 +104,27 @@ export default function Groups() {
     }
   };
 
-  const handleRemoveContact = async (contactId: string) => {
+  const handleRemoveContact = async (idOrIds: string | string[]) => {
     if (!activeGroupId) return;
+    const isBulk = Array.isArray(idOrIds);
+    const idsToRemove = isBulk ? idOrIds : [idOrIds];
+    
+    if (!confirm(`Are you sure you want to remove ${idsToRemove.length} contact(s) from this group?`)) return;
+
     try {
       const res = await fetch(`/api/groups/${activeGroupId}/contacts`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contactId })
+        body: JSON.stringify({ contactIds: idsToRemove })
       });
       if (res.ok) {
-        setGroupContacts(prev => prev.filter(c => c.id !== contactId));
+        setGroupContacts(prev => prev.filter(c => !idsToRemove.includes(c.id)));
+        if (isBulk) setSelectedMemberIds(new Set());
+        setToast({ message: `${idsToRemove.length} contact(s) removed`, type: 'success' });
       }
     } catch (e) {
       console.error(e);
+      setToast({ message: 'Failed to remove contacts', type: 'error' });
     }
   };
 
@@ -446,6 +455,7 @@ export default function Groups() {
                       setShowDetailModal(false);
                       setActiveGroup(null);
                       setActiveGroupId(null);
+                      setSelectedMemberIds(new Set());
                     }}
                     className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                   >
@@ -456,18 +466,27 @@ export default function Groups() {
                <div className="flex-1 overflow-y-auto p-6">
                   <div className="flex items-center justify-between mb-6">
                      <h3 className="font-bold text-gray-900">Members ({groupContacts.length})</h3>
-                         <div className="flex space-x-2">
-                           <button 
-                             onClick={() => {
-                               setShowSelector(true);
-                               fetchAvailableContacts();
-                             }}
-                             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black shadow-lg hover:bg-blue-700 transition-all"
-                           >
-                             <Plus className="w-3 h-3 mr-1.5" />
-                             Add Contacts
-                           </button>
-                         </div>
+                          <div className="flex space-x-2">
+                             {selectedMemberIds.size > 0 && (
+                               <button 
+                                 onClick={() => handleRemoveContact(Array.from(selectedMemberIds))}
+                                 className="flex items-center px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-black border border-red-100 hover:bg-red-100 transition-all"
+                               >
+                                 <Trash2 className="w-3 h-3 mr-1.5" />
+                                 Remove ({selectedMemberIds.size})
+                               </button>
+                             )}
+                             <button 
+                               onClick={() => {
+                                 setShowSelector(true);
+                                 fetchAvailableContacts();
+                               }}
+                               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black shadow-lg hover:bg-blue-700 transition-all"
+                             >
+                               <Plus className="w-3 h-3 mr-1.5" />
+                               Add Contacts
+                             </button>
+                          </div>
                   </div>
 
                   {loadingContacts ? (
@@ -487,22 +506,45 @@ export default function Groups() {
                        </button>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                       {groupContacts.map(contact => (
-                          <div key={contact.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-gray-300 transition-all group">
-                             <div>
-                               <p className="font-bold text-gray-900">{contact.name || 'No Name'}</p>
-                               <p className="text-xs text-gray-400 font-medium">{contact.phone_number}</p>
-                             </div>
-                             <button 
-                               onClick={() => handleRemoveContact(contact.id)}
-                               className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-all"
-                             >
-                               <Trash2 className="w-4 h-4" />
-                             </button>
-                          </div>
-                       ))}
-                    </div>
+                     <div className="space-y-2">
+                        {groupContacts.map(contact => (
+                           <div 
+                             key={contact.id} 
+                             onClick={() => {
+                               const next = new Set(selectedMemberIds);
+                               if (next.has(contact.id)) next.delete(contact.id);
+                               else next.add(contact.id);
+                               setSelectedMemberIds(next);
+                             }}
+                             className={`flex items-center justify-between p-4 bg-white border rounded-2xl cursor-pointer transition-all group ${
+                               selectedMemberIds.has(contact.id) ? 'border-red-500 ring-1 ring-red-500 bg-red-50/10' : 'border-gray-100 hover:border-gray-200'
+                             }`}
+                           >
+                              <div className="flex items-center">
+                                 <div className={`w-4 h-4 rounded border flex items-center justify-center mr-3 transition-colors ${
+                                   selectedMemberIds.has(contact.id) ? 'bg-red-500 border-red-500' : 'border-gray-300 bg-white'
+                                 }`}>
+                                    {selectedMemberIds.has(contact.id) && <Plus className="w-2.5 h-2.5 text-white rotate-45" />}
+                                 </div>
+                                 <div>
+                                   <p className="font-bold text-gray-900 leading-none mb-1">{contact.name || 'No Name'}</p>
+                                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{contact.phone_number}</p>
+                                 </div>
+                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveContact(contact.id);
+                                }}
+                                className={`p-2 transition-all rounded-lg ${
+                                  selectedMemberIds.has(contact.id) ? 'text-red-500 bg-white' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
+                                }`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                           </div>
+                        ))}
+                     </div>
                   )}
                </div>
                               <div className="p-4 sm:p-6 border-t border-gray-100 flex justify-end">

@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
   // 1. Get Campaign and Template
   const { data: campaign, error: cErr } = await db.from('campaigns')
-    .select('*, templates(name, language)')
+    .select('*, templates(name, language, content)')
     .eq('id', campaignId)
     .eq('tenant_id', tenantId)
     .single();
@@ -39,7 +39,8 @@ export async function POST(req: Request) {
     contact_id: c.id,
     phone_number: c.phone_number,
     status: 'pending',
-    direction: 'outbound'
+    direction: 'outbound',
+    content: (campaign.templates as any).content || '[Template Message]'
   }));
 
   const { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');

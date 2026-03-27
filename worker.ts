@@ -132,11 +132,64 @@ const worker = new Worker('message-queue', async (job: Job) => {
   if (provider === 'META') {
     const decryptedToken = decrypt(whatsappAccount.access_token);
     const phoneNumberId = whatsappAccount.phone_number_id;
+    const accessToken = decryptedToken;
+
+    console.log(`[Worker] Sending message ${messageId} to ${phone} using template ${templateId}...`);
+
+    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+    let payload: any;
+
     if (isDirectText) {
-      result = await sendMetaTextMessage(phoneNumberId, decryptedToken, phone, textContent);
+      payload = {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'text',
+        text: { body: textContent },
+      };
     } else {
-      result = await sendMetaTemplateMessage(phoneNumberId, decryptedToken, phone, templateId, templateLanguage || 'en_US', components || []);
+      payload = {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'template',
+        template: {
+          name: templateId,
+          language: { code: templateLanguage || 'en_US' },
+          components: components || [],
+        },
+      };
     }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error(`❌ [Worker] Meta API error for ${messageId}:`, responseData);
+        throw new Error(`Meta API error: ${responseData.error?.message || response.statusText}`);
+      }
+
+      console.log(`✅ [Worker] Successfully sent ${messageId} to ${phone}. Provider ID: ${responseData.messages?.[0]?.id}`);
+      result = { success: true, messageId: responseData.messages?.[0]?.id };
+
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      console.error(`❌ [Worker] Error sending message ${messageId} to Meta API:`, error.message);
+      result = { success: false, error: error.message };
+    }
+
   } else if (provider === 'GUPSHUP') {
     const decryptedApiKey = decrypt(whatsappAccount.gupshup_api_key);
     const appName = whatsappAccount.gupshup_app_name;

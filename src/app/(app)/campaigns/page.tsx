@@ -438,7 +438,7 @@ export default function Campaigns() {
                                  </span>
                               </td>
                               <td className="px-6 py-4 text-right text-[10px] text-gray-400 font-medium">
-                                 {new Date(row.updated_at).toLocaleString()}
+                                 {new Date(row.created_at).toLocaleString()}
                               </td>
                            </tr>
                          ))}

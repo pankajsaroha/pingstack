@@ -10,7 +10,7 @@ export const db = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key'
 );
 
-// Add a log to indicate successful initialization with the service role key, if it's used.
+// Initialize DB client
 if (typeof window === 'undefined' && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.log('✅ Supabase DB client successfully created with service role key.');
+  // Silent init
 }

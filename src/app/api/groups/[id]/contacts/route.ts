@@ -37,16 +37,20 @@ export async function DELETE(
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id: groupId } = await params;
-  const { contactId } = await req.json();
+  const { contactId, contactIds } = await req.json();
 
-  if (!contactId) return NextResponse.json({ error: 'Contact ID required' }, { status: 400 });
+  if (!contactId && (!contactIds || contactIds.length === 0)) {
+    return NextResponse.json({ error: 'Contact ID(s) required' }, { status: 400 });
+  }
+
+  const idsToRemove = contactIds || [contactId];
 
   try {
     const { error } = await db
       .from('group_contacts')
       .delete()
       .eq('group_id', groupId)
-      .eq('contact_id', contactId)
+      .in('contact_id', idsToRemove)
       .eq('tenant_id', tenantId);
 
     if (error) throw error;
