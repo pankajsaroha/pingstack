@@ -88,7 +88,7 @@ export default function PricingPage() {
       const data = await res.json();
       
       if (!data.subscription_id) {
-        throw new Error(data.error || 'Failed to create subscription');
+        throw new Error(data.message || data.error || 'Failed to create subscription');
       }
 
       const options = {

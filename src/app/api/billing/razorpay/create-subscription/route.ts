@@ -3,8 +3,8 @@ import { razorpay } from '@/lib/razorpay';
 import { db } from '@/lib/db';
 
 const PLAN_IDS: Record<string, string> = {
-  Growth: process.env.RAZORPAY_PLAN_ID_GROWTH || 'plan_growth_placeholder',
-  Pro: process.env.RAZORPAY_PLAN_ID_PRO || 'plan_pro_placeholder'
+  Growth: process.env.RAZORPAY_PLAN_ID_GROWTH || '',
+  Pro: process.env.RAZORPAY_PLAN_ID_PRO || ''
 };
 
 export async function POST(req: Request) {
@@ -16,7 +16,11 @@ export async function POST(req: Request) {
     const planId = PLAN_IDS[planName];
 
     if (!planId) {
-      return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
+      console.error(`❌ [Razorpay] Missing Plan ID for ${planName}. Check your .env.local variables.`);
+      return NextResponse.json({ 
+        error: 'Configuration Error', 
+        message: `Plan ID for ${planName} is not configured in environment variables.` 
+      }, { status: 500 });
     }
 
     const { data: tenant } = await db.from('tenants').select('*').eq('id', tenantId).single();
@@ -38,7 +42,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ subscription_id: subscription.id });
 
   } catch (err: any) {
-    console.error('Razorpay Subscription Error:', err);
-    return NextResponse.json({ error: 'Failed to create subscription', message: err.message }, { status: 500 });
+    console.error('❌ [Razorpay] Click Create Subscription Error:', err);
+    return NextResponse.json({ 
+      error: 'Subscription Creation Failed', 
+      message: err.description || err.message || 'Razorpay API error' 
+    }, { status: 500 });
   }
 }
