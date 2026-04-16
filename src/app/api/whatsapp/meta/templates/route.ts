@@ -43,7 +43,7 @@ export async function GET(req: Request) {
 
     // 3. Sync with local DB (Upsert)
     for (const mt of metaTemplates) {
-      const bodyComponent = mt.components?.find((c: any) => c.type === 'BODY');
+      const bodyComponent = mt.components?.find((c: any) => c.type.toUpperCase() === 'BODY');
       const bodyText = bodyComponent?.text || '';
 
       // Check if exists

@@ -44,9 +44,15 @@ export async function POST(req: Request) {
             for (const status of value.statuses) {
               const providerMessageId = status.id;
               const statusType = status.status; // delivered, read, failed
+              const error = status.errors && status.errors.length > 0 
+                ? `${status.errors[0].title}: ${status.errors[0].message} (Code: ${status.errors[0].code})`
+                : null;
+
+              const updateData: any = { status: statusType };
+              if (error) updateData.error = error;
 
               await db.from('messages')
-                .update({ status: statusType })
+                .update(updateData)
                 .eq('provider_message_id', providerMessageId);
             }
           }

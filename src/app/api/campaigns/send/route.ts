@@ -40,10 +40,19 @@ export async function POST(req: Request) {
     phone_number: c.phone_number,
     status: 'pending',
     direction: 'outbound',
-    content: (campaign.templates as any).content || '[Template Message]'
+    content: (campaign.templates as any).content || '[Template Message]',
+    message_type: 'template'
   }));
 
-  const { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');
+  let { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');
+
+  if (mErr && mErr.message.includes('message_type')) {
+    const fallback = messagesToInsert.map(({ message_type, ...rest }: any) => rest);
+    const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select('id, phone_number');
+    insertedMsgs = retryData;
+    mErr = retryErr;
+  }
+
   if (mErr || !insertedMsgs) return NextResponse.json({ error: 'Failed to create messages' }, { status: 500 });
 
   await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);

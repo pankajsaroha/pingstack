@@ -104,7 +104,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
 
     if (resolvedTemplate) {
       templateId = (resolvedTemplate as any).name;
-      templateLanguage = (resolvedTemplate as any).language || 'en_US';
+      templateLanguage = (resolvedTemplate as any).language || templateLanguage || 'en_US';
       const templateContent = (resolvedTemplate as any).content || '';
 
       console.log(`[Worker] FINAL RESOLUTION for job: Name=${templateId}, Lang=${templateLanguage}`);
@@ -134,9 +134,9 @@ const worker = new Worker('message-queue', async (job: Job) => {
     const phoneNumberId = whatsappAccount.phone_number_id;
     const accessToken = decryptedToken;
 
-    console.log(`[Worker] Sending message ${messageId} to ${phone} using template ${templateId}...`);
+    console.log(`[Worker] Sending message ${messageId} to ${phone} type=${isDirectText ? 'text' : 'template'} template=${templateId}...`);
 
-    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+    const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
     let payload: any;
 
     if (isDirectText) {
@@ -394,18 +394,23 @@ const requeuePendingMessages = async () => {
     }
 
     console.log(`[Startup] Re-queuing ${messages.length} pending messages...`);
-    const jobs = messages.map(msg => ({
-      name: 'send-whatsapp',
-      data: {
-        messageId: msg.id,
-        phone: msg.phone_number,
-        templateId: (msg.campaigns?.templates as any)?.name,
-        templateLanguage: 'en_US', // Default to en_US for now to avoid DB discrepancy
-        params: [],
-        isDirectText: !msg.campaign_id,
-        textContent: msg.content
-      }
-    }));
+    const jobs = messages.map(msg => {
+      const dbType = (msg as any).message_type;
+      const resolvedDirectText = dbType ? (dbType === 'text') : !msg.campaign_id;
+      
+      return {
+        name: 'send-whatsapp',
+        data: {
+          messageId: msg.id,
+          phone: msg.phone_number,
+          templateId: (msg.campaigns?.templates as any)?.name,
+          templateLanguage: (msg.campaigns?.templates as any)?.language || 'en_US', 
+          params: [],
+          isDirectText: resolvedDirectText,
+          textContent: msg.content
+        }
+      };
+    });
 
     await messageQueue.addBulk(jobs);
     console.log(`✅ [Startup] Successfully re-queued ${messages.length} messages.`);

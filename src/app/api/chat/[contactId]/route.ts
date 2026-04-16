@@ -40,14 +40,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   const { data: contact } = await db.from('contacts').select('phone_number').eq('id', contactId).single();
   if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
 
-  const { data: msg, error } = await db.from('messages').insert({
+  const insertData = {
     tenant_id: tenantId,
     contact_id: contactId,
     phone_number: contact.phone_number,
     direction: 'outbound',
     content: content,
-    status: 'pending'
-  }).select().single();
+    status: 'pending',
+    message_type: 'text'
+  };
+
+  let { data: msg, error } = await db.from('messages').insert(insertData).select().single();
+
+  if (error && error.message.includes('message_type')) {
+    const { message_type, ...fallback } = insertData;
+    const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select().single();
+    msg = retryData;
+    error = retryErr;
+  }
 
   if (error || !msg) return NextResponse.json({ error: 'Failed' }, { status: 500 });
 
