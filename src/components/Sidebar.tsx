@@ -73,7 +73,7 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className={`px-4 mt-auto ${isCollapsed ? 'px-2' : ''}`}>
+      <div className={`px-4 mt-auto mb-2 ${isCollapsed ? 'px-2' : ''}`}>
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Logout' : ''}
@@ -82,6 +82,21 @@ export function Sidebar({
           <LogOut className={`flex-shrink-0 h-4 w-4 text-gray-400 group-hover:text-red-500 transition-colors ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
           {!isCollapsed && <span className="whitespace-nowrap">Logout</span>}
         </button>
+        
+        {!isCollapsed && (
+          <div className="mt-4 px-3 mb-4">
+            <Link 
+              href="/privacy" 
+              className={`flex items-center text-[10px] font-bold transition-all duration-200 uppercase tracking-widest px-3 py-2 rounded-xl ${
+                pathname === '/privacy' 
+                  ? 'bg-gray-900 text-white shadow-md' 
+                  : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              Privacy Policy
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

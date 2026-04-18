@@ -5,6 +5,7 @@ import { verifyToken } from './lib/jwt';
 const publicPaths = [
   '/login', 
   '/register', 
+  '/privacy',
   '/api/auth/login', 
   '/api/auth/register-tenant', 
   '/api/webhook/gupshup',
