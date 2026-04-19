@@ -6,8 +6,10 @@ const publicPaths = [
   '/login', 
   '/register', 
   '/privacy',
+  '/forgot-password',
   '/api/auth/login', 
   '/api/auth/register-tenant', 
+  '/api/auth/forgot-password',
   '/api/webhook/gupshup',
   '/api/webhooks/meta'
 ];

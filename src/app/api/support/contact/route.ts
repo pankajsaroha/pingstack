@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
     try {
       await resend.emails.send({
-        from: 'PingStack Support <onboarding@resend.dev>', // Resend default for unverified domains
+        from: 'PingStack Support <info@pingstack.in>',
         to: 'info@pingstack.in',
         subject: `New Support Inquiry: ${subject}`,
         html: `
