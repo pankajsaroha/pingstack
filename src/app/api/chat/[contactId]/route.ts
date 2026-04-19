@@ -37,8 +37,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   const { content } = await req.json();
   if (!content) return NextResponse.json({ error: 'Message content required' }, { status: 400 });
 
-  const { data: contact } = await db.from('contacts').select('phone_number').eq('id', contactId).single();
+  const { data: contact } = await db.from('contacts')
+    .select('phone_number, last_received_at')
+    .eq('id', contactId)
+    .single();
+  
   if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+
+  // WHATSAPP 24-HOUR WINDOW ENFORCEMENT
+  const lastReceived = contact.last_received_at;
+  const now = new Date();
+  const windowLimit = 24 * 60 * 60 * 1000; // 24 hours in ms
+
+  if (!lastReceived) {
+    return NextResponse.json({ 
+      error: 'First-time Engagement: You must send an approved WhatsApp Template to initiate a conversation with this contact.',
+      code: 'WINDOW_NEVER_OPENED'
+    }, { status: 403 });
+  }
+
+  const lastReceivedDate = new Date(lastReceived);
+  const timeSinceLastMessage = now.getTime() - lastReceivedDate.getTime();
+
+  if (timeSinceLastMessage > windowLimit) {
+    return NextResponse.json({ 
+      error: '24-Hour Window Closed: It\'s been over 24 hours since the customer last messaged you. Please send an approved Template to re-open the session.',
+      code: 'WINDOW_CLOSED'
+    }, { status: 403 });
+  }
 
   const insertData = {
     tenant_id: tenantId,
