@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Book, Shield, Zap, Search, ChevronRight } from 'lucide-react';
 
@@ -34,6 +35,16 @@ const categories = [
 ];
 
 export default function DocsPage() {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredCategories = categories.map(cat => ({
+    ...cat,
+    articles: cat.articles.filter(article => 
+      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      cat.title.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(cat => cat.articles.length > 0);
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-20">
       <div className="mb-16">
@@ -45,12 +56,14 @@ export default function DocsPage() {
             type="text" 
             placeholder="Search for articles, guides..." 
             className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {categories.map((cat) => (
+        {filteredCategories.map((cat) => (
           <div key={cat.title} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl transition-all hover:-translate-y-1">
             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
               <cat.icon className="w-6 h-6" />

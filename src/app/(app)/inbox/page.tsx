@@ -37,6 +37,7 @@ export default function Inbox() {
     }
   }, [activeContactId]);
 
+
   useEffect(() => {
     if (!loadingMore) {
         scrollToBottom();
@@ -145,11 +146,25 @@ export default function Inbox() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: tempMessage.content })
       });
+      
       if (res.ok) {
+        // Refresh to get the real message with DB ID and status
         fetchMessages(activeContactId);
+      } else {
+        // ERROR HANDLING & ROLLBACK
+        const errorData = await res.json();
+        const errorMessage = errorData.error || 'Failed to send message';
+        
+        // 1. Show the specific policy error to the user
+        setToast({ message: errorMessage, type: 'error' });
+        
+        // 2. Roll back the optimistic update immediately
+        setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
       }
     } catch (err) {
       console.error(err);
+      setToast({ message: 'Network error. Please try again.', type: 'error' });
+      setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
     } finally {
       setSending(false);
     }

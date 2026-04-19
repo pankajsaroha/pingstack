@@ -23,11 +23,20 @@ export default function Contacts() {
 
   const [showSendModal, setShowSendModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchContacts();
     fetchTemplates();
   }, []);
+
+  const filteredContacts = contacts.filter(c => {
+    const query = searchQuery.toLowerCase();
+    return (
+      (c.name?.toLowerCase() || '').includes(query) ||
+      c.phone_number.includes(query)
+    );
+  });
 
   const fetchContacts = async () => {
     try {
@@ -286,6 +295,8 @@ export default function Contacts() {
               type="text"
               className="focus:ring-black focus:border-black block w-full pl-10 sm:text-sm border-gray-300 rounded-md bg-white/50"
               placeholder="Search contacts..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
@@ -322,7 +333,7 @@ export default function Contacts() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100/60">
-                  {contacts.map((contact) => (
+                  {filteredContacts.map((contact) => (
                     <tr key={contact.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap w-12 text-sm">
                         <input
@@ -345,7 +356,7 @@ export default function Contacts() {
 
             {/* Mobile Card List View */}
             <div className="sm:hidden divide-y divide-gray-100">
-              {contacts.map((contact) => (
+              {filteredContacts.map((contact) => (
                 <div 
                   key={contact.id} 
                   onClick={() => toggleSelection(contact.id)}
@@ -432,7 +443,7 @@ export default function Contacts() {
                   onChange={e => setSelectedTemplate(e.target.value)}
                 >
                   <option value="">Choose a template...</option>
-                  {templates.map(t => (
+                  {templates.filter(t => t.status === 'APPROVED').map(t => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>

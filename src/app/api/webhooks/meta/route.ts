@@ -90,6 +90,7 @@ export async function POST(req: Request) {
                 }
 
                 if (contactId) {
+                  // 1. Record the message
                   await db.from('messages').insert({
                     tenant_id: tenantId,
                     contact_id: contactId,
@@ -99,6 +100,11 @@ export async function POST(req: Request) {
                     status: 'received',
                     provider_message_id: msgId
                   });
+
+                  // 2. Update contact's last_received_at to open/refresh the WhatsApp window
+                  await db.from('contacts')
+                    .update({ last_received_at: new Date().toISOString() })
+                    .eq('id', contactId);
                 }
               }
             }
