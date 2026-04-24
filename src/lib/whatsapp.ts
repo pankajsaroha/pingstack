@@ -32,6 +32,31 @@ export const sendMetaWhatsAppMessage = async (
   }
 };
 
+export const getWABADetails = async (accessToken: string) => {
+  const url = `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  return res.json();
+};
+
+export const getWABAPhoneNumbers = async (wabaId: string, accessToken: string) => {
+  const url = `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  return res.json();
+};
+
+export const subscribeWABAWebhooks = async (wabaId: string, accessToken: string) => {
+  const url = `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  return res.json();
+};
+
 export const sendMetaTemplateMessage = async (
   phoneNumberId: string,
   accessToken: string,

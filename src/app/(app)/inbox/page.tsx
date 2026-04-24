@@ -140,13 +140,19 @@ export default function Inbox() {
     setNewMessage('');
     setSending(true);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
       const res = await fetch(`/api/chat/${activeContactId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: tempMessage.content })
+        body: JSON.stringify({ content: tempMessage.content }),
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         // Refresh to get the real message with DB ID and status
         fetchMessages(activeContactId);
@@ -161,9 +167,13 @@ export default function Inbox() {
         // 2. Roll back the optimistic update immediately
         setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setToast({ message: 'Network error. Please try again.', type: 'error' });
+      if (err.name === 'AbortError') {
+        setToast({ message: 'Request timed out. The server might be down.', type: 'error' });
+      } else {
+        setToast({ message: 'Network error. Please check your connection.', type: 'error' });
+      }
       setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
     } finally {
       setSending(false);
@@ -434,7 +444,22 @@ export default function Inbox() {
                               {msg.status === 'sent' && <Check className="w-3.5 h-3.5 text-gray-400" />}
                               {msg.status === 'delivered' && <CheckCheck className="w-3.5 h-3.5 text-gray-400" />}
                               {msg.status === 'read' && <CheckCheck className="w-3.5 h-3.5 text-blue-400" />}
-                              {msg.status === 'failed' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                              {msg.status === 'failed' && (
+                                <div className="relative group/error">
+                                  <AlertCircle className="w-3.5 h-3.5 text-red-500 cursor-help" />
+                                  <div className="absolute bottom-full right-0 mb-2 w-64 bg-red-600 text-white p-3 rounded-2xl text-[10px] font-black uppercase tracking-tight shadow-xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
+                                    <div className="flex items-center mb-1.5 border-b border-white/20 pb-1.5">
+                                      <AlertCircle className="w-3 h-3 mr-1.5" /> Meta Rejection Reason
+                                    </div>
+                                    <div className="leading-relaxed opacity-90 font-bold">
+                                      {msg.error || 'Unknown Meta API error. Please check logs.'}
+                                    </div>
+                                    <div className="mt-2 text-[8px] opacity-60">
+                                      Tip: Marketing frequency caps (131049) reset every 24 hours.
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </span>
                           )}
                         </div>
