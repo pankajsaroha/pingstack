@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft } from 'lucide-react';
+import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Zap, X } from 'lucide-react';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
 
@@ -22,16 +22,35 @@ export default function Inbox() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const initialSelectionMade = useRef(false);
 
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [windowError, setWindowError] = useState<boolean>(false);
+  const [showSyncNotice, setShowSyncNotice] = useState(true);
+
   useEffect(() => {
     fetchStatusAndData();
+    fetchTemplates();
     const interval = setInterval(fetchStatusAndData, 5000); // 5s polling as requested
     return () => clearInterval(interval);
-  }, []); // Only the interval uses this, data changes will handle selection
+  }, []); 
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await fetch('/api/templates');
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch templates:', e);
+    }
+  };
 
   useEffect(() => {
     if (activeContactId) {
       setMessages([]);
       setHasMore(true);
+      setWindowError(false);
       fetchMessages(activeContactId);
       markAsRead(activeContactId);
     }
@@ -146,7 +165,10 @@ export default function Inbox() {
     try {
       const res = await fetch(`/api/chat/${activeContactId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || ''
+        },
         body: JSON.stringify({ content: tempMessage.content }),
         signal: controller.signal
       });
@@ -154,27 +176,55 @@ export default function Inbox() {
       clearTimeout(timeoutId);
 
       if (res.ok) {
-        // Refresh to get the real message with DB ID and status
         fetchMessages(activeContactId);
       } else {
-        // ERROR HANDLING & ROLLBACK
         const errorData = await res.json();
         const errorMessage = errorData.error || 'Failed to send message';
         
-        // 1. Show the specific policy error to the user
+        if (errorData.code === 'WINDOW_CLOSED' || errorData.code === 'WINDOW_NEVER_OPENED') {
+          setWindowError(true);
+        }
+
         setToast({ message: errorMessage, type: 'error' });
-        
-        // 2. Roll back the optimistic update immediately
         setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
       }
     } catch (err: any) {
       console.error(err);
-      if (err.name === 'AbortError') {
-        setToast({ message: 'Request timed out. The server might be down.', type: 'error' });
-      } else {
-        setToast({ message: 'Network error. Please check your connection.', type: 'error' });
-      }
       setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendTemplate = async (template: any) => {
+    if (!activeContactId) return;
+    
+    setSending(true);
+    setShowTemplates(false);
+    
+    try {
+      const res = await fetch(`/api/chat/${activeContactId}/template`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || ''
+        },
+        body: JSON.stringify({ 
+          templateName: template.name,
+          language: template.language || 'en_US'
+        })
+      });
+
+      if (res.ok) {
+        setToast({ message: 'Template sent successfully', type: 'success' });
+        setWindowError(false);
+        fetchMessages(activeContactId);
+      } else {
+        const data = await res.json();
+        setToast({ message: data.error || 'Failed to send template', type: 'error' });
+      }
+    } catch (err) {
+      setToast({ message: 'Error sending template', type: 'error' });
     } finally {
       setSending(false);
     }
@@ -392,10 +442,31 @@ export default function Inbox() {
               )}
             </div>
 
+            {/* SYNC NOTICE BANNER */}
+            {showSyncNotice && (
+              <div className="bg-blue-50/50 border-b border-blue-100/50 px-6 py-2 flex items-center justify-between animate-in fade-in duration-300">
+                 <div className="flex items-center text-[10px] font-bold text-blue-600/80 uppercase tracking-tight">
+                    <Clock className="w-3 h-3 mr-2 opacity-70" />
+                    Sent messages may take a moment to appear. Please refresh if needed.
+                 </div>
+                 <div className="flex items-center space-x-4">
+                    <div className="text-[9px] font-black text-blue-400/60 uppercase tracking-widest">
+                       Fixing Syncing Soon • Apologies
+                    </div>
+                    <button 
+                      onClick={() => setShowSyncNotice(false)}
+                      className="text-blue-400 hover:text-blue-600 transition-colors"
+                    >
+                       <X className="w-3 h-3" />
+                    </button>
+                 </div>
+              </div>
+            )}
+
             {/* Messages Area */}
             <div 
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto p-6 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5"
+              className="flex-1 overflow-y-auto p-6 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5 relative"
             >
               {loadingMore && (
                 <div className="flex justify-center p-2">
@@ -476,17 +547,34 @@ export default function Inbox() {
                   );
                 })
               )}
+
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
             <div className="p-6 bg-white border-t border-gray-200/60">
+              {windowError && (
+                 <div className="mb-4 p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-500">
+                    <div className="flex items-center">
+                       <AlertCircle className="w-4 h-4 text-amber-600 mr-3" />
+                       <div className="text-xs font-bold text-amber-800">24-Hour window closed. Send a template to re-open.</div>
+                    </div>
+                    <button 
+                      onClick={() => setShowTemplates(true)}
+                      className="px-4 py-1.5 bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-amber-700 transition-all"
+                    >
+                       Choose Template
+                    </button>
+                 </div>
+              )}
+
               <form onSubmit={handleSendMessage} className="flex space-x-3 items-end">
                 <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-black/5 focus-within:border-black transition-all shadow-inner">
                   <textarea
+                    readOnly={windowError}
                     rows={1}
-                    className="w-full max-h-32 bg-transparent border-0 focus:ring-0 resize-none px-4 py-3.5 text-[15px] font-medium"
-                    placeholder="Write a message..."
+                    className={`w-full max-h-32 bg-transparent border-0 focus:ring-0 resize-none px-4 py-3.5 text-[15px] font-medium ${windowError ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    placeholder={windowError ? "Chat window closed" : "Write a message..."}
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
                     onKeyDown={e => {
@@ -497,15 +585,68 @@ export default function Inbox() {
                     }}
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim() || sending}
-                  className="flex-shrink-0 h-[52px] w-[52px] bg-blue-600 hover:bg-black text-white rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-90 disabled:opacity-50"
-                >
-                  <Send className="w-5 h-5 ml-1" />
-                </button>
+                
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplates(!showTemplates)}
+                    className={`flex-shrink-0 h-[52px] w-[52px] rounded-2xl flex items-center justify-center transition-all active:scale-90 ${showTemplates ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-100 text-gray-500'}`}
+                  >
+                    <Zap className={`w-5 h-5 ${showTemplates ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim() || sending || windowError}
+                    className="flex-shrink-0 h-[52px] w-[52px] bg-blue-600 hover:bg-black text-white rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-90 disabled:opacity-50"
+                  >
+                    <Send className="w-5 h-5 ml-1" />
+                  </button>
+                </div>
               </form>
             </div>
+
+            {/* Template Selector Overlay - COMPACT MODAL */}
+            {showTemplates && (
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                  <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl p-6 flex flex-col max-h-[70%] animate-in zoom-in-95 duration-300">
+                    <div className="flex justify-between items-center mb-5">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900 tracking-tight">Select Template</h3>
+                          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Quick Send</p>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowTemplates(false);
+                          }} 
+                          className="w-8 h-8 bg-gray-50 hover:bg-gray-100 rounded-lg flex items-center justify-center transition-colors"
+                        >
+                          <X className="w-4 h-4 text-gray-500" />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto space-y-2.5 pr-2 custom-scrollbar">
+                        {templates.length === 0 ? (
+                          <div className="text-center py-12 text-gray-400 text-sm">No active templates found.</div>
+                        ) : (
+                          templates.map(tpl => (
+                              <div 
+                                key={tpl.id} 
+                                onClick={() => handleSendTemplate(tpl)}
+                                className="p-4 border border-gray-100 rounded-xl hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer group transition-all"
+                              >
+                                <div className="flex justify-between items-start mb-1.5">
+                                    <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 truncate mr-2">{tpl.name}</h4>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">{tpl.language}</span>
+                                </div>
+                                <p className="text-[11px] text-gray-500 line-clamp-2 italic leading-relaxed">"{tpl.content}"</p>
+                              </div>
+                          ))
+                        )}
+                    </div>
+                  </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
