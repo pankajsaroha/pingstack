@@ -156,6 +156,9 @@ export default function Contacts() {
     if (!selectedTemplate || selectedIds.size === 0) return;
 
     setSending(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
     try {
       const res = await fetch('/api/messages/send', {
         method: 'POST',
@@ -163,8 +166,11 @@ export default function Contacts() {
         body: JSON.stringify({
           contactIds: Array.from(selectedIds),
           template_id: selectedTemplate
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         setShowSendModal(false);
@@ -173,10 +179,15 @@ export default function Contacts() {
         setToast({ message: 'Messages queued', type: 'success' });
       } else {
         const data = await res.json();
-        setToast({ message: 'Error: ' + data.error, type: 'error' });
+        setToast({ message: 'Error: ' + (data.error || 'Failed to send'), type: 'error' });
       }
     } catch (err: any) {
-      setToast({ message: 'Error: ' + err.message, type: 'error' });
+      if (err.name === 'AbortError') {
+        setToast({ message: 'Request timed out. Please check your internet or if the server is down.', type: 'error' });
+      } else {
+        setToast({ message: 'Network error or server unavailable. Please try again.', type: 'error' });
+      }
+      console.error('Send error:', err);
     } finally {
       setSending(false);
     }
