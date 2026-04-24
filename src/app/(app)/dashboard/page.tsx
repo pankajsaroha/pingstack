@@ -83,15 +83,19 @@ export default function Dashboard() {
     }
 
     // Load Meta SDK for discovery
-    window.fbAsyncInit = function() {
-      window.FB.init({
-        appId: process.env.NEXT_PUBLIC_FB_APP_ID,
-        cookie: true,
-        xfbml: true,
-        version: 'v19.0'
-      });
-      setFbLoaded(true);
+    const initFB = () => {
+      if (window.FB) {
+        window.FB.init({
+          appId: process.env.NEXT_PUBLIC_FB_APP_ID,
+          cookie: true,
+          xfbml: true,
+          version: 'v19.0'
+        });
+        setFbLoaded(true);
+      }
     };
+
+    window.fbAsyncInit = initFB;
 
     if (!window.FB) {
       const script = document.createElement('script');
@@ -99,9 +103,12 @@ export default function Dashboard() {
       script.src = 'https://connect.facebook.net/en_US/sdk.js';
       script.async = true;
       script.defer = true;
+      script.onload = () => {
+        // SDK will call fbAsyncInit automatically once loaded
+      };
       document.head.appendChild(script);
     } else {
-      setFbLoaded(true);
+      initFB();
     }
   }, []);
 

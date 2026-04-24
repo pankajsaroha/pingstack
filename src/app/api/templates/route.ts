@@ -5,7 +5,11 @@ export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data, error } = await db.from('templates').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data, error } = await db.from('templates')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('status', 'APPROVED')
+    .order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
