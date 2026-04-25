@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Send, Activity, X, Search, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Send, Activity, X, Search, Loader2, Upload, FileText, CheckCircle2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import Toast from '@/components/Toast';
 
 export default function Campaigns() {
@@ -17,6 +18,11 @@ export default function Campaigns() {
   const [scheduledAt, setScheduledAt] = useState('');
   const [tenant, setTenant] = useState<any>(null);
   const [planType, setPlanType] = useState('starter');
+  
+  // Excel State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [excelData, setExcelData] = useState<any[] | null>(null);
+  const [needsVariables, setNeedsVariables] = useState(false);
 
   // Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -76,6 +82,46 @@ export default function Campaigns() {
     }
   };
 
+  useEffect(() => {
+    const activeTemplate = templates.find(t => t.id === formData.template_id);
+    if (activeTemplate) {
+      const hasVars = activeTemplate.content && activeTemplate.content.includes('{{1}}');
+      setNeedsVariables(hasVars);
+      if (hasVars) {
+        setFormData(prev => ({ ...prev, group_id: 'EXCEL' }));
+      }
+    } else {
+      setNeedsVariables(false);
+    }
+  }, [formData.template_id, templates]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        
+        // Transform to: { phone: string, variables: any[] }
+        const formatted = data.slice(needsVariables ? 0 : 0).map((row: any) => ({
+          phone: String(row[0] || '').replace(/[^0-9+]/g, ''),
+          variables: row.slice(1)
+        })).filter(r => r.phone.length > 5);
+
+        setExcelData(formatted);
+      } catch (err) {
+        setToast({ message: 'Failed to parse file. Check format.', type: 'error' });
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const fetchReportData = async (campaignId: string) => {
     setReportLoading(true);
     try {
@@ -109,7 +155,7 @@ export default function Campaigns() {
         body: JSON.stringify({ 
           name: formData.name, 
           template_id: formData.template_id,
-          group_id: formData.group_id,
+          group_id: formData.group_id === 'EXCEL' ? null : formData.group_id,
           scheduled_at: isScheduled ? scheduledAt : null
         })
       });
@@ -122,7 +168,11 @@ export default function Campaigns() {
         const sRes = await fetch('/api/campaigns/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId: campaign.id, groupIds: [formData.group_id] })
+          body: JSON.stringify({ 
+            campaignId: campaign.id, 
+            groupIds: formData.group_id === 'EXCEL' ? [] : [formData.group_id],
+            directData: excelData
+          })
         });
 
         if (!sRes.ok) {
@@ -277,18 +327,72 @@ export default function Campaigns() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Target Group</label>
-                    <select
-                      required
-                      className="block w-full rounded-xl border border-gray-200 px-4 py-3 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-all"
-                      value={formData.group_id}
-                      onChange={e => setFormData({ ...formData, group_id: e.target.value })}
-                    >
-                      <option value="">Select...</option>
-                      {groups.map(g => (
-                        <option key={g.id} value={g.id}>{g.name}</option>
-                      ))}
-                    </select>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Audience Source</label>
+                    {needsVariables ? (
+                      <div className="space-y-3">
+                         <button 
+                           type="button"
+                           onClick={() => fileInputRef.current?.click()}
+                           className={`w-full py-3 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center space-y-1 ${excelData ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-black'}`}
+                         >
+                            {excelData ? (
+                              <>
+                                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">{excelData.length} Contacts loaded</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-5 h-5 text-gray-400" />
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Upload File</span>
+                              </>
+                            )}
+                         </button>
+                         <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                            <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-2 flex items-center">
+                               <FileText className="w-3 h-3 mr-2" /> Required File Format
+                            </p>
+                            <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+                               This template uses variables. Your file must have the <span className="text-black">Phone Number</span> in the first column, followed by values for each variable.
+                            </p>
+                            <div className="mt-3 flex items-center space-x-2 text-[9px] font-mono bg-white border border-blue-100 p-2 rounded-lg text-blue-800">
+                               <span>Col A: Phone</span>
+                               <span className="text-blue-300">|</span>
+                               <span>Col B: Var 1</span>
+                               <span className="text-blue-300">|</span>
+                               <span>Col C: Var 2...</span>
+                            </div>
+                         </div>
+                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileUpload} />
+                      </div>
+                    ) : (
+                      <select
+                        required
+                        className="block w-full rounded-xl border border-gray-200 px-4 py-3 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-all"
+                        value={formData.group_id}
+                        onChange={e => setFormData({ ...formData, group_id: e.target.value })}
+                      >
+                        <option value="">Select Group...</option>
+                        <option value="EXCEL">Upload One-off File</option>
+                        {groups.map(g => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {!needsVariables && formData.group_id === 'EXCEL' && (
+                       <div className="mt-4">
+                          <button 
+                             type="button"
+                             onClick={() => fileInputRef.current?.click()}
+                             className={`w-full py-3 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center space-x-2 ${excelData ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-black'}`}
+                          >
+                             {excelData ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Upload className="w-4 h-4 text-gray-400" />}
+                             <span className="text-[10px] font-black uppercase tracking-widest">
+                                {excelData ? `${excelData.length} Contacts Ready` : 'Upload File'}
+                             </span>
+                          </button>
+                          <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleFileUpload} />
+                       </div>
+                    )}
                   </div>
                 </div>
 
@@ -413,6 +517,7 @@ export default function Campaigns() {
                        <tr>
                           <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact</th>
                           <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Phone</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Variables</th>
                           <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                           <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Last Update</th>
                        </tr>
@@ -425,8 +530,19 @@ export default function Campaigns() {
                          )
                          .map((row, idx) => (
                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                              <td className="px-6 py-4 font-bold text-gray-900 text-sm">{row.contacts?.name || 'Unknown'}</td>
+                              <td className="px-6 py-4 font-bold text-gray-900 text-sm">
+                                 {row.contacts?.name || (row.variables?.length > 0 ? (row.variables[0] || 'Unknown') : 'Customer')}
+                              </td>
                               <td className="px-6 py-4 text-xs text-gray-500 font-medium font-mono">{row.phone_number}</td>
+                              <td className="px-6 py-4">
+                                 <div className="flex flex-wrap gap-1">
+                                    {row.variables?.map((v: any, i: number) => (
+                                       <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[9px] font-bold">
+                                          v{i+1}: {v}
+                                       </span>
+                                    ))}
+                                 </div>
+                              </td>
                               <td className="px-6 py-4 text-center">
                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter ${
                                    row.status === 'read' ? 'bg-green-100 text-green-700' :

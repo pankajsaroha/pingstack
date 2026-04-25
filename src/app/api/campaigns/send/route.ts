@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { campaignId, groupIds, contactIds } = await req.json();
+  const { campaignId, groupIds, contactIds, directData } = await req.json();
   if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 });
 
   // 1. Get Campaign and Template
@@ -18,31 +18,45 @@ export async function POST(req: Request) {
 
   if (cErr || !campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
 
-  // 2. Gather unique contacts
-  let targetContactIds = new Set<string>(contactIds || []);
-  if (groupIds && groupIds.length > 0) {
-    const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
-    gcData?.forEach((gc: any) => targetContactIds.add(gc.contact_id));
+  let messagesToInsert: any[] = [];
+
+  if (directData && Array.isArray(directData)) {
+    // A. Direct Excel/CSV Data mode
+    messagesToInsert = directData.map((row: any) => ({
+      tenant_id: tenantId,
+      campaign_id: campaignId,
+      phone_number: row.phone,
+      variables: row.variables || [],
+      status: 'pending',
+      direction: 'outbound',
+      content: (campaign.templates as any).content || '[Template Message]',
+      message_type: 'template'
+    }));
+  } else {
+    // B. Group/Contact mode
+    let targetContactIds = new Set<string>(contactIds || []);
+    if (groupIds && groupIds.length > 0) {
+      const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
+      gcData?.forEach((gc: any) => targetContactIds.add(gc.contact_id));
+    }
+
+    const uniqueContactIds = Array.from(targetContactIds);
+    if (uniqueContactIds.length === 0) return NextResponse.json({ error: 'No contacts selected' }, { status: 400 });
+
+    const { data: contacts } = await db.from('contacts').select('*').in('id', uniqueContactIds).eq('tenant_id', tenantId);
+    
+    messagesToInsert = (contacts || []).map((c: any) => ({
+      tenant_id: tenantId,
+      campaign_id: campaignId,
+      contact_id: c.id,
+      phone_number: c.phone_number,
+      variables: [],
+      status: 'pending',
+      direction: 'outbound',
+      content: (campaign.templates as any).content || '[Template Message]',
+      message_type: 'template'
+    }));
   }
-
-  const uniqueContactIds = Array.from(targetContactIds);
-  if (uniqueContactIds.length === 0) return NextResponse.json({ error: 'No contacts selected' }, { status: 400 });
-
-  // 3. Get contact details
-  const { data: contacts, error: contactsErr } = await db.from('contacts').select('*').in('id', uniqueContactIds).eq('tenant_id', tenantId);
-  if (contactsErr || !contacts) return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 });
-
-  // 4. Create Messages and push to Queue
-  const messagesToInsert = (contacts || []).map((c: any) => ({
-    tenant_id: tenantId,
-    campaign_id: campaignId,
-    contact_id: c.id,
-    phone_number: c.phone_number,
-    status: 'pending',
-    direction: 'outbound',
-    content: (campaign.templates as any).content || '[Template Message]',
-    message_type: 'template'
-  }));
 
   let { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');
 
@@ -58,16 +72,21 @@ export async function POST(req: Request) {
   await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
 
   // Push to BullMQ
-  const jobs = (insertedMsgs || []).map((m: any) => ({
-    name: 'send-whatsapp',
-    data: {
-      messageId: m.id,
-      phone: m.phone_number,
-      templateId: (campaign.templates as any).name,
-      templateLanguage: (campaign.templates as any).language || 'en_US',
-      params: []
-    }
-  }));
+  const jobs = (insertedMsgs || []).map((m: any) => {
+    const rawMsg = messagesToInsert.find(rti => rti.phone_number === m.phone_number);
+    const variables = rawMsg?.variables || [];
+    
+    return {
+      name: 'send-whatsapp',
+      data: {
+        messageId: m.id,
+        phone: m.phone_number,
+        templateId: (campaign.templates as any).name,
+        templateLanguage: (campaign.templates as any).language || 'en_US',
+        params: variables.map((v: any) => ({ type: 'text', text: String(v) }))
+      }
+    };
+  });
   
   console.log(`[Queue] Adding ${jobs.length} message jobs to Redis for campaign ${campaignId}...`);
   await messageQueue.addBulk(jobs);
