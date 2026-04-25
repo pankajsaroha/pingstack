@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, CheckCircle2, AlertCircle, Copy, CheckSquare, Loader2, Settings, Zap, Rocket, BarChart3, Users, Book, Facebook, ArrowRight, ShieldCheck } from 'lucide-react';
+import { MessageCircle, CheckCircle2, AlertCircle, Copy, CheckSquare, Loader2, Settings, Zap, Rocket, BarChart3, Users, Book, Facebook, ArrowRight, ShieldCheck, Paperclip } from 'lucide-react';
 import { db } from '@/lib/db';
 import { PLANS, PlanType } from '@/lib/plans';
 import Toast from '@/components/Toast';
@@ -659,6 +659,24 @@ export default function Dashboard() {
                     <div 
                       className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-1000"
                       style={{ width: `${Math.min(100, ((stats.totalContacts || 0) / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts || 1)) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-end mb-3">
+                    <div className="flex items-center text-sm font-bold text-gray-700">
+                      <Paperclip className="w-4 h-4 mr-2 text-gray-400" />
+                      Storage Usage
+                    </div>
+                    <span className="text-xs font-black text-gray-400">
+                      {Math.round((tenant?.storage_usage_bytes || 0) / 1024 / 1024)} MB / {PLANS[tenant?.plan_type as PlanType || 'starter'].maxStorageMb} MB
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                    <div 
+                      className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-1000"
+                      style={{ width: `${Math.min(100, (((tenant?.storage_usage_bytes || 0) / 1024 / 1024) / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxStorageMb || 1)) * 100)}%` }}
                     />
                   </div>
                 </div>

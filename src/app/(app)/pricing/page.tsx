@@ -17,11 +17,12 @@ const plans = [
     price: '₹199',
     description: 'Perfect for small businesses starting their outreach.',
     features: [
-      '2 Campaigns per day',
-      'Up to 500 Contacts',
-      'Meta Cloud API Integration',
-      'Basic Analytics',
-      'Email Support'
+      '1 Campaign per day',
+      'Up to 250 Contacts',
+      '50MB Attachment Storage',
+      '5MB Max File Size',
+      '7-Day Media Retention',
+      'Meta API Integration'
     ],
     cta: 'Current Plan',
     popular: false,
@@ -32,13 +33,13 @@ const plans = [
     price: '₹499',
     description: 'Scale your communication with unlimited power.',
     features: [
-      'Unlimited Campaigns',
-      'Up to 5000 Contacts',
-      'Advanced Automation',
-      'Priority Support',
-      'Detailed Campaign Reports',
-      'Contact Grouping',
-      'Schedule for later'
+      '10 Campaigns per day',
+      'Up to 2500 Contacts',
+      '500MB Attachment Storage',
+      '15MB Max File Size',
+      '30-Day Media Retention',
+      'Priority Email Support',
+      'Detailed Reports'
     ],
     cta: 'Upgrade Plan',
     popular: true,
@@ -49,12 +50,13 @@ const plans = [
     price: '₹999',
     description: 'For large enterprises with massive volume.',
     features: [
-      'Unlimited Everything',
+      'Unlimited Campaigns',
+      'Unlimited Contacts',
+      '5GB Attachment Storage',
+      '64MB Max File Size',
+      '1-Year Media Retention',
       'Team Collaboration',
-      'Custom Integrations',
-      'Dedicated Account Manager',
-      'SLA Guarantee',
-      'Whitelabel Options'
+      'Custom Integrations'
     ],
     cta: 'Upgrade Plan',
     popular: false,
