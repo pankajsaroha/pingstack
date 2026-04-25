@@ -26,7 +26,7 @@ export function Sidebar({
 
   const handleLogout = () => {
     document.cookie = 'token=; Max-Age=0; path=/;';
-    router.push('/login');
+    router.push('/');
   };
 
   return (

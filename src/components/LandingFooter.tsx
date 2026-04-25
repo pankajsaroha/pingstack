@@ -19,6 +19,7 @@ export function LandingFooter() {
           <Link href="/docs" className="text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Documentation</Link>
           <Link href="/pricing" className="text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Pricing</Link>
           <Link href="/privacy" className="text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Privacy Policy</Link>
+          <Link href="/terms" className="text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Terms of Service</Link>
           <Link href="/contact" className="text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Support</Link>
         </div>
       </div>
