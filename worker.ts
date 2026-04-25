@@ -61,6 +61,13 @@ const worker = new Worker('message-queue', async (job: Job) => {
   const { messageId, phone, components } = job.data;
   let { templateId, templateLanguage } = job.data;
 
+  // 0. Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(messageId)) {
+    console.warn(`⚠️ [Worker] Invalid UUID format for messageId: ${messageId}. Skipping job ${job.id}.`);
+    return;
+  }
+
   console.log(`[Worker] --- NEW JOB START: ${job.id} ---`);
   console.log(`[Worker] Job Data: msg=${messageId}, phone=${phone}, tpl=${templateId}, lang=${templateLanguage}`);
 
@@ -72,7 +79,10 @@ const worker = new Worker('message-queue', async (job: Job) => {
     .maybeSingle();
 
   if (dbError) {
-    console.error(`❌ [Worker] DB Error fetching message ${messageId}:`, dbError);
+    console.error(`❌ [Worker] DB Error fetching message ${messageId} for job ${job.id}:`, {
+      error: dbError,
+      jobData: job.data
+    });
     throw new Error('Database error during message fetch');
   }
 
@@ -136,11 +146,11 @@ const worker = new Worker('message-queue', async (job: Job) => {
     const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
     let payload: any;
 
-    if (isMedia) {
+    if (isMedia && mediaPath && mediaType) {
       // 1. Generate Signed URL for Meta to fetch (1 hour expiry)
       const { data, error: sError } = await db.storage
         .from('chat-media')
-        .createSignedUrl(mediaPath!, 3600);
+        .createSignedUrl(mediaPath, 3600);
 
       if (sError || !data?.signedUrl) {
         throw new Error(`Failed to generate signed URL: ${sError?.message || 'Unknown error'}`);
@@ -150,10 +160,10 @@ const worker = new Worker('message-queue', async (job: Job) => {
         messaging_product: 'whatsapp',
         to: phone,
         type: mediaType,
-        [mediaType!]: { 
+        [mediaType]: { 
           link: data.signedUrl,
           ...(caption ? { caption } : {}),
-          ...(mediaType === 'document' ? { filename: fileName || mediaPath!.split('/').pop() } : {})
+          ...(mediaType === 'document' ? { filename: fileName || mediaPath.split('/').pop() } : {})
         },
       };
     } else if (isDirectText) {
@@ -161,7 +171,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
         messaging_product: 'whatsapp',
         to: phone,
         type: 'text',
-        text: { body: textContent },
+        text: { body: textContent || '' },
       };
     } else {
       payload = {
@@ -169,7 +179,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
         to: phone,
         type: 'template',
         template: {
-          name: resolvedTemplateId,
+          name: resolvedTemplateId || '',
           language: { code: resolvedTemplateLanguage || 'en_US' },
           components: components || [],
         },
@@ -281,11 +291,11 @@ cron.schedule('* * * * *', async () => {
         continue;
       }
 
-      const validContacts = contacts.map(c => (c as any).contacts).filter(Boolean);
+      const validContacts = contacts.map((c: any) => c.contacts).filter(Boolean);
       console.log(`[Scheduler] Campaign ${campaign.id}: Queuing ${validContacts.length} messages.`);
 
       // e. Create messages and push to BullMQ
-      const messagesToInsert = validContacts.map(c => ({
+      const messagesToInsert = validContacts.map((c: any) => ({
         tenant_id: tenantId,
         campaign_id: campaign.id, // CRITICAL FIX: Ensure campaign connection
         contact_id: c.id,
@@ -300,8 +310,8 @@ cron.schedule('* * * * *', async () => {
         continue;
       }
 
-      const jobs = validContacts.map(c => {
-        const msgRecord = insertedMsgs.find(im => im.phone_number === c.phone_number);
+      const jobs = validContacts.map((c: any) => {
+        const msgRecord = insertedMsgs.find((im: any) => im.phone_number === c.phone_number);
         let renderedContent = campaign.templates?.content || '';
         const params: any[] = [];
 
@@ -326,12 +336,12 @@ cron.schedule('* * * * *', async () => {
       });
 
       // Update messages with rendered content for Inbox display
-      for (const contact of validContacts) {
+      for (const contact of validContacts as any[]) {
         let content = campaign.templates?.content || '';
         if (content.includes('{{name}}')) {
           content = content.replace(/{{name}}/g, contact.name || 'Customer');
         }
-        const msgRecord = insertedMsgs.find(im => im.phone_number === contact.phone_number);
+        const msgRecord = insertedMsgs.find((im: any) => im.phone_number === contact.phone_number);
         if (msgRecord) {
           await db.from('messages').update({ content }).eq('id', msgRecord.id);
         }
@@ -411,9 +421,9 @@ const requeuePendingMessages = async () => {
     }
 
     console.log(`[Startup] Re-queuing ${messages.length} pending messages...`);
-    const jobs = messages.map(msg => {
-      const dbType = (msg as any).message_type;
-      const mediaPath = (msg as any).media_path;
+    const jobs = messages.map((msg: any) => {
+      const dbType = msg.message_type;
+      const mediaPath = msg.media_path;
       const hasMediaPath = !!mediaPath;
       const isMedia = ['image', 'video', 'audio', 'document'].includes(dbType) || hasMediaPath;
       const isDirectText = !msg.campaign_id && (!isMedia && (dbType === 'text' || !dbType));
@@ -496,8 +506,8 @@ cron.schedule('0 3 * * *', async () => {
 
       console.log(`[Cleanup] Purging ${oldMessages.length} expired files for tenant ${tenant.id}`);
       
-      const pathsToDelete = oldMessages.map(m => m.media_path);
-      const totalFreedBytes = oldMessages.reduce((acc, m) => acc + (Number(m.media_size_bytes) || 0), 0);
+      const pathsToDelete = oldMessages.map((m: any) => m.media_path);
+      const totalFreedBytes = oldMessages.reduce((acc: number, m: any) => acc + (Number(m.media_size_bytes) || 0), 0);
 
       // 3. Delete from Supabase Storage
       const { error: storageError } = await db.storage.from('chat-media').remove(pathsToDelete);
@@ -506,7 +516,7 @@ cron.schedule('0 3 * * *', async () => {
         // 4. Clear metadata from DB
         await db.from('messages')
           .update({ media_path: null, media_url: null, media_size_bytes: null })
-          .in('id', oldMessages.map(m => m.id));
+          .in('id', oldMessages.map((m: any) => m.id));
 
         // 5. Update tenant storage tally (Decrement)
         const { data: t } = await db.from('tenants').select('storage_usage_bytes').eq('id', tenant.id).single();

@@ -13,7 +13,7 @@ async function debugTemplates() {
     return;
   }
   
-  data.forEach(t => {
+  data.forEach((t: any) => {
     console.log(`ID: ${t.id} | Name: ${t.name} | Language: ${t.language} | ExtID: ${t.template_id} | Status: ${t.status}`);
   });
   console.log('------------------------------');

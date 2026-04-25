@@ -13,15 +13,15 @@ export async function GET(req: Request) {
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
-  const conversations = (contacts || []).map(contact => {
-    const contactMsgs = (messages || []).filter(m => m.contact_id === contact.id);
+  const conversations = (contacts || []).map((contact: any) => {
+    const contactMsgs = (messages || []).filter((m: any) => m.contact_id === contact.id);
     return {
       contact,
       latestMessage: contactMsgs.length > 0 ? contactMsgs[0] : null,
-      unreadCount: contactMsgs.filter(m => m.direction === 'inbound' && m.status === 'received').length
+      unreadCount: contactMsgs.filter((m: any) => m.direction === 'inbound' && m.status === 'received').length
     };
-  }).filter(c => c.latestMessage !== null)
-  .sort((a, b) => new Date(b.latestMessage!.created_at).getTime() - new Date(a.latestMessage!.created_at).getTime());
+  }).filter((c: any) => c.latestMessage !== null)
+  .sort((a: any, b: any) => new Date(b.latestMessage!.created_at).getTime() - new Date(a.latestMessage!.created_at).getTime());
 
   return NextResponse.json(conversations);
 }
