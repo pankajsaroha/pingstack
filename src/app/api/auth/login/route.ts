@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { dbAdmin as db } from '@/lib/db';
 import { signToken } from '@/lib/jwt';
 import { verifyPassword } from '@/lib/hash';
 

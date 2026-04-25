@@ -14,7 +14,7 @@ export async function GET(req: Request) {
       .select('status')
       .eq('tenant_id', tenantId);
 
-    const approvedTemplates = templates?.filter(t => t.status === 'APPROVED').length || 0;
+    const approvedTemplates = templates?.filter((t: any) => t.status === 'APPROVED').length || 0;
 
     // 2. Count Total Contacts (Fixes 0 issue)
     const { count: totalContacts } = await db
@@ -30,13 +30,13 @@ export async function GET(req: Request) {
 
     const stats = {
       totalContacts: totalContacts || 0,
-      conversations: Array.from(new Set(messages?.map(m => m.contact_id))).length || 0,
+      conversations: Array.from(new Set((messages || []).map((m: any) => m.contact_id))).length || 0,
       templatesApproved: approvedTemplates,
-      inboundMessages: messages?.filter(m => (m as any).direction === 'inbound').length || 0,
-      sent: messages?.filter(m => m.status === 'sent' || m.status === 'delivered' || m.status === 'read').length || 0,
-      delivered: messages?.filter(m => m.status === 'delivered' || m.status === 'read').length || 0,
-      read: messages?.filter(m => m.status === 'read').length || 0,
-      failed: messages?.filter(m => m.status === 'failed').length || 0
+      inboundMessages: (messages || []).filter((m: any) => m.direction === 'inbound').length || 0,
+      sent: (messages || []).filter((m: any) => m.status === 'sent' || m.status === 'delivered' || m.status === 'read').length || 0,
+      delivered: (messages || []).filter((m: any) => m.status === 'delivered' || m.status === 'read').length || 0,
+      read: (messages || []).filter((m: any) => m.status === 'read').length || 0,
+      failed: (messages || []).filter((m: any) => m.status === 'failed').length || 0
     };
 
     return NextResponse.json(stats);

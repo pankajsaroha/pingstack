@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   if (tErr || !template) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
 
-  const messagesToInsert = contacts.map(c => ({
+  const messagesToInsert = (contacts || []).map((c: any) => ({
     tenant_id: tenantId,
     contact_id: c.id,
     phone_number: c.phone_number,
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 
   if (mErr || !insertedMsgs) return NextResponse.json({ error: 'Failed to create messages' }, { status: 500 });
 
-  const jobs = insertedMsgs.map(m => ({
+  const jobs = (insertedMsgs || []).map((m: any) => ({
     name: 'send-whatsapp',
     data: {
       messageId: m.id,

@@ -15,7 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     
   if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
   
-  const summary = stats.reduce((acc: any, curr) => {
+  const summary = stats.reduce((acc: any, curr: any) => {
     acc[curr.status] = (acc[curr.status] || 0) + 1;
     return acc;
   }, {});

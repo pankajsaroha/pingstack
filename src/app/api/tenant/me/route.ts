@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { dbAdmin as db } from '@/lib/db';
 import { ensureFreshLimits } from '@/lib/limits';
 
 export async function GET(req: Request) {

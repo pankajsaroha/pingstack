@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   let targetContactIds = new Set<string>(contactIds || []);
   if (groupIds && groupIds.length > 0) {
     const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
-    gcData?.forEach(gc => targetContactIds.add(gc.contact_id));
+    gcData?.forEach((gc: any) => targetContactIds.add(gc.contact_id));
   }
 
   const uniqueContactIds = Array.from(targetContactIds);
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   if (contactsErr || !contacts) return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 });
 
   // 4. Create Messages and push to Queue
-  const messagesToInsert = contacts.map(c => ({
+  const messagesToInsert = (contacts || []).map((c: any) => ({
     tenant_id: tenantId,
     campaign_id: campaignId,
     contact_id: c.id,
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
 
   // Push to BullMQ
-  const jobs = insertedMsgs.map(m => ({
+  const jobs = (insertedMsgs || []).map((m: any) => ({
     name: 'send-whatsapp',
     data: {
       messageId: m.id,
