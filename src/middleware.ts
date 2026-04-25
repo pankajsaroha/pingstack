@@ -7,11 +7,15 @@ const publicPaths = [
   '/register', 
   '/privacy',
   '/forgot-password',
+  '/docs',
+  '/pricing',
+  '/contact',
   '/api/auth/login', 
   '/api/auth/register-tenant', 
   '/api/auth/forgot-password',
   '/api/webhook/gupshup',
-  '/api/webhooks/meta'
+  '/api/webhooks/meta',
+  '/api/support/contact'
 ];
 
 export async function middleware(request: NextRequest) {

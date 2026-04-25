@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Outfit } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const font = Outfit({ subsets: ['latin'], variable: '--font-outfit' });
 
 export const metadata: Metadata = {
-  title: 'PingStack | WhatsApp SaaS',
-  description: 'Multi-tenant WhatsApp campaign manager',
+  title: 'PingStack | Enterprise WhatsApp Notifications',
+  description: 'Send WhatsApp notifications reliably at scale with the PingStack API and Dashboard.',
 };
 
 import Script from 'next/script';
@@ -19,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased selection:bg-blue-100 selection:text-blue-900 bg-gray-50 text-gray-900`}>
+      <body className={`${font.variable} font-sans antialiased text-gray-900 min-h-screen`}>
         <TimezoneSync />
         {children}
         <Script 

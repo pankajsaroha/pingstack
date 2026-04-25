@@ -1,7 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-outfit);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 :root {
