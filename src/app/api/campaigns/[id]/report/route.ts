@@ -23,6 +23,7 @@ export async function GET(
         status,
         created_at,
         direction,
+        variables,
         contacts (
           name
         )

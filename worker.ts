@@ -58,7 +58,7 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 // 1. Messaging Worker (Processes individual message jobs)
 // ---------------------------------------------------------
 const worker = new Worker('message-queue', async (job: Job) => {
-  const { messageId, phone, components } = job.data;
+  const { messageId, phone, components, params } = job.data;
   let { templateId, templateLanguage } = job.data;
 
   // 0. Validate UUID format
@@ -146,6 +146,8 @@ const worker = new Worker('message-queue', async (job: Job) => {
     const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
     let payload: any;
 
+    const finalComponents = components || (params && params.length > 0 ? [{ type: 'body', parameters: params }] : []);
+
     if (isMedia && mediaPath && mediaType) {
       // 1. Generate Signed URL for Meta to fetch (1 hour expiry)
       const { data, error: sError } = await db.storage
@@ -181,7 +183,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
         template: {
           name: resolvedTemplateId || '',
           language: { code: resolvedTemplateLanguage || 'en_US' },
-          components: components || [],
+          components: finalComponents,
         },
       };
     }
