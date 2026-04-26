@@ -126,12 +126,51 @@ export default function Dashboard() {
     }
   };
 
+  const handleDiscovery = useCallback(async (code?: string, currentTenantId?: string) => {
+    setConnecting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/whatsapp/meta/discover', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': currentTenantId || tenant?.id 
+        },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDiscovery(data.wabas);
+        setTempToken(data.accessToken);
+        setOnboardingStep(2);
+        if (data.wabas.length > 0) {
+          const firstWaba = data.wabas[0];
+          setSelectedWaba(firstWaba.id);
+          if (firstWaba.phones?.length > 0) {
+            setSelectedPhone(firstWaba.phones[0].id);
+          }
+        }
+      } else {
+        setError(data.message || 'Discovery failed');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setConnecting(false);
+    }
+  }, [tenant]);
+
   const fetchTenant = async () => {
     try {
       const res = await fetch('/api/tenant/me');
       if (res.ok) {
         const data = await res.json();
         setTenant(data);
+        
+        // AUTO-RESUME CHECK
+        if (data.whatsapp_account?.status === 'LINKED') {
+          handleDiscovery(undefined, data.id);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -188,34 +227,7 @@ export default function Dashboard() {
       if (response.authResponse) {
         const code = response.authResponse.code;
         
-        // Step 1 COMPLETE: Account Linked
-        // Now call discovery API to show the "Form"
-        fetch('/api/whatsapp/meta/discover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code })
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            setDiscovery(data.wabas);
-            setTempToken(data.accessToken);
-            setOnboardingStep(2); // Go to Selection Form
-            
-            // Auto-select first options if available
-            if (data.wabas.length > 0) {
-              const firstWaba = data.wabas[0];
-              setSelectedWaba(firstWaba.id);
-              if (firstWaba.phones.length > 0) {
-                setSelectedPhone(firstWaba.phones[0].id);
-              }
-            }
-          } else {
-            setError(data.message || 'Discovery failed');
-          }
-        })
-        .catch(err => setError(err.message))
-        .finally(() => setConnecting(false));
+        handleDiscovery(code);
       } else {
         setConnecting(false);
         setError('Login cancelled or failed.');
@@ -377,33 +389,44 @@ export default function Dashboard() {
                           <div className="text-left space-y-6">
                             <div className="space-y-3">
                               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Business Account</label>
-                              <select 
-                                value={selectedWaba}
-                                onChange={(e) => {
-                                  setSelectedWaba(e.target.value);
-                                  const waba = discovery.find((w: any) => w.id === e.target.value);
-                                  if (waba?.phones?.length > 0) setSelectedPhone(waba.phones[0].id);
-                                }}
-                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer"
-                              >
-                                {discovery?.map((waba: any) => (
-                                  <option key={waba.id} value={waba.id}>{waba.name}</option>
-                                ))}
-                              </select>
+                              {discovery && discovery.length > 0 ? (
+                                <select 
+                                  value={selectedWaba}
+                                  onChange={(e) => {
+                                    setSelectedWaba(e.target.value);
+                                    const waba = discovery.find((w: any) => w.id === e.target.value);
+                                    if (waba?.phones?.length > 0) setSelectedPhone(waba.phones[0].id);
+                                  }}
+                                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer"
+                                >
+                                  {discovery.map((waba: any) => (
+                                    <option key={waba.id} value={waba.id}>{waba.name}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl text-[10px] font-black border border-amber-100">
+                                   No Business Accounts found. Please ensure you selected a WABA in the Meta login.
+                                </div>
+                              )}
                             </div>
 
                             <div className="space-y-3">
                               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone Number</label>
-                              <select 
-                                value={selectedPhone}
-                                onChange={(e) => setSelectedPhone(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer font-mono"
-                              >
-                                {discovery?.find((w: any) => w.id === selectedWaba)?.phones?.map((phone: any) => (
-                                  <option key={phone.id} value={phone.id}>{phone.display_phone_number}</option>
-                                ))}
-                              </select>
-                            </div>
+                              {discovery && discovery.length > 0 ? (
+                                <select 
+                                  value={selectedPhone}
+                                  onChange={(e) => setSelectedPhone(e.target.value)}
+                                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer font-mono"
+                                >
+                                  {discovery.find((w: any) => w.id === selectedWaba)?.phones?.map((phone: any) => (
+                                    <option key={phone.id} value={phone.id}>{phone.display_phone_number}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="p-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black border border-gray-100">
+                                   N/A
+                                </div>
+                              )}
                           </div>
 
                           <div className="pt-4 flex gap-3">
@@ -422,7 +445,8 @@ export default function Dashboard() {
                             </button>
                           </div>
                         </div>
-                      )}
+                      </div>
+                    )}
                       
                       {error && (
                         <div className="mt-8 p-4 bg-red-50 text-red-600 rounded-2xl text-[9px] font-black border border-red-100 flex items-center animate-in slide-in-from-bottom-2 duration-700">
