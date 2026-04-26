@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { contactIds, template_id } = await req.json();
+    const { contactIds, template_id, contactVars } = await req.json();
     if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0 || !template_id) {
       return NextResponse.json({ error: 'Invalid payload. contactIds (array) and template_id are required.' }, { status: 400 });
     }
@@ -34,17 +34,18 @@ export async function POST(req: Request) {
     contact_id: c.id,
     phone_number: c.phone_number,
     status: 'pending',
-    content: template.content, // POPULATE CONTENT FOR INBOX DISPLAY
+    content: template.content, 
     direction: 'outbound',
-    message_type: 'template'
+    message_type: 'template',
+    variables: contactVars?.[c.id] || []
   }));
 
-  let { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');
+  let { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number, contact_id');
   
   if (mErr && mErr.message.includes('message_type')) {
     console.warn('[DB] message_type column missing, falling back to basic insert');
     const fallback = messagesToInsert.map(({ message_type, ...rest }: any) => rest);
-    const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select('id, phone_number');
+    const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select('id, phone_number, contact_id');
     insertedMsgs = retryData;
     mErr = retryErr;
   }
@@ -57,8 +58,8 @@ export async function POST(req: Request) {
       messageId: m.id,
       phone: m.phone_number,
       templateId: template.template_id,
-      templateLanguage: 'en_US',
-      params: [],
+      templateLanguage: template.language || 'en_US',
+      params: (contactVars?.[m.contact_id] || []).map((v: any) => ({ type: 'text', text: String(v) })),
       isDirectText: false
     }
   }));
