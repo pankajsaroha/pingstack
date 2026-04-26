@@ -11,20 +11,20 @@ export interface PlanLimits {
 
 export const PLANS: Record<PlanType, PlanLimits> = {
   starter: {
-    maxCampaignsPerDay: 1,
+    maxCampaignsPerDay: 100,
     maxContacts: 250,
     maxStorageMb: 50,
     maxFileSizeMb: 5,
     mediaRetentionDays: 7,
-    features: ['1 Campaign/day', '250 Contacts', '50MB Storage', '7-Day Retention']
+    features: ['100 Campaigns/day', '250 Contacts', '50MB Storage', '7-Day Retention']
   },
   growth: {
-    maxCampaignsPerDay: 10,
+    maxCampaignsPerDay: 1000,
     maxContacts: 2500,
     maxStorageMb: 500,
     maxFileSizeMb: 15,
     mediaRetentionDays: 30,
-    features: ['10 Campaigns/day', '2500 Contacts', '500MB Storage', '30-Day Retention']
+    features: ['1000 Campaigns/day', '2500 Contacts', '500MB Storage', '30-Day Retention']
   },
   pro: {
     maxCampaignsPerDay: Infinity,
