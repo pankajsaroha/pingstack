@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Zap, X, Paperclip, Image, FileText } from 'lucide-react';
+import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Zap, X, Paperclip, Image, FileText, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
 import { PLANS, PlanType } from '@/lib/plans';
@@ -26,6 +26,8 @@ export default function Inbox() {
 
   const [templates, setTemplates] = useState<any[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [templateVars, setTemplateVars] = useState<Record<string, string>>({});
   const [windowError, setWindowError] = useState<boolean>(false);
   const [showSyncNotice, setShowSyncNotice] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -277,13 +279,16 @@ export default function Inbox() {
         },
         body: JSON.stringify({ 
           templateName: template.name,
-          language: template.language || 'en_US'
+          language: template.language || 'en_US',
+          variables: Object.values(templateVars)
         })
       });
 
       if (res.ok) {
         setToast({ message: 'Template sent successfully', type: 'success' });
         setWindowError(false);
+        setSelectedTemplate(null);
+        setTemplateVars({});
         fetchMessages(activeContactId);
       } else {
         const data = await res.json();
@@ -763,36 +768,93 @@ export default function Inbox() {
                     
                     {/* Template List */}
                     <div className="flex-1 overflow-y-auto space-y-3 pr-2 -mr-2 custom-scrollbar">
-                        {templates.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <Zap className="w-8 h-8 text-gray-100 mb-2" />
-                            <p className="text-gray-300 font-bold text-[10px] uppercase tracking-widest">No templates</p>
+                        {selectedTemplate ? (
+                          <div className="animate-in slide-in-from-right-4 duration-300 space-y-6 p-2">
+                             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Preview</h4>
+                                <p className="text-sm text-gray-600 italic leading-relaxed">"{selectedTemplate.content}"</p>
+                             </div>
+                             
+                             <div className="space-y-4">
+                                {Array.from({ length: (selectedTemplate.content?.match(/\{\{\d+\}\}/g) || []).length }).map((_, i) => (
+                                   <div key={i} className="space-y-2">
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Variable {i + 1}</label>
+                                      <input 
+                                        type="text"
+                                        placeholder={`Enter value for {{${i + 1}}}...`}
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        value={templateVars[i+1] || ''}
+                                        onChange={(e) => setTemplateVars({...templateVars, [i+1]: e.target.value})}
+                                        autoFocus={i === 0}
+                                      />
+                                   </div>
+                                ))}
+                             </div>
+
+                             <div className="flex gap-3 pt-4">
+                                <button 
+                                  onClick={() => {
+                                     setSelectedTemplate(null);
+                                     setTemplateVars({});
+                                  }}
+                                  className="flex-1 px-6 py-3 border border-gray-100 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95"
+                                >
+                                   Back
+                                </button>
+                                <button 
+                                  onClick={() => handleSendTemplate(selectedTemplate)}
+                                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+                                >
+                                   Send Now
+                                </button>
+                             </div>
                           </div>
                         ) : (
-                          templates.map(tpl => (
-                              <div 
-                                key={tpl.id} 
-                                onClick={() => handleSendTemplate(tpl)}
-                                className="p-4 border border-gray-50 rounded-2xl hover:border-blue-100 hover:bg-blue-50/20 cursor-pointer group transition-all relative active:scale-[0.98] flex items-center"
-                              >
-                                <div className="flex-1 min-w-0 pr-4">
-                                  <div className="flex justify-between items-start mb-1.5">
-                                      <h4 className="text-xs font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">{tpl.name}</h4>
-                                      <span className="text-[7px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100/30 ml-2 shrink-0">{tpl.language}</span>
+                          templates.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                              <Zap className="w-8 h-8 text-gray-100 mb-2" />
+                              <p className="text-gray-300 font-bold text-[10px] uppercase tracking-widest">No templates</p>
+                            </div>
+                          ) : (
+                            templates.map(tpl => {
+                               const hasVars = tpl.content?.includes('{{1}}');
+                               return (
+                                <div 
+                                  key={tpl.id} 
+                                  onClick={() => {
+                                    if (hasVars) {
+                                      setSelectedTemplate(tpl);
+                                      setTemplateVars({});
+                                    } else {
+                                      handleSendTemplate(tpl);
+                                    }
+                                  }}
+                                  className="p-4 border border-gray-50 rounded-2xl hover:border-blue-100 hover:bg-blue-50/20 cursor-pointer group transition-all relative active:scale-[0.98] flex items-center"
+                                >
+                                  <div className="flex-1 min-w-0 pr-4">
+                                    <div className="flex justify-between items-start mb-1.5">
+                                        <div className="flex items-center">
+                                          <h4 className="text-xs font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">{tpl.name}</h4>
+                                          {hasVars && (
+                                             <span className="ml-2 px-1.5 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded text-[8px] font-black uppercase tracking-tighter">Requires Inputs</span>
+                                          )}
+                                        </div>
+                                        <span className="text-[7px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100/30 ml-2 shrink-0">{tpl.language}</span>
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 leading-snug font-medium line-clamp-2 italic">
+                                      "{tpl.content}"
+                                    </p>
                                   </div>
-                                  <p className="text-[11px] text-gray-500 leading-snug font-medium line-clamp-2 italic">
-                                    "{tpl.content}"
-                                  </p>
+                                  
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-2">
+                                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/20">
+                                        {hasVars ? <ArrowRight className="w-3.5 h-3.5 text-white" /> : <Send className="w-3.5 h-3.5 text-white ml-0.5" />}
+                                     </div>
+                                  </div>
                                 </div>
-                                
-                                {/* Refined Hover Send Button */}
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-2">
-                                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/20">
-                                      <Send className="w-3.5 h-3.5 text-white ml-0.5" />
-                                   </div>
-                                </div>
-                              </div>
-                          ))
+                               );
+                            })
+                          )
                         )}
                     </div>
                     

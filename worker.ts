@@ -103,7 +103,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
   const isMedia = ['image', 'video', 'audio', 'document'].includes(dbType) || hasMediaPath;
   const mediaType = isMedia ? (['image', 'video', 'audio', 'document'].includes(dbType) ? dbType : 'document') : null;
   const mediaPath = message.media_path;
-  const isDirectText = !message.campaign_id && (!isMedia && (dbType === 'text' || !dbType));
+  const isDirectText = !templateId && !message.campaign_id && (!isMedia && (dbType === 'text' || !dbType));
   const textContent = message.content;
   const caption = message.content;
   const fileName = message.content || (mediaPath ? mediaPath.split('/').pop() : 'file');
@@ -428,7 +428,8 @@ const requeuePendingMessages = async () => {
       const mediaPath = msg.media_path;
       const hasMediaPath = !!mediaPath;
       const isMedia = ['image', 'video', 'audio', 'document'].includes(dbType) || hasMediaPath;
-      const isDirectText = !msg.campaign_id && (!isMedia && (dbType === 'text' || !dbType));
+      const templateName = (msg.campaigns?.templates as any)?.name || msg.template_name; // Check for future template_name column
+      const isDirectText = !templateName && !msg.campaign_id && (!isMedia && (dbType === 'text' || !dbType));
       
       return {
         name: 'send-whatsapp',

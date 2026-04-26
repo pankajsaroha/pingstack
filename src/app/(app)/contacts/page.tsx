@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Plus, Search, Send, Trash2, Loader2, Globe } from 'lucide-react';
+import { Upload, Plus, Search, Send, Trash2, Loader2, Globe, ArrowRight, X, ChevronRight, Zap, Check } from 'lucide-react';
 import Script from 'next/script';
+import Link from 'next/link';
 import Toast from '@/components/Toast';
 
 export default function Contacts() {
@@ -22,7 +23,9 @@ export default function Contacts() {
   const [newPhone, setNewPhone] = useState('');
 
   const [showSendModal, setShowSendModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [templateStep, setTemplateStep] = useState<'SELECT' | 'VARS'>('SELECT');
+  const [bulkVars, setBulkVars] = useState<Record<string, Record<string, string>>>({});
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -157,15 +160,22 @@ export default function Contacts() {
 
     setSending(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
     try {
+      // Map bulkVars to the format API expects: Record<contactId, string[]>
+      const contactVars: Record<string, string[]> = {};
+      Object.entries(bulkVars).forEach(([cid, vars]) => {
+        contactVars[cid] = Object.values(vars);
+      });
+
       const res = await fetch('/api/messages/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contactIds: Array.from(selectedIds),
-          template_id: selectedTemplate
+          template_id: selectedTemplate.id,
+          contactVars
         }),
         signal: controller.signal
       });
@@ -174,7 +184,9 @@ export default function Contacts() {
 
       if (res.ok) {
         setShowSendModal(false);
-        setSelectedTemplate('');
+        setSelectedTemplate(null);
+        setTemplateStep('SELECT');
+        setBulkVars({});
         setSelectedIds(new Set());
         setToast({ message: 'Messages queued', type: 'success' });
       } else {
@@ -441,42 +453,196 @@ export default function Contacts() {
       )}
 
       {showSendModal && (
-        <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 tracking-tight">Send to {selectedIds.size} Contact{selectedIds.size > 1 ? 's' : ''}</h3>
-            <form onSubmit={handleSendMessage}>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Select Template</label>
-                <select
-                  required
-                  className="block w-full rounded-xl border border-gray-200 px-3 py-2.5 shadow-[0_2px_4px_rgba(0,0,0,0.02)] focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm"
-                  value={selectedTemplate}
-                  onChange={e => setSelectedTemplate(e.target.value)}
-                >
-                  <option value="">Choose a template...</option>
-                  {templates.filter(t => t.status === 'APPROVED').map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowSendModal(false)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={sending}
-                  className="px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center"
-                >
-                  {sending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {sending ? 'Sending...' : 'Send Now'}
-                </button>
-              </div>
-            </form>
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] max-w-2xl w-full flex flex-col max-h-[90vh] border border-white/20 animate-in zoom-in-95 duration-300 overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+               <div>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                    {templateStep === 'SELECT' ? 'Choose Template' : 'Personalize Content'}
+                  </h3>
+                  <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-widest flex items-center">
+                     <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2" />
+                     {selectedIds.size} recipient{selectedIds.size > 1 ? 's' : ''} selected
+                  </p>
+               </div>
+               <button 
+                onClick={() => {
+                   setShowSendModal(false);
+                   setSelectedTemplate(null);
+                   setTemplateStep('SELECT');
+                   setBulkVars({});
+                }} 
+                className="w-12 h-12 bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90 border border-gray-100"
+               >
+                 <X className="w-5 h-5" />
+               </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+               {templateStep === 'SELECT' ? (
+                  <div className="grid grid-cols-1 gap-4">
+                     {templates.filter(t => t.status === 'APPROVED').map(tpl => {
+                        const hasVars = tpl.content?.includes('{{1}}');
+                        return (
+                          <div 
+                            key={tpl.id} 
+                            onClick={() => {
+                               setSelectedTemplate(tpl);
+                               if (hasVars) {
+                                 setTemplateStep('VARS');
+                                 // Initialize bulkVars for selected contacts
+                                 const initial: any = {};
+                                 Array.from(selectedIds).forEach(cid => {
+                                   initial[cid] = {};
+                                 });
+                                 setBulkVars(initial);
+                               } else {
+                                 // Auto-send or confirmation? Let's just go to a confirmation if no vars
+                                 setTemplateStep('VARS');
+                               }
+                            }}
+                            className="p-5 border border-gray-100 rounded-3xl hover:border-blue-200 hover:bg-blue-50/20 cursor-pointer group transition-all relative active:scale-[0.98] flex items-center shadow-sm"
+                          >
+                             <div className="flex-1 min-w-0 pr-4">
+                                <div className="flex justify-between items-start mb-2">
+                                   <div className="flex items-center">
+                                      <h4 className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{tpl.name}</h4>
+                                      {hasVars && (
+                                         <span className="ml-2 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg text-[8px] font-black uppercase tracking-widest">Personalization required</span>
+                                      )}
+                                   </div>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100/50">{tpl.language}</span>
+                                </div>
+                                <p className="text-xs text-gray-500 leading-snug italic font-medium line-clamp-2">"{tpl.content}"</p>
+                             </div>
+                              <div className="w-10 h-10 bg-gray-50 group-hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all group-hover:shadow-lg group-hover:shadow-blue-600/20">
+                                 <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-white transition-colors" />
+                              </div>
+                          </div>
+                        )
+                     })}
+                  </div>
+               ) : (
+                  <div className="space-y-6">
+                    <div className="bg-gray-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden group">
+                       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 blur-3xl rounded-full translate-x-10 -translate-y-10 group-hover:bg-blue-600/20 transition-all" />
+                       <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center">
+                          <Zap className="w-3 h-3 mr-1.5 fill-current" /> Preview
+                       </h4>
+                       <p className="text-sm leading-relaxed italic opacity-90">"{selectedTemplate?.content}"</p>
+                    </div>
+
+                    {(selectedTemplate?.content?.match(/\{\{\d+\}\}/g) || []).length > 0 ? (
+                       <div className="space-y-4">
+                          <div className="flex justify-between items-center mb-2">
+                             <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Personalize for {selectedIds.size} recipients</h5>
+                             {selectedIds.size > 1 && (
+                               <button 
+                                 type="button"
+                                 onClick={() => {
+                                    // Use first contact's vars as base for everyone
+                                    const firstId = Array.from(selectedIds)[0];
+                                    const baseVars = bulkVars[firstId] || {};
+                                    const updated = { ...bulkVars };
+                                    Array.from(selectedIds).forEach(cid => {
+                                      updated[cid] = { ...baseVars };
+                                    });
+                                    setBulkVars(updated);
+                                 }}
+                                 className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                               >
+                                  Apply Top to All
+                               </button>
+                             )}
+                          </div>
+                          
+                          <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
+                             <table className="min-w-full divide-y divide-gray-100">
+                                <thead className="bg-gray-50/50">
+                                   <tr>
+                                      <th className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Recipient</th>
+                                      {(selectedTemplate.content?.match(/\{\{\d+\}\}/g) || []).map((_: any, i: number) => (
+                                         <th key={i} className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Var {i + 1}</th>
+                                      ))}
+                                   </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                   {Array.from(selectedIds).map(cid => {
+                                      const contact = contacts.find(c => c.id === cid);
+                                      return (
+                                        <tr key={cid} className="hover:bg-gray-50/30">
+                                           <td className="px-4 py-3 whitespace-nowrap">
+                                              <p className="text-xs font-bold text-gray-900 truncate max-w-[120px]">{contact?.name || contact?.phone_number}</p>
+                                           </td>
+                                           {(selectedTemplate.content?.match(/\{\{\d+\}\}/g) || []).map((_: any, i: number) => (
+                                              <td key={i} className="px-2 py-2">
+                                                 <input 
+                                                   type="text"
+                                                   placeholder={`{{${i+1}}}`}
+                                                   value={bulkVars[cid]?.[i+1] || ''}
+                                                   onChange={(e) => setBulkVars({
+                                                      ...bulkVars,
+                                                      [cid]: { ...(bulkVars[cid] || {}), [i+1]: e.target.value }
+                                                   })}
+                                                   className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-blue-500 rounded-xl px-3 py-2 text-xs font-medium placeholder:text-gray-300"
+                                                 />
+                                              </td>
+                                           ))}
+                                        </tr>
+                                      )
+                                   })}
+                                </tbody>
+                             </table>
+                          </div>
+                          {selectedIds.size > 10 && (
+                             <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-start">
+                                <Search className="w-4 h-4 text-blue-600 mr-3 mt-0.5" />
+                                <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
+                                   <span className="font-black uppercase tracking-tight">Tip:</span> Sending to more than 10 people? It's faster to create a <Link href="/campaigns" className="underline font-black">Campaign</Link> using an Excel file for automatic personalization.
+                                </p>
+                             </div>
+                          )}
+                       </div>
+                    ) : (
+                       <div className="py-12 text-center">
+                          <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                             <Check className="w-8 h-8 text-blue-600" />
+                          </div>
+                          <h5 className="font-black text-gray-900 uppercase tracking-widest text-xs">Ready to Send</h5>
+                          <p className="text-xs text-gray-500 mt-2">No personalization required for this template.</p>
+                       </div>
+                    )}
+                  </div>
+               )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center sm:flex-row flex-col gap-4">
+               {templateStep === 'VARS' ? (
+                  <>
+                    <button 
+                      onClick={() => setTemplateStep('SELECT')}
+                      className="w-full sm:w-auto px-8 py-4 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
+                    >
+                      Back to Templates
+                    </button>
+                    <button 
+                      onClick={handleSendMessage}
+                      disabled={sending}
+                      className="w-full sm:w-auto px-10 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center"
+                    >
+                      {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                      {sending ? 'Sending...' : `Send to ${selectedIds.size} Contacts`}
+                    </button>
+                  </>
+               ) : (
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mx-auto sm:mx-0">Select a template to continue</p>
+               )}
+            </div>
+
           </div>
         </div>
       )}
