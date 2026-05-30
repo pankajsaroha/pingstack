@@ -6,6 +6,7 @@ import { subscribeWABAWebhooks } from '@/lib/whatsapp';
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const { accessToken, wabaId, phoneId, portfolioId } = await req.json();

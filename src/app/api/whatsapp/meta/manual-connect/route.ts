@@ -7,6 +7,9 @@ export async function POST(req: Request) {
   if (!tenantId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+    if (!db) {
+      return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+    }
 
   try {
     const { accessToken, wabaId, phoneNumberId } = await req.json();

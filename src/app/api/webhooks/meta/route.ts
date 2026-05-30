@@ -19,6 +19,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    if (!db) return NextResponse.json({ success: true });
     const body = await req.json();
 
     if (body.object === 'whatsapp_business_account') {

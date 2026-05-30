@@ -28,6 +28,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const { name, template_id, content } = await req.json();
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const { ids } = await req.json();

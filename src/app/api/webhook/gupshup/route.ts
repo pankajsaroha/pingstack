@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
+    if (!db) return NextResponse.json({ success: true });
     let body;
     try {
       body = await req.json();

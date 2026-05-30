@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { groupId, contactIds } = await req.json();
   if (!groupId || !Array.isArray(contactIds)) return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });

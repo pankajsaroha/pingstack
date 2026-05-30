@@ -9,6 +9,7 @@ export async function POST(req: Request) {
     console.error('API CSV Upload: Missing or invalid x-tenant-id');
     return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
   }
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const formData = await req.formData();

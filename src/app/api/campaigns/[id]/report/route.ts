@@ -10,6 +10,9 @@ export async function GET(
   if (!tenantId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  if (!db) {
+    return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+  }
 
   try {
     const { id: campaignId } = await params;
@@ -38,8 +41,9 @@ export async function GET(
     }
 
     return NextResponse.json(data);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Report API] Runtime error:`, err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Failed to fetch report';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

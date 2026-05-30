@@ -33,6 +33,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, phone_number } = body;
 
+    if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
     if (!phone_number) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
@@ -72,6 +74,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId || tenantId === 'undefined') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const { ids } = await req.json();

@@ -6,6 +6,7 @@ export async function GET(req: Request) {
   if (!tenantId || tenantId === 'undefined') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     // 1. Count Templates by Status

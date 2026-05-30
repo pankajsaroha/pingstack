@@ -5,6 +5,7 @@ import { messageQueue } from '@/lib/queue';
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { contactId } = await params;
   const { templateName, language } = await req.json();
