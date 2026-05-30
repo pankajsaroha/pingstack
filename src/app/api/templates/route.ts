@@ -3,20 +3,32 @@ import { db } from '@/lib/db';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
-  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!tenantId) {
+    console.error('API GET templates: Missing x-tenant-id');
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (!db) {
+    console.error('API GET templates: Supabase DB not initialized');
+    return NextResponse.json({ error: 'Server error: database not initialized' }, { status: 500 });
+  }
 
   const { data, error } = await db.from('templates')
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('status', 'APPROVED')
     .order('created_at', { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('API GET templates error', { tenantId, error });
+    return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+  }
   return NextResponse.json(data);
 }
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const { name, template_id, content } = await req.json();
@@ -48,6 +60,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const { ids } = await req.json();

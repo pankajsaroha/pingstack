@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
+import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LogoIcon } from './Logo';
+import { setSupabaseSession } from '@/lib/db';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -24,8 +25,11 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
     document.cookie = 'token=; Max-Age=0; path=/;';
+    document.cookie = 'supabase_refresh_token=; Max-Age=0; path=/;';
+    await setSupabaseSession(null);
     router.push('/');
   };
 

@@ -11,8 +11,10 @@ const publicPaths = [
   '/pricing',
   '/contact',
   '/api/auth/login', 
+  '/api/auth/logout',
   '/api/auth/register-tenant', 
   '/api/auth/forgot-password',
+  '/api/auth/refresh-supabase',
   '/api/webhook/gupshup',
   '/api/webhooks/meta',
   '/api/support/contact'
@@ -65,5 +67,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|login|register|privacy|forgot-password|docs|pricing|contact|api/auth/login|api/auth/logout|api/auth/register-tenant|api/auth/forgot-password|api/webhook/gupshup|api/webhooks/meta|api/support/contact).*)'
+  ],
 };

@@ -1,27 +1,22 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
+export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
-  const { contactId } = await params;
-
   try {
     const { error } = await db
-      .from('messages')
-      .update({ status: 'read' })
-      .eq('tenant_id', tenantId)
-      .eq('contact_id', contactId)
-      .eq('direction', 'inbound')
-      .eq('status', 'received');
+      .from('whatsapp_accounts')
+      .delete()
+      .eq('tenant_id', tenantId);
 
     if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('Mark as read error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Reset Error:', err);
+    return NextResponse.json({ error: 'INTERNAL_ERROR', message: err.message }, { status: 500 });
   }
 }

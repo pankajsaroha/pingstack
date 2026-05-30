@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCircle, X, Sparkles } from 'lucide-react';
+import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCircle, X, Sparkles, ShieldCheck, Key, ExternalLink } from 'lucide-react';
 import Toast from '@/components/Toast';
 
 const LANGUAGES = [
@@ -78,25 +78,60 @@ export default function Templates() {
     category: 'UTILITY', 
     bodyText: '' 
   });
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+  const [portfolioId, setPortfolioId] = useState('');
+  const [troubleshootTab, setTroubleshootTab] = useState<'new_account' | 'permissions'>('new_account');
+  const [tenant, setTenant] = useState<any>(null);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetchTemplates();
+    fetchTenant();
   }, []);
+
+  const fetchTenant = async () => {
+    try {
+      const res = await fetch('/api/tenant/me');
+      if (res.ok) {
+        const data = await res.json();
+        setTenant(data);
+        fetchTemplates();
+      }
+    } catch (e) {
+      console.error('Tenant fetch failed:', e);
+    }
+  };
 
   const fetchTemplates = async (sync = false) => {
     if (sync) setSyncing(true);
     try {
       // Use the Meta-specific sync endpoint if requested
       const url = sync ? '/api/whatsapp/meta/templates' : '/api/templates';
-      const res = await fetch(url);
+      const headers: any = { 'Content-Type': 'application/json' };
+      
+      // Add tenant ID header for Meta sync endpoint
+      if (sync && tenant?.id) {
+        headers['x-tenant-id'] = tenant.id;
+      }
+      
+      const res = await fetch(url, { 
+        credentials: 'include',
+        headers: sync ? headers : undefined
+      });
       const data = await res.json();
       if (res.ok) {
-        if (Array.isArray(data)) setTemplates(data);
         if (sync) {
-          setToast({ message: 'Templates synchronized with Meta', type: 'success' });
+          const syncTemplates = data.templates || [];
+          setTemplates(syncTemplates);
+          setPortfolioId(data.portfolioId);
+          if (syncTemplates.length > 0) {
+            setToast({ message: 'Templates synchronized with Meta', type: 'success' });
+          } else {
+            setShowTroubleshoot(true);
+          }
+        } else {
+          if (Array.isArray(data)) setTemplates(data);
         }
       } else {
         setToast({ message: data.error || 'Failed to sync templates', type: 'error' });
@@ -116,9 +151,15 @@ export default function Templates() {
 
     setSyncing(true);
     try {
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (tenant?.id) {
+        headers['x-tenant-id'] = tenant.id;
+      }
+      
       const res = await fetch('/api/whatsapp/meta/templates', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers,
         body: JSON.stringify(formData)
       });
       if (res.ok) {
@@ -147,6 +188,7 @@ export default function Templates() {
     try {
       const res = await fetch('/api/templates', {
         method: 'DELETE',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
@@ -260,6 +302,134 @@ export default function Templates() {
           ))
         )}
       </div>
+
+      {showTroubleshoot && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-xl w-full p-8 border border-gray-100 animate-in zoom-in-95 duration-300 relative text-left">
+            <button 
+              onClick={() => setShowTroubleshoot(false)}
+              className="absolute top-8 right-8 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="flex items-center mb-6">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mr-6 shadow-sm">
+                 <LayoutTemplate className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-tight">No Templates Synced</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Sync finished with 0 results</p>
+              </div>
+            </div>
+
+            {/* Tab Selector */}
+            <div className="flex bg-gray-100/80 p-1.5 rounded-2xl mb-6">
+              <button
+                type="button"
+                onClick={() => setTroubleshootTab('new_account')}
+                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                  troubleshootTab === 'new_account' 
+                    ? 'bg-white text-gray-900 shadow-sm font-bold' 
+                    : 'text-gray-400 hover:text-gray-600 font-semibold'
+                }`}
+              >
+                New Account / No Templates
+              </button>
+              <button
+                type="button"
+                onClick={() => setTroubleshootTab('permissions')}
+                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                  troubleshootTab === 'permissions' 
+                    ? 'bg-white text-gray-900 shadow-sm font-bold' 
+                    : 'text-gray-400 hover:text-gray-600 font-semibold'
+                }`}
+              >
+                Permissions Issue
+              </button>
+            </div>
+
+            {troubleshootTab === 'new_account' ? (
+              <div className="space-y-6">
+                <div className="bg-blue-50/40 p-6 rounded-3xl border border-blue-100/30">
+                  <p className="text-xs text-blue-900 font-medium leading-relaxed">
+                    If this is a new WhatsApp Business Account, it is completely normal to have no templates yet. You must create and get at least one template approved on Meta before you can sync.
+                  </p>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">How would you like to create your first template?</p>
+                  
+                  <div 
+                    onClick={() => { setShowTroubleshoot(false); setShowModal(true); }}
+                    className="flex items-center p-4 bg-gray-50/60 hover:bg-gray-55/80 hover:border-gray-300 rounded-2xl border border-gray-200/60 cursor-pointer transition-all active:scale-[0.99] group"
+                  >
+                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                      <Plus className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-900">Create directly from PingStack</h4>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Submit templates for review without leaving the app.</p>
+                    </div>
+                  </div>
+
+                  <a 
+                    href="https://business.facebook.com/wa/manage/templates"
+                    target="_blank"
+                    className="flex items-center p-4 bg-gray-50/60 hover:bg-gray-55/80 hover:border-gray-300 rounded-2xl border border-gray-200/60 cursor-pointer transition-all active:scale-[0.99] group block"
+                  >
+                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                      <ExternalLink className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-900 flex items-center">
+                        <span>Manage on Meta WhatsApp Manager</span>
+                        <ExternalLink className="w-3 h-3 ml-1.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                      </h4>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Manage and preview templates inside the Meta Developer Suite.</p>
+                    </div>
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-amber-50/40 p-6 rounded-3xl border border-amber-100/30">
+                  <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                    If you already have templates in your Meta Business Suite but they are not showing up here, it usually means the <b>System User</b> hasn't been assigned permission to manage this WhatsApp account.
+                  </p>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">One-time Permission Setup Steps:</p>
+                  <ul className="space-y-3">
+                    {[
+                      { step: 1, text: 'Open Meta Business Settings and go to the WhatsApp Accounts tab.' },
+                      { step: 2, text: 'Select your WhatsApp Account and look at the "People" section.' },
+                      { step: 3, text: 'Ensure your System User (token creator) is assigned with "Full Control" or "Manage" permissions.' }
+                    ].map(item => (
+                      <li key={item.step} className="flex gap-4 items-start bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
+                        <span className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">{item.step}</span>
+                        <span className="text-xs text-gray-600 font-medium leading-normal">{item.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="flex gap-4">
+                  <a 
+                    href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
+                    target="_blank"
+                    className="flex-1 py-5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all text-center flex items-center justify-center space-x-2"
+                  >
+                    <span>Go to Meta Settings</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-[2px] z-[100] overflow-y-auto animate-in fade-in duration-200">

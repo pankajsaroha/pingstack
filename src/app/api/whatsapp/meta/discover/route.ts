@@ -1,88 +1,164 @@
 import { NextResponse } from 'next/server';
-import { encrypt } from '@/lib/encryption';
-import { getWABADetails, getWABAPhoneNumbers } from '@/lib/whatsapp';
+import { encrypt, decrypt } from '@/lib/encryption';
+import { getWABAPhoneNumbers } from '@/lib/whatsapp';
+import { db } from '@/lib/db';
+
+type GranularScope = {
+  scope?: string;
+  target_ids?: string[];
+};
+
+type WabaSummary = {
+  id: string;
+  name?: string;
+  error?: unknown;
+};
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
-    const { code } = await req.json();
-    const { encrypt, decrypt } = await import('@/lib/encryption');
-    const { db } = await import('@/lib/db');
+    const { code, accessToken: providedToken } = await req.json();
     
-    let accessToken: string;
+    let accessToken = providedToken;
 
-    if (code) {
-      const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
-      const appSecret = process.env.FB_APP_SECRET;
+    if (code || providedToken) {
+      if (code) {
+        const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+        const appSecret = process.env.FB_APP_SECRET;
+        if (!appId || !appSecret) {
+          return NextResponse.json({
+            success: false,
+            error: 'META_APP_NOT_CONFIGURED',
+            message: 'Meta app credentials are not configured.'
+          }, { status: 500 });
+        }
 
-      // 1. Exchange code for access_token
-      const exchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&code=${code}`;
-      const exchangeRes = await fetch(exchangeUrl);
-      const exchangeData = await exchangeRes.json();
+        const exchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&code=${code}`;
+        const exchangeRes = await fetch(exchangeUrl);
+        const exchangeData = await exchangeRes.json();
 
-      if (!exchangeData.access_token) {
-        return NextResponse.json({ 
-          error: 'TOKEN_EXCHANGE_FAILED', 
-          message: exchangeData.error?.message || 'Failed to exchange code' 
-        }, { status: 400 });
+        if (!exchangeData.access_token) {
+          return NextResponse.json({ 
+            success: false,
+            error: 'TOKEN_EXCHANGE_FAILED', 
+            message: exchangeData.error?.message || 'Failed to exchange code' 
+          }, { status: 400 });
+        }
+
+        accessToken = exchangeData.access_token;
       }
 
-      accessToken = exchangeData.access_token;
       const encryptedToken = encrypt(accessToken);
 
-      // 2. Persist the connection state
-      await db.from('whatsapp_accounts').upsert({
-        tenant_id: tenantId,
-        access_token: encryptedToken,
-        status: 'LINKED',
-        provider: 'META'
-      });
+      const { data: existing } = await db
+        .from('whatsapp_accounts')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (existing) {
+        await db
+          .from('whatsapp_accounts')
+          .update({
+            access_token: encryptedToken,
+            status: 'LINKED',
+            provider: 'META',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+      } else {
+        await db
+          .from('whatsapp_accounts')
+          .insert({
+            tenant_id: tenantId,
+            access_token: encryptedToken,
+            status: 'LINKED',
+            provider: 'META',
+            updated_at: new Date().toISOString()
+          });
+      }
     } else {
-      // Look for stored token
       const { data: existing } = await db.from('whatsapp_accounts')
         .select('access_token')
         .eq('tenant_id', tenantId)
         .maybeSingle();
       
       if (!existing?.access_token) {
-        return NextResponse.json({ error: 'NO_TOKEN_FOUND', message: 'No linked account found' }, { status: 404 });
+        return NextResponse.json({ success: false, error: 'NO_TOKEN_FOUND' }, { status: 404 });
       }
       accessToken = decrypt(existing.access_token);
     }
 
-    // 3. Discover WABA Details
-    console.log(`[Meta] Fetching WABAs for token...`);
-    const wabaData = await getWABADetails(accessToken);
-    console.log(`[Meta] WABA Response:`, JSON.stringify(wabaData));
-    
-    const discovery = [];
+    const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+    const appSecret = process.env.FB_APP_SECRET;
+    const debugUrl = `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`;
+    const debugRes = await fetch(debugUrl);
+    const debugData = await debugRes.json();
 
-    if (wabaData.data) {
-      for (const waba of wabaData.data) {
-        console.log(`[Meta] Fetching phones for WABA: ${waba.id}`);
-        const phoneData = await getWABAPhoneNumbers(waba.id, accessToken);
-        console.log(`[Meta] Phone Response for ${waba.id}:`, JSON.stringify(phoneData));
-        
-        discovery.push({
-          id: waba.id,
-          name: waba.name,
-          phones: phoneData.data || []
-        });
+    const granularScopes = (debugData.data?.granular_scopes || []) as GranularScope[];
+    const businessId = granularScopes.find((scope) => scope.scope === 'whatsapp_business_management')?.target_ids?.[0];
+
+    const endpoints = [
+      `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts`,
+      ...(businessId ? [
+        `https://graph.facebook.com/v19.0/${businessId}/whatsapp_business_accounts`,
+        `https://graph.facebook.com/v19.0/${businessId}/owned_whatsapp_business_accounts`,
+        `https://graph.facebook.com/v19.0/${businessId}/client_whatsapp_business_accounts`
+      ] : [])
+    ];
+
+    const results = await Promise.all(
+      endpoints.map(url => fetch(url, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }).then(r => r.json()))
+    );
+    
+    const allWabaData = results.flatMap((res) => res.data || []) as WabaSummary[];
+    const uniqueWabas = Array.from(new Map(allWabaData.map((item) => [item.id, item])).values());
+    
+    const wabas = [];
+    let finalWabas = uniqueWabas;
+
+    if (finalWabas.length === 0 && granularScopes.length > 0) {
+      const targetIds = Array.from(new Set(
+        granularScopes
+          .filter((scope) => scope.scope === 'whatsapp_business_management')
+          .flatMap((scope) => scope.target_ids || [])
+      ));
+      
+      if (targetIds.length > 0) {
+        const targetWabas = await Promise.all(targetIds.map(id => 
+          fetch(`https://graph.facebook.com/v19.0/${id}?fields=name,id`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          }).then(r => r.json())
+        ));
+        finalWabas = (targetWabas as WabaSummary[]).filter((waba) => waba.id && !waba.error);
       }
-    } else {
-      console.warn(`[Meta] No WABA data found in response:`, wabaData);
+    }
+
+    for (const waba of finalWabas) {
+      const phoneData = await getWABAPhoneNumbers(waba.id, accessToken);
+      wabas.push({
+        id: waba.id,
+        name: waba.name || 'WhatsApp Business Account',
+        phones: phoneData.data || []
+      });
     }
 
     return NextResponse.json({ 
       success: true, 
-      accessToken, // Return raw token to UI for the next "finish" call
-      wabas: discovery 
+      wabas, 
+      discovery: wabas,
+      accessToken, 
+      portfolioId: businessId 
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Discovery Error:', err);
-    return NextResponse.json({ error: 'INTERNAL_ERROR', message: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Discovery failed';
+    return NextResponse.json({ success: false, error: 'INTERNAL_ERROR', message }, { status: 500 });
   }
 }

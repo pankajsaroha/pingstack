@@ -22,6 +22,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
+  if (!db) return NextResponse.json({ received: true });
+
   const event = JSON.parse(body);
 
   try {

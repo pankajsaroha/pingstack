@@ -6,6 +6,8 @@ export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
   const { data, error } = await db.from('groups').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
@@ -14,6 +16,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { name } = await req.json();
   if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
@@ -30,6 +34,8 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
     const { ids } = await req.json();

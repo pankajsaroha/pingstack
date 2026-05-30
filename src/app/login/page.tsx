@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { setSupabaseSession } from '@/lib/db';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,6 +23,9 @@ export default function Login() {
 
     if (res.ok) {
       const data = await res.json();
+      if (data.supabaseSession) {
+        await setSupabaseSession(data.supabaseSession);
+      }
       document.cookie = `token=${data.token}; path=/; max-age=604800`;
       router.push('/dashboard');
     } else {
@@ -77,7 +81,7 @@ export default function Login() {
           </div>
           <div className="text-center text-sm mt-6 flex flex-col items-center space-y-4">
             <Link href="/register" className="font-bold text-gray-400 hover:text-gray-900 transition-colors">
-              Don't have an account? <span className="text-black">Register</span>
+              Don&apos;t have an account? <span className="text-black">Register</span>
             </Link>
             
             <div className="pt-6 border-t border-gray-50 w-full">

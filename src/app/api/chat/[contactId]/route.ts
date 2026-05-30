@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 export async function GET(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { contactId } = await params;
   const { searchParams } = new URL(req.url);
@@ -33,6 +34,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { contactId } = await params;
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { content } = await req.json();
   if (!content) return NextResponse.json({ error: 'Message content required' }, { status: 400 });

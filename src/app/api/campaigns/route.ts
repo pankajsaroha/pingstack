@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePublicId } from '@/lib/utils';
 
+type CreateCampaignBody = {
+  name?: string;
+  template_id?: string;
+  scheduled_at?: string | null;
+};
+
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { data, error } = await db.from('campaigns').select('*, templates(name)').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -14,8 +21,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
-  const { name, template_id, scheduled_at } = await req.json();
+  const { name, template_id, scheduled_at } = await req.json() as CreateCampaignBody;
   if (!name || !template_id) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
   const publicId = generatePublicId('c');

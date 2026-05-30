@@ -42,3 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 certificates
+
+Supabase.md
+SUPABASE_RLS_FIX.md
+RLS_DISABLE_STEPS.md

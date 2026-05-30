@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/lib/db';
 
+type CheckoutBody = {
+  planName?: string;
+};
+
+type TenantBillingRow = {
+  id: string;
+  public_id: string;
+  name: string;
+  stripe_customer_id: string | null;
+};
+
 const PRICE_IDS: Record<string, string> = {
   Growth: process.env.STRIPE_PRICE_ID_GROWTH || 'price_growth_placeholder',
   Pro: process.env.STRIPE_PRICE_ID_PRO || 'price_pro_placeholder'
@@ -10,16 +21,22 @@ const PRICE_IDS: Record<string, string> = {
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
-    const { planName } = await req.json();
+    const { planName } = await req.json() as CheckoutBody;
+    if (!planName) {
+      return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
+    }
+
     const priceId = PRICE_IDS[planName];
 
     if (!priceId) {
       return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
     }
 
-    const { data: tenant } = await db.from('tenants').select('*').eq('id', tenantId).single();
+    const { data: tenantData } = await db.from('tenants').select('*').eq('id', tenantId).single();
+    const tenant = tenantData as TenantBillingRow | null;
     if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
     let stripeCustomerId = tenant.stripe_customer_id;
@@ -45,7 +62,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Stripe Checkout Error:', err);
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
   }

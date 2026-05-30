@@ -19,6 +19,7 @@ export async function ensureFreshLimits(tenantId: string, tenant: any) {
   
   if (localDateString !== lastResetLocalString) {
     try {
+      if (!db) return tenant;
       const { data: updated } = await db.from('tenants').update({ 
         campaigns_sent_today: 0, 
         last_usage_reset: now.toISOString() 
@@ -32,6 +33,7 @@ export async function ensureFreshLimits(tenantId: string, tenant: any) {
 }
 
 export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts') {
+  if (!db) return true;
   let { data: tenant, error } = await db
     .from('tenants')
     .select('*')
@@ -77,6 +79,7 @@ export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts
   }
 
   if (type === 'contacts') {
+    if (!db) return true;
     const { count } = await db
       .from('contacts')
       .select('*', { count: 'exact', head: true })
@@ -93,6 +96,7 @@ export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts
 export async function incrementUsage(tenantId: string, type: 'campaigns') {
   if (type === 'campaigns') {
     try {
+      if (!db) return;
       const { data: tenant } = await db
         .from('tenants')
         .select('campaigns_sent_today')

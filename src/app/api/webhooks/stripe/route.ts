@@ -21,6 +21,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Webhook Error' }, { status: 400 });
   }
 
+  if (!db) return NextResponse.json({ received: true });
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {

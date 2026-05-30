@@ -43,7 +43,7 @@ export default function Contacts() {
 
   const fetchContacts = async () => {
     try {
-      const res = await fetch('/api/contacts');
+      const res = await fetch('/api/contacts', { credentials: 'include' });
       const data = await res.json();
       if (Array.isArray(data)) setContacts(data);
     } catch (e) {
@@ -55,7 +55,7 @@ export default function Contacts() {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('/api/templates');
+      const res = await fetch('/api/templates', { credentials: 'include' });
       const data = await res.json();
       if (Array.isArray(data)) setTemplates(data);
     } catch (e) {
@@ -82,6 +82,7 @@ export default function Contacts() {
         try {
           const res = await fetch('/api/contacts/import/google', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ access_token: response.access_token })
           });
@@ -113,6 +114,7 @@ export default function Contacts() {
     try {
       const res = await fetch('/api/contacts/upload-csv', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
       if (res.ok) {
@@ -137,6 +139,7 @@ export default function Contacts() {
     try {
       const res = await fetch('/api/contacts', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName, phone_number: newPhone })
       });
@@ -171,6 +174,7 @@ export default function Contacts() {
 
       const res = await fetch('/api/messages/send', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contactIds: Array.from(selectedIds),
@@ -212,6 +216,7 @@ export default function Contacts() {
     try {
       const res = await fetch('/api/contacts', {
         method: 'DELETE',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });

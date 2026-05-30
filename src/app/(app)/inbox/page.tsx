@@ -33,6 +33,7 @@ export default function Inbox() {
   const [uploading, setUploading] = useState(false);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeContactIdRef = useRef<string | null>(activeContactId);
 
   const handleFileSelect = () => {
     fileInputRef.current?.click();
@@ -58,13 +59,69 @@ export default function Inbox() {
   useEffect(() => {
     fetchStatusAndData();
     fetchTemplates();
-    const interval = setInterval(fetchStatusAndData, 5000); // 5s polling as requested
+
+    const interval = setInterval(fetchStatusAndData, 10000); // fallback polling for conversations and tenant status
+
     return () => clearInterval(interval);
   }, []); 
 
+  useEffect(() => {
+    activeContactIdRef.current = activeContactId;
+  }, [activeContactId]);
+
+  useEffect(() => {
+    if (!tenant?.id) return;
+
+    const handleRealtimeMessage = (payload: any) => {
+      const message = payload.new;
+      if (!message || !message.id) return;
+
+      if (message.contact_id === activeContactIdRef.current) {
+        setMessages(prev => {
+          const existingIndex = prev.findIndex((m: any) => m.id === message.id);
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = { ...next[existingIndex], ...message };
+            return next;
+          }
+          return [...prev, message].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        });
+      }
+
+      setConversations(prev => {
+        const idx = prev.findIndex(c => c.contact.id === message.contact_id);
+        if (idx === -1) return prev;
+
+        const next = [...prev];
+        const conversation = next[idx];
+        const latestMessage = conversation.latestMessage;
+        const newCreatedAt = new Date(message.created_at).getTime();
+
+        if (!latestMessage || newCreatedAt >= new Date(latestMessage.created_at).getTime()) {
+          conversation.latestMessage = message;
+        }
+
+        if (message.direction === 'inbound' && message.status === 'received') {
+          conversation.unreadCount = Math.max((conversation.unreadCount || 0) + 1, 0);
+        }
+
+        return next.sort((a, b) => new Date(b.latestMessage.created_at).getTime() - new Date(a.latestMessage.created_at).getTime());
+      });
+    };
+
+    const messageChannel = dbPublic.channel(`messages-${tenant.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `tenant_id=eq.${tenant.id}` }, handleRealtimeMessage)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `tenant_id=eq.${tenant.id}` }, handleRealtimeMessage)
+      .subscribe();
+
+    return () => {
+      dbPublic.removeChannel(messageChannel);
+    };
+  }, [tenant?.id]);
+
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('/api/templates');
+      const res = await fetch('/api/templates', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setTemplates(data || []);
@@ -118,14 +175,14 @@ export default function Inbox() {
   const fetchStatusAndData = async () => {
     try {
       // 1. Fetch Tenant/Meta Status
-      const statusRes = await fetch('/api/tenant/me');
+      const statusRes = await fetch('/api/tenant/me', { credentials: 'include' });
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setTenant(statusData);
 
         // 2. If Active, fetch conversations
         if (statusData.whatsapp_account?.status === 'ACTIVE') {
-          const res = await fetch('/api/chat/conversations');
+          const res = await fetch('/api/chat/conversations', { credentials: 'include' });
           if (res.ok) {
             const data = await res.json();
             setConversations(data);

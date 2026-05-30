@@ -17,9 +17,15 @@ export async function GET(req: Request) {
   if (!code || !state) {
     return NextResponse.redirect(`${origin}/dashboard?meta_error=missing_params`);
   }
+  if (!db) {
+    return NextResponse.redirect(`${origin}/dashboard?meta_error=${encodeURIComponent('database_unavailable')}`);
+  }
 
   const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
   const appSecret = process.env.FB_APP_SECRET;
+  if (!appId || !appSecret) {
+    return NextResponse.redirect(`${origin}/dashboard?meta_error=${encodeURIComponent('meta_app_not_configured')}`);
+  }
 
   try {
     // 1. Exchange code for access_token
@@ -75,8 +81,9 @@ export async function GET(req: Request) {
 
     return NextResponse.redirect(`${origin}/dashboard?meta_success=linked&business=${encodeURIComponent(waba.name)}`);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Meta Callback Error:', err);
-    return NextResponse.redirect(`${origin}/dashboard?meta_error=${encodeURIComponent(err.message)}`);
+    const message = err instanceof Error ? err.message : 'Meta callback failed';
+    return NextResponse.redirect(`${origin}/dashboard?meta_error=${encodeURIComponent(message)}`);
   }
 }
