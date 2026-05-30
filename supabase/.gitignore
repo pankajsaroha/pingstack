@@ -6,3 +6,8 @@
 .env.keys
 .env.local
 .env.*.local
+
+#Supabase
+Supabase.md
+SUPABASE_RLS_FIX.md
+RLS_DISABLE_STEPS.md

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { setSupabaseSession } from '@/lib/db';
 import { Loader2, Mail, Lock, User, Building, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
@@ -34,7 +35,7 @@ export default function Register() {
       } else {
         setError(data.error);
       }
-    } catch (err) {
+    } catch {
       setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
@@ -50,17 +51,20 @@ export default function Register() {
       const res = await fetch('/api/auth/register-tenant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 'VERIFY', email, code: otp })
+        body: JSON.stringify({ step: 'VERIFY', email, code: otp, password })
       });
 
       const data = await res.json();
       if (res.ok) {
+        if (data.supabaseSession) {
+          await setSupabaseSession(data.supabaseSession);
+        }
         document.cookie = `token=${data.token}; path=/; max-age=604800`;
         router.push('/dashboard');
       } else {
         setError(data.error);
       }
-    } catch (err) {
+    } catch {
       setError('Verification failed. Please try again.');
     } finally {
       setLoading(false);
@@ -181,7 +185,7 @@ export default function Register() {
             <div>
               <h2 className="text-center text-3xl font-black text-gray-900 tracking-tight">Verify Email</h2>
               <p className="mt-3 text-center text-sm text-gray-500 font-medium tracking-tight">
-                We've sent a 6-digit code to <br />
+                We&apos;ve sent a 6-digit code to <br />
                 <span className="text-black font-bold font-mono">{email}</span>
               </p>
             </div>

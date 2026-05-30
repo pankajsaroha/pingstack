@@ -5,12 +5,20 @@ import { checkLimit } from '@/lib/limits';
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId || tenantId === 'undefined') {
-    console.error('API GET contacts: Missing or invalid x-tenant-id');
+    console.error('API GET contacts: Missing or invalid x-tenant-id', { tenantId });
     return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
   }
 
+  if (!db) {
+    console.error('API GET contacts: Supabase DB not initialized');
+    return NextResponse.json({ error: 'Server error: database not initialized' }, { status: 500 });
+  }
+
   const { data, error } = await db.from('contacts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('API GET contacts error', { tenantId, error });
+    return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+  }
   return NextResponse.json(data);
 }
 

@@ -28,6 +28,36 @@ export default function Dashboard() {
   });
   const [totalContacts, setTotalContacts] = useState(0);
   const [connecting, setConnecting] = useState(false);
+  const [healthCheck, setHealthCheck] = useState<{ status: 'loading' | 'ok' | 'limited' | 'error', message?: string } | null>(null);
+
+  const handleHealthCheck = async () => {
+    setHealthCheck({ status: 'loading' });
+    try {
+      if (!tenant?.whatsapp_account?.business_id) {
+        setHealthCheck({
+          status: 'limited',
+          message: 'Select a WhatsApp Business Account and complete setup before syncing templates.'
+        });
+        return;
+      }
+
+      const res = await fetch('/api/whatsapp/meta/templates', {
+        headers: { 'x-tenant-id': tenant?.id }
+      });
+      const data = await res.json();
+      const templates = Array.isArray(data) ? data : data.templates;
+
+      if (Array.isArray(templates) && templates.length > 0) {
+        setHealthCheck({ status: 'ok', message: 'All systems go! Templates synced.' });
+      } else if (Array.isArray(templates) && templates.length === 0) {
+        setHealthCheck({ status: 'limited', message: 'Connected, but no templates found. Your account might be in a "Limited" state by Meta.' });
+      } else {
+        setHealthCheck({ status: 'error', message: data.message || data.error || 'Permission check failed' });
+      }
+    } catch (err) {
+      setHealthCheck({ status: 'error', message: 'Could not reach Meta' });
+    }
+  };
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -41,6 +71,7 @@ export default function Dashboard() {
   const [fbLoaded, setFbLoaded] = useState(false);
   const [discovery, setDiscovery] = useState<any>(null);
   const [tempToken, setTempToken] = useState('');
+  const [portfolioId, setPortfolioId] = useState('');
   const [selectedWaba, setSelectedWaba] = useState('');
   const [selectedPhone, setSelectedPhone] = useState('');
 
@@ -61,7 +92,6 @@ export default function Dashboard() {
   };
   useEffect(() => {
     fetchTenant();
-    fetchStats();
 
     // Check for checkout success
     const params = new URLSearchParams(window.location.search);
@@ -113,9 +143,11 @@ export default function Dashboard() {
   }, []);
 
   const fetchStats = async () => {
+    if (!tenant?.id) return;
+
     try {
       const res = await fetch('/api/stats', {
-        headers: { 'x-tenant-id': tenant?.id }
+        headers: { 'x-tenant-id': tenant.id }
       });
       if (res.ok) {
         const data = await res.json();
@@ -125,6 +157,19 @@ export default function Dashboard() {
       console.error('Stats fetch failed:', e);
     }
   };
+
+  useEffect(() => {
+    if (tenant?.id) {
+      fetchStats();
+      
+      // Refetch stats every 30 seconds to keep total contacts count updated
+      const interval = setInterval(() => {
+        fetchStats();
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [tenant?.id]);
 
   const handleDiscovery = useCallback(async (code?: string, currentTenantId?: string) => {
     setConnecting(true);
@@ -140,8 +185,9 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        setDiscovery(data.wabas);
+        setDiscovery(data.wabas || []);
         setTempToken(data.accessToken);
+        setPortfolioId(data.portfolioId);
         setOnboardingStep(2);
         if (data.wabas.length > 0) {
           const firstWaba = data.wabas[0];
@@ -253,20 +299,43 @@ export default function Dashboard() {
         body: JSON.stringify({
           accessToken: tempToken,
           wabaId: selectedWaba,
-          phoneId: selectedPhone
+          phoneId: selectedPhone,
+          portfolioId: portfolioId
         })
       });
 
       const data = await res.json();
       if (res.ok) {
         setToast({ message: 'Setup completed successfully!', type: 'success' });
-        setOnboardingStep(1);
-        fetchTenant();
+        // DO NOT reset step yet, wait for fetchTenant to confirm ACTIVE status
+        await fetchTenant();
       } else {
         setError(data.message || 'Finalization failed');
       }
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleResetConnection = async () => {
+    if (!confirm('Are you sure you want to reset your WhatsApp connection? This will clear your current Meta link.')) return;
+    setConnecting(true);
+    try {
+      const res = await fetch('/api/whatsapp/meta/reset', { 
+        method: 'POST',
+        headers: { 'x-tenant-id': tenant?.id }
+      });
+      if (res.ok) {
+        setDiscovery(null);
+        setTempToken('');
+        setOnboardingStep(1);
+        await fetchTenant();
+        setToast({ message: 'Connection reset successfully', type: 'success' });
+      }
+    } catch (err: any) {
+      setError('Failed to reset connection');
     } finally {
       setConnecting(false);
     }
@@ -340,9 +409,19 @@ export default function Dashboard() {
                       {onboardingStep === 1 ? (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                           <h2 className="text-4xl font-black text-gray-900 mb-6 leading-tight tracking-tight">Link Your Meta <br />Business Account</h2>
-                          <p className="text-base text-gray-500 font-medium leading-relaxed max-w-lg">
+                          <p className="text-base text-gray-500 font-medium leading-relaxed max-w-lg mb-8">
                             Connect your Meta account to instantly discover your WhatsApp Business Accounts and associated phone numbers.
                           </p>
+
+                          <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100/50 max-w-md">
+                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                               <ShieldCheck className="w-3.5 h-3.5" />
+                               How Connection Works
+                            </h4>
+                            <p className="text-[11px] text-blue-800/80 font-medium leading-relaxed">
+                              We use **Embedded Signup** to create a secure link. This automatically adds PingStack as a Partner and sets up the necessary permissions to send messages on your behalf.
+                            </p>
+                          </div>
                         </div>
                       ) : (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -383,6 +462,15 @@ export default function Dashboard() {
                               <span className="flex items-center">Continue to Meta <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" /></span>
                             )}
                           </button>
+
+                          {(whatsappAccount || tempToken) && (
+                            <button 
+                              onClick={handleResetConnection}
+                              className="w-full mt-4 h-12 rounded-xl text-[10px] font-black text-red-400 hover:text-red-600 transition-all active:scale-95 border border-red-50 hover:bg-red-50"
+                            >
+                              Reset Connection
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="w-full space-y-8 animate-in fade-in slide-in-from-right-10 duration-700">
@@ -404,8 +492,36 @@ export default function Dashboard() {
                                   ))}
                                 </select>
                               ) : (
-                                <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl text-[10px] font-black border border-amber-100">
-                                   No Business Accounts found. Please ensure you selected a WABA in the Meta login.
+                                 <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 shadow-sm">
+                                   <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                      <AlertCircle className="w-3.5 h-3.5" />
+                                      Assets Not Shared Yet
+                                   </p>
+                                   <p className="text-xs text-amber-700 font-medium leading-relaxed mb-6">
+                                      Meta has linked our businesses, but you still need to share your WhatsApp Account with **PingStack (1571768617266202)**.
+                                   </p>
+                                   <div className="space-y-4 mb-6">
+                                      <div className="flex gap-3">
+                                         <div className="w-5 h-5 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[10px] font-bold shrink-0">1</div>
+                                         <p className="text-[10px] text-amber-800/80 leading-tight">Go to <b>Meta Settings &gt; Users &gt; Partners</b>.</p>
+                                      </div>
+                                      <div className="flex gap-3">
+                                         <div className="w-5 h-5 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[10px] font-bold shrink-0">2</div>
+                                         <p className="text-[10px] text-amber-800/80 leading-tight">Select <b>PingStack</b> and click <b>"Share Assets"</b>.</p>
+                                      </div>
+                                      <div className="flex gap-3">
+                                         <div className="w-5 h-5 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[10px] font-bold shrink-0">3</div>
+                                         <p className="text-[10px] text-amber-800/80 leading-tight">Add your WhatsApp Account with <b>"Full Control"</b> and Save.</p>
+                                      </div>
+                                   </div>
+                                   <a 
+                                      href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
+                                      target="_blank" 
+                                      className="w-full py-3 bg-white border border-amber-200 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 transition-all flex items-center justify-center shadow-sm"
+                                   >
+                                      Open Meta Partners Settings
+                                      <ArrowRight className="w-3 h-3 ml-2" />
+                                   </a>
                                 </div>
                               )}
                             </div>
@@ -429,29 +545,109 @@ export default function Dashboard() {
                               )}
                           </div>
 
-                          <div className="pt-4 flex gap-3">
-                            <button 
-                              onClick={() => setOnboardingStep(1)}
-                              className="px-5 h-12 rounded-xl text-[10px] font-black text-gray-400 hover:text-gray-900 transition-all active:scale-95 border border-gray-100"
-                            >
-                              Back
-                            </button>
-                            <button 
-                              onClick={handleFinishOnboarding}
-                              disabled={connecting || !selectedPhone}
-                              className="flex-grow bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-xl text-[10px] font-black transition-all shadow-xl shadow-blue-600/10 active:scale-95 disabled:opacity-50 flex items-center justify-center"
-                            >
-                              {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Complete Setup'}
-                            </button>
-                          </div>
+                            {healthCheck && (
+                              <div className={`mt-4 p-4 rounded-xl border text-[10px] font-medium ${
+                                healthCheck.status === 'ok' ? 'bg-green-50 border-green-100 text-green-700' :
+                                healthCheck.status === 'limited' ? 'bg-amber-50 border-amber-100 text-amber-700' :
+                                'bg-red-50 border-red-100 text-red-700'
+                              }`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                                    healthCheck.status === 'ok' ? 'bg-green-500' :
+                                    healthCheck.status === 'limited' ? 'bg-amber-500' :
+                                    'bg-red-500'
+                                  }`} />
+                                  <span className="font-black uppercase tracking-widest">{healthCheck.status}</span>
+                                </div>
+                                {healthCheck.message}
+                                {healthCheck.status === 'limited' && (
+                                  <div className="mt-4 border-t border-amber-200/50 pt-4">
+                                    <p className="font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-[8px]">!</span>
+                                      How to Fix This:
+                                    </p>
+                                    <ul className="space-y-3 text-[9px] text-amber-800/80 font-medium">
+                                      <li className="flex gap-2">
+                                        <span className="text-amber-500 font-bold">1.</span>
+                                        <span>Go to <b>Meta Business Suite</b> &gt; Settings &gt; WhatsApp Accounts.</span>
+                                      </li>
+                                      <li className="flex gap-2">
+                                        <span className="text-amber-500 font-bold">2.</span>
+                                        <span>Select your account and ensure your <b>System User</b> is added under "People" with "Manage" permission.</span>
+                                      </li>
+                                      <li className="flex gap-2">
+                                        <span className="text-amber-500 font-bold">3.</span>
+                                        <span>Ensure you have added a <b>Payment Method</b> and <b>Email</b> in the WhatsApp Manager.</span>
+                                      </li>
+                                    </ul>
+                                    <a 
+                                      href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
+                                      target="_blank" 
+                                      className="mt-4 inline-flex items-center text-amber-700 font-black uppercase tracking-widest hover:underline"
+                                    >
+                                      Open Meta Settings
+                                      <svg className="w-2.5 h-2.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="space-y-6">
+                              <button 
+                                onClick={handleFinishOnboarding}
+                                disabled={connecting || !selectedPhone}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-600/10 active:scale-95 disabled:opacity-50 flex items-center justify-center"
+                              >
+                                {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Complete Setup'}
+                              </button>
+
+                              <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
+                                <button 
+                                  onClick={() => setOnboardingStep(1)}
+                                  className="text-[10px] font-black text-gray-400 hover:text-gray-900 transition-all uppercase tracking-widest flex items-center"
+                                >
+                                  <ArrowRight className="w-3 h-3 mr-1.5 rotate-180" />
+                                  Back
+                                </button>
+                                
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={handleHealthCheck}
+                                    disabled={healthCheck?.status === 'loading'}
+                                    className="px-4 h-9 rounded-lg text-[9px] font-black text-blue-600 hover:bg-blue-50 transition-all border border-blue-100"
+                                  >
+                                    Health
+                                  </button>
+                                  <button 
+                                    onClick={handleResetConnection}
+                                    className="px-4 h-9 border border-red-50 bg-red-50 text-red-400 hover:text-red-600 rounded-lg text-[9px] font-black transition-all"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                         </div>
                       </div>
                     )}
                       
                       {error && (
-                        <div className="mt-8 p-4 bg-red-50 text-red-600 rounded-2xl text-[9px] font-black border border-red-100 flex items-center animate-in slide-in-from-bottom-2 duration-700">
-                          <AlertCircle className="w-3 h-3 mr-3 shrink-0" />
-                          <span className="uppercase tracking-tight leading-tight">{error}</span>
+                        <div className="mt-8 p-6 bg-red-50 text-red-600 rounded-2xl border border-red-100 animate-in slide-in-from-bottom-2 duration-700">
+                          <div className="flex items-start">
+                            <AlertCircle className="w-5 h-5 mr-3 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest mb-1">Configuration Error</p>
+                                <p className="text-xs font-bold leading-tight mb-4">{error}</p>
+                                <button 
+                                  onClick={handleEmbeddedConnect}
+                                  className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95 flex items-center"
+                                >
+                                  <Facebook className="w-3 h-3 mr-2" />
+                                  Re-link Account
+                                </button>
+                            </div>
+                          </div>
                         </div>
                       )}
 
@@ -635,7 +831,35 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Cards - Always Visible */}
+      {isConnected && (
+        <div className="mb-12 bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center shadow-inner">
+                <Settings className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900">Manage Connection</h3>
+                <p className="text-sm text-gray-500 font-medium">Configure or reset your WhatsApp Cloud API link.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={handleEmbeddedConnect}
+                className="px-6 h-12 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95"
+              >
+                Change Account
+              </button>
+              <button 
+                onClick={handleResetConnection}
+                className="px-6 h-12 border border-red-100 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95"
+              >
+                Reset Connection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 mb-12">
         {/* Plan & Usage Card */}
             <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl relative overflow-hidden group">
@@ -812,5 +1036,4 @@ export default function Dashboard() {
     </div>
   );
 }
-
 

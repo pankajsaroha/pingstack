@@ -40,6 +40,14 @@ export const getWABADetails = async (accessToken: string) => {
   return res.json();
 };
 
+export const getSharedWABADetails = async (accessToken: string) => {
+  const url = `https://graph.facebook.com/v19.0/me/shared_waba_accounts`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  return res.json();
+};
+
 export const getWABAPhoneNumbers = async (wabaId: string, accessToken: string) => {
   const url = `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers`;
   const res = await fetch(url, {
