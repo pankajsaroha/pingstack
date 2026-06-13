@@ -65,8 +65,8 @@ export default function Login() {
               <input type="password" required className="block w-full rounded-2xl border border-gray-200 bg-white/50 px-4 py-3 text-sm font-bold focus:bg-white focus:border-black focus:outline-none focus:ring-4 focus:ring-black/5 transition-all" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
               <div className="flex justify-end mt-2">
                 <a 
-                  href="/forgot-password" 
-                  onClick={(e) => { e.preventDefault(); window.location.href='/forgot-password'; }}
+                  href="/?auth=forgot" 
+                  onClick={(e) => { e.preventDefault(); router.push('/?auth=forgot'); }}
                   className="text-[10px] font-black text-gray-400 hover:text-black uppercase tracking-[0.15em] transition-all cursor-pointer relative z-[100]"
                 >
                   Forgot password?

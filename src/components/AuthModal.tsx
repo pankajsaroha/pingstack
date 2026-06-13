@@ -10,8 +10,8 @@ import {
 } from 'lucide-react';
 import { LogoIcon } from './Logo';
 
-export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: boolean; onClose: () => void; initialView?: 'login' | 'register' }) {
-  const [view, setView] = useState<'login' | 'register'>(initialView);
+export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: boolean; onClose: () => void; initialView?: 'login' | 'register' | 'forgot' }) {
+  const [view, setView] = useState<'login' | 'register' | 'forgot'>(initialView);
   const [regStep, setRegStep] = useState(0); // 0: Details, 1: OTP, 2: Success
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +23,12 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
   const [tenantName, setTenantName] = useState('');
   const [userName, setUserName] = useState('');
   const [otp, setOtp] = useState('');
+  // Forgot password states
+  const [forgotStep, setForgotStep] = useState(0); // 0: Email, 1: OTP, 2: Reset, 3: Success
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
 
   if (!isOpen) return null;
 
@@ -157,7 +163,7 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
                 </div>
 
                 <div className="flex justify-end pt-1">
-                  <button type="button" className="text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors mb-2">Forgot Password?</button>
+                  <button type="button" onClick={() => { setView('forgot'); setForgotStep(0); setForgotEmail(email || ''); }} className="text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors mb-2">Forgot Password?</button>
                 </div>
 
                 <button 
@@ -176,6 +182,99 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
                   New to PingStack? <button type="button" onClick={() => { setView('register'); setError(''); }} className="text-white hover:underline underline-offset-4">Create an account</button>
                 </p>
               </form>
+            </div>
+          ) : view === 'forgot' ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {forgotStep === 3 ? (
+                <div className="text-center py-10">
+                  <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30">
+                    <CheckCircle2 className="w-10 h-10 text-green-400" />
+                  </div>
+                  <h2 className="text-3xl font-black text-white mb-3">Email Sent</h2>
+                  <p className="text-white/40 font-bold mb-8">Check your inbox for the reset code.</p>
+                </div>
+              ) : forgotStep === 0 ? (
+                <div>
+                  <h2 className="text-3xl font-black text-white mb-2">Access Recovery</h2>
+                  <p className="text-white/40 font-medium mb-8">Enter your email and we'll send a recovery code.</p>
+                  <form className="space-y-4" onSubmit={async (e) => {
+                    e.preventDefault();
+                    setError('');
+                    setLoading(true);
+                    try {
+                      const res = await fetch('/api/auth/forgot-password', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ step: 'INITIATE', email: forgotEmail })
+                      });
+                      const data = await res.json();
+                      if (res.ok) setForgotStep(1);
+                      else setError(data.error);
+                    } catch (err) { setError('Connection error.'); }
+                    finally { setLoading(false); }
+                  }}>
+                    {error && <div className="text-red-400 text-[13px] font-bold bg-red-500/10 p-4 rounded-2xl border border-red-500/20">{error}</div>}
+                    <div className="relative group">
+                      <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                      <input value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} type="email" required placeholder="Email Address" className="w-full bg-white/5 border border-white/5 rounded-2xl pl-14 pr-5 py-4.5 text-sm font-bold text-white focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all placeholder:text-white/20" />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <button type="button" onClick={() => setView('login')} className="text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors">Back to Login</button>
+                      <button type="submit" disabled={loading} className="py-3 px-6 bg-white text-black rounded-2xl font-black uppercase">Send Reset Code</button>
+                    </div>
+                  </form>
+                </div>
+              ) : forgotStep === 1 ? (
+                <div>
+                  <button onClick={() => setForgotStep(0)} className="mb-6 flex items-center text-[10px] font-black text-white/20 hover:text-white uppercase tracking-widest transition-colors group">Back</button>
+                  <h2 className="text-3xl font-black text-white mb-2">Verify Code</h2>
+                  <p className="text-white/40 font-medium mb-6">Enter the 6-digit code sent to <span className="font-bold">{forgotEmail}</span></p>
+                  <form className="space-y-4" onSubmit={async (e) => {
+                    e.preventDefault();
+                    setError(''); setLoading(true);
+                    try {
+                      const res = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: 'VERIFY', email: forgotEmail, code: forgotOtp }) });
+                      const data = await res.json();
+                      if (res.ok) setForgotStep(2); else setError(data.error);
+                    } catch (err) { setError('Verification failed.'); }
+                    finally { setLoading(false); }
+                  }}>
+                    {error && <div className="text-red-400 text-[13px] font-bold bg-red-500/10 p-4 rounded-2xl border border-red-500/20">{error}</div>}
+                    <div className="relative group">
+                      <ShieldCheck className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                      <input value={forgotOtp} onChange={e => setForgotOtp(e.target.value.replace(/[^0-9]/g, ''))} type="text" maxLength={6} required placeholder="000000" className="w-full bg-white/5 border border-white/5 rounded-2xl pl-14 pr-5 py-4.5 text-sm font-black text-white focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all placeholder:text-white/20" />
+                    </div>
+                    <button type="submit" disabled={loading || forgotOtp.length < 6} className="w-full py-3 bg-white text-black rounded-2xl font-black">Verify & Continue</button>
+                  </form>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-3xl font-black text-white mb-2">New Password</h2>
+                  <p className="text-white/40 font-medium mb-6">Choose a new password for <span className="font-bold">{forgotEmail}</span></p>
+                  <form className="space-y-4" onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (forgotNewPassword !== forgotConfirmPassword) { setError('Passwords do not match'); return; }
+                    if (forgotNewPassword.length < 8) { setError('Password must be at least 8 characters'); return; }
+                    setError(''); setLoading(true);
+                    try {
+                      const res = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: 'RESET', email: forgotEmail, code: forgotOtp, password: forgotNewPassword }) });
+                      const data = await res.json();
+                      if (res.ok) setForgotStep(3); else setError(data.error);
+                    } catch (err) { setError('Reset failed.'); }
+                    finally { setLoading(false); }
+                  }}>
+                    {error && <div className="text-red-400 text-[13px] font-bold bg-red-500/10 p-4 rounded-2xl border border-red-500/20">{error}</div>}
+                    <div className="relative group">
+                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                      <input value={forgotNewPassword} onChange={e => setForgotNewPassword(e.target.value)} type="password" required placeholder="New Password" className="w-full bg-white/5 border border-white/5 rounded-2xl pl-14 pr-5 py-4.5 text-sm font-bold text-white focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all placeholder:text-white/20" />
+                    </div>
+                    <div className="relative group">
+                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                      <input value={forgotConfirmPassword} onChange={e => setForgotConfirmPassword(e.target.value)} type="password" required placeholder="Confirm Password" className="w-full bg-white/5 border border-white/5 rounded-2xl pl-14 pr-5 py-4.5 text-sm font-bold text-white focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all placeholder:text-white/20" />
+                    </div>
+                    <button type="submit" disabled={loading} className="w-full py-3 bg-white text-black rounded-2xl font-black">Reset Password</button>
+                  </form>
+                </div>
+              )}
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
