@@ -11,19 +11,18 @@ import { LandingNav } from '@/components/LandingNav';
 import { LandingFooter } from '@/components/LandingFooter';
 import { AuthModal } from '@/components/AuthModal';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const router = useRouter();
-  const search = useSearchParams();
   const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
 
   useEffect(() => {
-    const auth = search.get('auth');
-    if (auth === 'login' || auth === 'register' || auth === 'forgot') {
-      setModalType(auth);
-    }
-  }, [search]);
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get('auth');
+    if (auth === 'login' || auth === 'register' || auth === 'forgot') setModalType(auth);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-white selection:text-black">

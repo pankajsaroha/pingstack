@@ -34,7 +34,7 @@ const DOCS_CONTENT: Record<string, { title: string; category: string; readTime: 
 
 export default function PublicArticle() {
   const { slug } = useParams();
-  const [modalType, setModalType] = useState<'login' | 'register' | null>(null);
+  const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
   const article = DOCS_CONTENT[slug as string];
 
   if (!article) return <div className="text-white text-center py-40">Article not found.</div>;

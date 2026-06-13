@@ -25,7 +25,7 @@ const plans = [
 ];
 
 export default function PublicPricing() {
-  const [modalType, setModalType] = useState<'login' | 'register' | null>(null);
+  const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">

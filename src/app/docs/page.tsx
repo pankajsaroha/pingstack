@@ -14,7 +14,7 @@ const categories = [
 ];
 
 export default function PublicDocs() {
-  const [modalType, setModalType] = useState<'login' | 'register' | null>(null);
+  const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
   const [query, setQuery] = useState('');
 
   return (
