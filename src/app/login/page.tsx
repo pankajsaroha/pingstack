@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { setSupabaseSession } from '@/lib/db';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -23,9 +22,6 @@ export default function Login() {
 
     if (res.ok) {
       const data = await res.json();
-      if (data.supabaseSession) {
-        await setSupabaseSession(data.supabaseSession);
-      }
       document.cookie = `token=${data.token}; path=/; max-age=604800`;
       router.push('/dashboard');
     } else {

@@ -71,9 +71,10 @@ export default function Inbox() {
 
   useEffect(() => {
     if (!tenant?.id) return;
+    let isMounted = true;
 
     const handleRealtimeMessage = (payload: any) => {
-      const message = payload.new;
+      const message = payload.new || payload.record;
       if (!message || !message.id) return;
 
       if (message.contact_id === activeContactIdRef.current) {
@@ -109,15 +110,46 @@ export default function Inbox() {
       });
     };
 
-    const messageChannel = dbPublic.channel(`messages-${tenant.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `tenant_id=eq.${tenant.id}` }, handleRealtimeMessage)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `tenant_id=eq.${tenant.id}` }, handleRealtimeMessage)
-      .subscribe((status, err) => {
-        console.log('[messages realtime]', status, err);
-      });
+    const subscribeToMessages = async () => {
+      try {
+        const res = await fetch('/api/realtime/token', {
+          method: 'POST',
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          console.error('[messages realtime] token failed', await res.text());
+          return;
+        }
+
+        const { token } = await res.json();
+        if (!token || !isMounted) return;
+
+        dbPublic.realtime.setAuth(token);
+
+        const messageChannel = dbPublic.channel(`tenant:${tenant.id}`, {
+          config: { private: true }
+        })
+          .on('broadcast', { event: 'INSERT' }, (payload: any) => handleRealtimeMessage(payload.payload || payload))
+          .on('broadcast', { event: 'UPDATE' }, (payload: any) => handleRealtimeMessage(payload.payload || payload))
+          .subscribe((status, err) => {
+            console.log('[messages realtime]', status, err);
+          });
+
+        realtimeChannelRef.current = messageChannel;
+      } catch (err) {
+        console.error('[messages realtime] subscribe failed', err);
+      }
+    };
+
+    const realtimeChannelRef: { current: ReturnType<typeof dbPublic.channel> | null } = { current: null };
+    subscribeToMessages();
 
     return () => {
-      dbPublic.removeChannel(messageChannel);
+      isMounted = false;
+      if (realtimeChannelRef.current) {
+        dbPublic.removeChannel(realtimeChannelRef.current);
+      }
     };
   }, [tenant?.id]);
 

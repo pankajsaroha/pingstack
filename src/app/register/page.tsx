@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { setSupabaseSession } from '@/lib/db';
 import { Loader2, Mail, Lock, User, Building, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export default function Register() {
@@ -56,9 +55,6 @@ export default function Register() {
 
       const data = await res.json();
       if (res.ok) {
-        if (data.supabaseSession) {
-          await setSupabaseSession(data.supabaseSession);
-        }
         document.cookie = `token=${data.token}; path=/; max-age=604800`;
         router.push('/dashboard');
       } else {
