@@ -130,8 +130,14 @@ export default function Inbox() {
         const messageChannel = dbPublic.channel(`tenant:${tenant.id}`, {
           config: { private: true }
         })
-          .on('broadcast', { event: 'INSERT' }, (payload: any) => handleRealtimeMessage(payload.payload || payload))
-          .on('broadcast', { event: 'UPDATE' }, (payload: any) => handleRealtimeMessage(payload.payload || payload))
+          .on('broadcast', { event: 'INSERT' }, (payload: any) => {
+            console.log('[messages realtime] INSERT payload', payload);
+            handleRealtimeMessage(payload.payload || payload);
+          })
+          .on('broadcast', { event: 'UPDATE' }, (payload: any) => {
+            console.log('[messages realtime] UPDATE payload', payload);
+            handleRealtimeMessage(payload.payload || payload);
+          })
           .subscribe((status, err) => {
             console.log('[messages realtime]', status, err);
           });
