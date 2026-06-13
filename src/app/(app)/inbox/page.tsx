@@ -112,7 +112,9 @@ export default function Inbox() {
     const messageChannel = dbPublic.channel(`messages-${tenant.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `tenant_id=eq.${tenant.id}` }, handleRealtimeMessage)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `tenant_id=eq.${tenant.id}` }, handleRealtimeMessage)
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[messages realtime]', status, err);
+      });
 
     return () => {
       dbPublic.removeChannel(messageChannel);
