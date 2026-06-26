@@ -115,7 +115,7 @@ export default function ForgotPassword() {
 
         {step === 0 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <Link href="/login" className="mb-8 flex items-center text-xs font-black text-gray-400 hover:text-black uppercase tracking-widest transition-colors group">
+             <Link href="/?auth=login" className="mb-8 flex items-center text-xs font-black text-gray-400 hover:text-black uppercase tracking-widest transition-colors group">
               <ArrowLeft className="w-3.5 h-3.5 mr-2 group-hover:-translate-x-1 transition-transform" />
               Back to Login
             </Link>
@@ -257,7 +257,7 @@ export default function ForgotPassword() {
               You can now sign in with your new credentials.
             </p>
             <Link 
-              href="/login"
+              href="/?auth=login"
               className="w-full block py-4 px-4 border border-transparent rounded-2xl shadow-xl text-sm font-black text-white bg-gray-900 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
               Sign In Now

@@ -7,7 +7,7 @@ import { LandingFooter } from '@/components/LandingFooter';
 import { AuthModal } from '@/components/AuthModal';
 
 export default function PublicContact() {
-  const [modalType, setModalType] = useState<'login' | 'register' | null>(null);
+  const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', subject: 'General Inquiry', message: '' });

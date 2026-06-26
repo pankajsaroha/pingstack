@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LogoIcon } from './Logo';
 
-export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'register') => void }) {
+export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'register' | 'forgot') => void }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {

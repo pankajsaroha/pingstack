@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ArrowRight, CheckCircle2, 
@@ -11,8 +11,18 @@ import { LandingNav } from '@/components/LandingNav';
 import { LandingFooter } from '@/components/LandingFooter';
 import { AuthModal } from '@/components/AuthModal';
 
+import { useRouter } from 'next/navigation';
+
 export default function Home() {
-  const [modalType, setModalType] = useState<'login' | 'register' | null>(null);
+  const router = useRouter();
+  const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get('auth');
+    if (auth === 'login' || auth === 'register' || auth === 'forgot') setModalType(auth);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-white selection:text-black">
@@ -141,8 +151,8 @@ export default function Home() {
 
       <AuthModal 
         isOpen={modalType !== null} 
-        onClose={() => setModalType(null)} 
-        initialView={modalType === 'register' ? 'register' : 'login'} 
+        onClose={() => { setModalType(null); router.replace('/'); }} 
+        initialView={modalType === 'register' ? 'register' : modalType === 'forgot' ? 'forgot' : 'login'} 
       />
     </div>
   );
