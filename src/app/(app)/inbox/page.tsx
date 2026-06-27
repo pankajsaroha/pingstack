@@ -43,7 +43,6 @@ export default function Inbox() {
     const file = e.target.files?.[0];
     if (!file || !tenant) return;
 
-    // Plan Checks
     const planType = (tenant.plan_type || 'starter') as PlanType;
     const limits = PLANS[planType];
     
@@ -59,9 +58,7 @@ export default function Inbox() {
   useEffect(() => {
     fetchStatusAndData();
     fetchTemplates();
-
-    const interval = setInterval(fetchStatusAndData, 10000); // fallback polling for conversations and tenant status
-
+    const interval = setInterval(fetchStatusAndData, 10000);
     return () => clearInterval(interval);
   }, []); 
 
@@ -131,16 +128,12 @@ export default function Inbox() {
           config: { private: true }
         })
           .on('broadcast', { event: 'INSERT' }, (payload: any) => {
-            console.log('[messages realtime] INSERT payload', payload);
             handleRealtimeMessage(payload.payload || payload);
           })
           .on('broadcast', { event: 'UPDATE' }, (payload: any) => {
-            console.log('[messages realtime] UPDATE payload', payload);
             handleRealtimeMessage(payload.payload || payload);
           })
-          .subscribe((status, err) => {
-            console.log('[messages realtime]', status, err);
-          });
+          .subscribe();
 
         realtimeChannelRef.current = messageChannel;
       } catch (err) {
@@ -171,7 +164,6 @@ export default function Inbox() {
     }
   };
 
-  // 1. Handle Chat Selection & Message Loading (Triggers ONLY on ID change)
   useEffect(() => {
     if (activeContactId) {
       setMessages([]);
@@ -181,7 +173,6 @@ export default function Inbox() {
     }
   }, [activeContactId]);
 
-  // 2. Handle Window Status (Updates silently on ID or Conversations poll)
   useEffect(() => {
     if (activeContactId && conversations.length > 0) {
       const conversation = conversations.find(c => c.contact.id === activeContactId);
@@ -191,7 +182,6 @@ export default function Inbox() {
         const isClosed = !lastReceived || (now.getTime() - new Date(lastReceived).getTime() > 24 * 60 * 60 * 1000);
         setWindowError(isClosed);
         
-        // Only set the text if window is closed and text area isn't already warning
         if (isClosed && newMessage !== 'Chat window closed') {
           setNewMessage('Chat window closed');
         } else if (!isClosed && newMessage === 'Chat window closed') {
@@ -200,7 +190,6 @@ export default function Inbox() {
       }
     }
   }, [activeContactId, conversations]);
-
 
   useEffect(() => {
     if (!loadingMore) {
@@ -214,20 +203,17 @@ export default function Inbox() {
 
   const fetchStatusAndData = async () => {
     try {
-      // 1. Fetch Tenant/Meta Status
       const statusRes = await fetch('/api/tenant/me', { credentials: 'include' });
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setTenant(statusData);
 
-        // 2. If Active, fetch conversations
         if (statusData.whatsapp_account?.status === 'ACTIVE') {
           const res = await fetch('/api/chat/conversations', { credentials: 'include' });
           if (res.ok) {
             const data = await res.json();
             setConversations(data);
             
-            // Only auto-select first conversation IF none is already selected AND it's the first load
             if (!activeContactId && data.length > 0 && !initialSelectionMade.current) {
               setActiveContactId(data[0].contact.id);
               initialSelectionMade.current = true;
@@ -244,7 +230,6 @@ export default function Inbox() {
 
   const fetchMessages = async (contactId: string, isLoadMore = false) => {
     if (isLoadMore && (!hasMore || loadingMore)) return;
-
     if (isLoadMore) setLoadingMore(true);
     
     try {
@@ -257,9 +242,7 @@ export default function Inbox() {
         if (data.length < 30) setHasMore(false);
         
         if (isLoadMore) {
-          // Prepend messages
           setMessages(prev => [...data, ...prev]);
-          // Maintain scroll position (simple version)
         } else {
           setMessages(data);
         }
@@ -457,24 +440,23 @@ export default function Inbox() {
 
   if (loading && !tenant) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <div className="h-full flex flex-col items-center justify-center py-32 grayscale opacity-45">
+        <Loader2 className="w-8 h-8 animate-spin mb-4 text-white" />
+        <p className="text-xs font-black uppercase tracking-[0.2em]">Initializing messaging streams...</p>
       </div>
     );
   }
 
-  // --- RENDERING STATES ---
-
   if (status === 'NOT_CONNECTED') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-white/80 backdrop-blur-md rounded-2xl border border-gray-200/60 shadow-sm text-center p-10">
-        <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mb-6">
-          <MessageCircle className="w-10 h-10 text-gray-300" />
+      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-white/[0.01] border border-white/5 rounded-[2.5rem] shadow-2xl text-center p-12 max-w-2xl mx-auto my-12">
+        <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6">
+          <MessageCircle className="w-8 h-8 text-white/30" />
         </div>
-        <h2 className="text-2xl font-black text-gray-900 tracking-tight">WhatsApp Not Connected</h2>
-        <p className="text-gray-500 mt-2 max-w-sm">Please head over to your dashboard and connect your WhatsApp Business Account via Meta to access your inbox.</p>
-        <Link href="/dashboard" className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">
-          Go to Dashboard
+        <h2 className="text-2xl font-black text-white tracking-tight">WhatsApp Offline</h2>
+        <p className="text-white/40 mt-3 text-sm leading-relaxed max-w-sm">Please head over to your API Settings dashboard and link your Meta Business Profile to activate inbox streaming.</p>
+        <Link href="/dashboard" className="mt-8 px-8 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
+          Connect Gateway
         </Link>
       </div>
     );
@@ -482,86 +464,90 @@ export default function Inbox() {
 
   if (status === 'PENDING') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-white/80 backdrop-blur-md rounded-2xl border border-gray-200/60 shadow-sm text-center p-10">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-6" />
-        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Syncing with Meta...</h2>
-        <p className="text-gray-500 mt-2 max-w-sm">We are finishing the setup for your WhatsApp account. This usually takes less than a minute.</p>
+      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-[#050505] text-center p-10">
+        <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mb-6" />
+        <h2 className="text-xl font-black text-white uppercase tracking-widest">Configuring Channel...</h2>
+        <p className="text-white/40 text-xs mt-3 max-w-xs font-semibold leading-relaxed">Resolving partner authentication mappings on Meta developers dashboard.</p>
       </div>
     );
   }
 
   if (status === 'FAILED') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-white/80 backdrop-blur-md rounded-2xl border border-red-50 shadow-sm text-center p-10">
-        <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mb-6">
-          <AlertCircle className="w-10 h-10 text-red-600" />
+      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-white/[0.01] border border-red-500/10 rounded-[2.5rem] text-center p-12 max-w-2xl mx-auto my-12 shadow-2xl">
+        <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-6">
+          <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
-        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Connection Error</h2>
-        <p className="text-gray-500 mt-2 max-w-sm">There was an issue verifying your Meta credentials. Please try reconnecting from the dashboard.</p>
-        <Link href="/dashboard" className="mt-8 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all">
+        <h2 className="text-2xl font-black text-white tracking-tight">Sync Pipeline Crashed</h2>
+        <p className="text-white/40 mt-3 text-sm leading-relaxed max-w-sm font-semibold">Verification check failed. Retrigger partner permissions on Facebook settings.</p>
+        <Link href="/dashboard" className="mt-8 px-6 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl font-bold transition-all">
           Retry Setup
         </Link>
       </div>
     );
   }
 
-  // ACTIVE STATE
   const activeConversation = conversations.find(c => c.contact.id === activeContactId);
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex bg-white/80 backdrop-blur-md rounded-2xl border border-gray-200/60 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden -mx-2 sm:mx-0">
+    <div className="h-[calc(100vh-8rem)] flex bg-white/[0.01] border border-white/5 rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden -mx-2 sm:mx-0">
       
-      {/* Conversations Sidebar (Master List) */}
-      <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-gray-200/60 bg-gray-50/30`}>
-        <div className="p-4 border-b border-gray-200/60 flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight text-gray-900">Inbox</h2>
-          <div className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
-            Live
+      {/* Conversations Master List */}
+      <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-white/5 bg-[#070709]`}>
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <h2 className="text-xl font-black text-white tracking-tight">Inbox</h2>
+          <div className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            Live Sync
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {conversations.length === 0 ? (
-            <div className="p-8 text-sm text-gray-400 text-center mt-20">
-              <MessageCircle className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-              Your inbox is empty
+            <div className="p-8 text-xs text-white/30 font-black uppercase tracking-widest text-center mt-20">
+              <MessageCircle className="w-12 h-12 text-white/10 mx-auto mb-4" />
+              Inbox is empty
             </div>
           ) : (
-            <div>
+            <div className="divide-y divide-white/5">
               {conversations.map((conv) => {
                 const isActive = conv.contact.id === activeContactId;
                 return (
                    <div 
-                   key={conv.contact.id}
-                   onClick={() => {
-                      setActiveContactId(conv.contact.id);
-                      setShowChatOnMobile(true);
-                    }}
-                   className={`p-4 border-b border-gray-100 cursor-pointer transition-colors relative ${
-                     isActive ? 'bg-white shadow-sm ring-1 ring-black/5 z-10' : 'hover:bg-gray-50'
-                   }`}
-                 >
-                   {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-black" />}
-                   <div className="flex justify-between items-start mb-1">
-                     <h3 className={`font-bold truncate pr-2 ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
-                       {conv.contact.name || conv.contact.phone_number}
-                     </h3>
-                     <span className="text-[10px] text-gray-400 font-bold uppercase">
-                        {new Date(conv.latestMessage.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                     </span>
+                     key={conv.contact.id}
+                     onClick={() => {
+                        setActiveContactId(conv.contact.id);
+                        setShowChatOnMobile(true);
+                      }}
+                     className={`p-5 cursor-pointer transition-all relative ${
+                       isActive ? 'bg-white text-black shadow-lg z-10 scale-[1.01]' : 'hover:bg-white/[0.02]'
+                     }`}
+                   >
+                     {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />}
+                     <div className="flex justify-between items-start mb-1.5">
+                       <h3 className={`font-black text-sm truncate pr-2 ${isActive ? 'text-black' : 'text-white'}`}>
+                         {conv.contact.name || conv.contact.phone_number}
+                       </h3>
+                       <span className={`text-[9px] font-black uppercase font-mono ${isActive ? 'text-black/50' : 'text-white/30'}`}>
+                          {new Date(conv.latestMessage.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                       </span>
+                     </div>
+                     <div className="flex justify-between items-end">
+                       <p className={`text-xs truncate w-full ${
+                         conv.unreadCount > 0 
+                           ? (isActive ? 'text-black font-black' : 'text-white font-black') 
+                           : (isActive ? 'text-black/60' : 'text-white/40')
+                       }`}>
+                         {conv.latestMessage.direction === 'outbound' && <span className="mr-1 font-black text-indigo-400">You:</span>}
+                         {conv.latestMessage.content || 'Attachment File'}
+                       </p>
+                       {conv.unreadCount > 0 && (
+                         <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-lg shadow-indigo-600/10">
+                           <span className="text-[10px] font-black text-white">{conv.unreadCount}</span>
+                         </div>
+                       )}
+                     </div>
                    </div>
-                   <div className="flex justify-between items-end">
-                     <p className={`text-sm truncate w-full ${conv.unreadCount > 0 ? 'text-gray-900 font-black' : 'text-gray-500'}`}>
-                       {conv.latestMessage.direction === 'outbound' && <span className="mr-1 font-bold text-blue-600">You:</span>}
-                       {conv.latestMessage.content || 'System Message'}
-                     </p>
-                     {conv.unreadCount > 0 && (
-                       <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
-                         <span className="text-[10px] font-bold text-white">{conv.unreadCount}</span>
-                       </div>
-                     )}
-                   </div>
-                 </div>
                 );
               })}
             </div>
@@ -569,82 +555,77 @@ export default function Inbox() {
         </div>
       </div>
 
-      {/* Chat Area (Detail View) */}
-      <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-[#Fefefe] relative`}>
+      {/* Chat Thread Workspace */}
+      <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-[#050507] relative`}>
         {activeContactId && activeConversation ? (
           <>
-            {/* Chat Header */}
-            <div className="h-16 px-4 sm:px-6 border-b border-gray-200/60 flex items-center bg-white/90 backdrop-blur-md z-10 sticky top-0 justify-between">
+            {/* Header Panel */}
+            <div className="h-20 px-6 border-b border-white/5 flex items-center bg-[#070709]/80 backdrop-blur-md z-10 sticky top-0 justify-between">
               <div className="flex items-center min-w-0">
                 <button 
                   onClick={() => setShowChatOnMobile(false)}
-                  className="md:hidden p-2 -ml-2 mr-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="md:hidden p-2 -ml-2 mr-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer text-white/50 hover:text-white"
                 >
-                  <ChevronLeft className="w-5 h-5 text-gray-500" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center mr-3 shadow-lg shrink-0">
+                <div className="w-10 h-10 bg-white/5 border border-white/10 text-white rounded-xl flex items-center justify-center mr-3 shadow-lg shrink-0">
                   <User className="w-5 h-5" />
                 </div>
                 <div className="truncate">
-                  <h3 className="font-black text-gray-900 tracking-tight truncate">{activeConversation.contact.name || 'External Contact'}</h3>
-                  <p className="text-[10px] text-gray-400 font-black tracking-widest uppercase truncate">WA: {activeConversation.contact.phone_number}</p>
+                  <h3 className="font-black text-white tracking-tight truncate text-base">{activeConversation.contact.name || 'Anonymous Client'}</h3>
+                  <p className="text-[9px] text-white/30 font-black tracking-widest uppercase truncate mt-0.5">Mobile: {activeConversation.contact.phone_number}</p>
                 </div>
               </div>
               
               {selectedMessageIds.size > 0 && (
                 <div className="flex items-center space-x-3">
-                  <span className="text-xs font-bold text-gray-500">{selectedMessageIds.size} selected</span>
+                  <span className="text-xs font-bold text-white/40">{selectedMessageIds.size} Selected</span>
                   <button 
                     onClick={() => setSelectedMessageIds(new Set())}
-                    className="text-xs font-bold text-gray-500 hover:text-gray-900"
+                    className="text-xs font-black uppercase text-white/30 hover:text-white tracking-wider cursor-pointer"
                   >
-                    Cancel
+                    Clear
                   </button>
                   <button 
                     onClick={handleBulkDelete}
-                    className="flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors"
+                    className="flex items-center px-4 py-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer"
                   >
-                    <Trash2 className="w-3 h-3 mr-1.5" />
-                    Delete Selected
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                    Delete selected
                   </button>
                 </div>
               )}
             </div>
 
-            {/* SYNC NOTICE BANNER */}
+            {/* Sync Alert Banner */}
             {showSyncNotice && (
-              <div className="bg-blue-50/50 border-b border-blue-100/50 px-6 py-2 flex items-center justify-between animate-in fade-in duration-300">
-                 <div className="flex items-center text-[10px] font-bold text-blue-600/80 uppercase tracking-tight">
-                    <Clock className="w-3 h-3 mr-2 opacity-70" />
-                    Sent messages may take a moment to appear. Please refresh if needed.
+              <div className="bg-indigo-500/5 border-b border-indigo-500/10 px-6 py-2.5 flex items-center justify-between animate-in fade-in duration-300">
+                 <div className="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+                    <Clock className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
+                    Updates will sync below in real-time.
                  </div>
-                 <div className="flex items-center space-x-4">
-                    <div className="text-[9px] font-black text-blue-400/60 uppercase tracking-widest">
-                       Fixing Syncing Soon • Apologies
-                    </div>
-                    <button 
-                      onClick={() => setShowSyncNotice(false)}
-                      className="text-blue-400 hover:text-blue-600 transition-colors"
-                    >
-                       <X className="w-3 h-3" />
-                    </button>
-                 </div>
+                 <button 
+                   onClick={() => setShowSyncNotice(false)}
+                   className="text-white/20 hover:text-white transition-colors cursor-pointer"
+                 >
+                    <X className="w-3.5 h-3.5" />
+                 </button>
               </div>
             )}
 
-            {/* Messages Area */}
+            {/* Message Bubble Thread Container */}
             <div 
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto p-6 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5 relative"
+              className="flex-1 overflow-y-auto p-6 space-y-4 relative custom-scrollbar bg-black/20"
             >
               {loadingMore && (
-                <div className="flex justify-center p-2">
-                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <div className="flex justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-white/30" />
                 </div>
               )}
               {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-                  Conversation initialized
+                <div className="h-full flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-[0.2em]">
+                  Session initialized
                 </div>
               ) : (
                 messages.map((msg) => {
@@ -652,64 +633,66 @@ export default function Inbox() {
                   const isSelected = selectedMessageIds.has(msg.id);
                   return (
                     <div key={msg.id} className={`flex group items-center ${isOutbound ? 'justify-end' : 'justify-start'}`}>
-                      {/* Selection Checkbox */}
-                      <div className={`mr-2 transition-all ${selectedMessageIds.size > 0 || isSelected ? 'opacity-100 w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-6 overflow-hidden'}`}>
+                      
+                      <div className={`mr-3 transition-all ${selectedMessageIds.size > 0 || isSelected ? 'opacity-100 w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-6 overflow-hidden'}`}>
                          <input 
                           type="checkbox" 
                           checked={isSelected}
                           onChange={() => toggleMessageSelection(msg.id)}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
+                          className="h-4 w-4 bg-white/5 border-white/10 text-indigo-500 focus:ring-white rounded cursor-pointer"
                          />
                       </div>
 
                       {!isOutbound && (
                         <button 
                           onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-opacity self-center mr-1"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-white/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
-                      <div className={`max-w-[70%] sm:max-w-[60%] rounded-2xl px-4 py-3 shadow-sm relative ${
+                      
+                      <div className={`max-w-[70%] sm:max-w-[60%] rounded-[1.5rem] px-5 py-3.5 shadow-xl relative border ${
                         isOutbound 
-                          ? 'bg-gray-900 text-white rounded-br-sm' 
-                          : 'bg-white border border-gray-200/60 text-gray-900 rounded-bl-sm'
+                          ? 'bg-white text-black border-white rounded-br-sm' 
+                          : 'bg-white/[0.01] border-white/5 text-white rounded-bl-sm'
                       }`}>
                         {msg.media_path && (
-                          <div className={`mb-2 p-3 rounded-xl border flex items-center ${isOutbound ? 'bg-white/10 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${isOutbound ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'}`}>
+                          <div className={`mb-3 p-3 rounded-xl border flex items-center ${
+                            isOutbound ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'
+                          }`}>
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
+                              isOutbound ? 'bg-black text-white' : 'bg-indigo-500/10 text-indigo-400'
+                            }`}>
                               {msg.message_type === 'image' && <Image className="w-4 h-4" />}
                               {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
                               {msg.message_type === 'document' && <FileText className="w-4 h-4" />}
                               {!['image', 'video', 'document'].includes(msg.message_type) && <Paperclip className="w-4 h-4" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                               <p className={`text-[10px] font-black uppercase tracking-widest ${isOutbound ? 'text-gray-300' : 'text-gray-400'}`}>{msg.message_type || 'Attachment'}</p>
-                               <p className={`text-[11px] font-bold truncate ${isOutbound ? 'text-white' : 'text-gray-900'}`}>{msg.media_path.split('/').pop()}</p>
+                               <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-black/40' : 'text-white/30'}`}>{msg.message_type || 'Media file'}</p>
+                               <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-black' : 'text-white'}`}>{msg.media_path.split('/').pop()}</p>
                             </div>
                           </div>
                         )}
-                        <p className="text-[15px] whitespace-pre-wrap leading-relaxed">{msg.content || (msg.media_path ? '' : '[Template Message]')}</p>
-                        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-gray-400' : 'text-gray-400'}`}>
-                          <span className="text-[9px] font-bold uppercase">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.content || (msg.media_path ? '' : '[Template Message]')}</p>
+                        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-black/40' : 'text-white/30'}`}>
+                          <span className="text-[8px] font-black uppercase tracking-wider font-mono">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           {isOutbound && (
                             <span className="ml-1 flex items-center">
-                              {msg.status === 'pending' && <Clock className="w-3 h-3 text-gray-400" />}
-                              {msg.status === 'sent' && <Check className="w-3.5 h-3.5 text-gray-400" />}
-                              {msg.status === 'delivered' && <CheckCheck className="w-3.5 h-3.5 text-gray-400" />}
-                              {msg.status === 'read' && <CheckCheck className="w-3.5 h-3.5 text-blue-400" />}
+                              {msg.status === 'pending' && <Clock className="w-3 h-3" />}
+                              {msg.status === 'sent' && <Check className="w-3.5 h-3.5" />}
+                              {msg.status === 'delivered' && <CheckCheck className="w-3.5 h-3.5" />}
+                              {msg.status === 'read' && <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />}
                               {msg.status === 'failed' && (
                                 <div className="relative group/error">
-                                  <AlertCircle className="w-3.5 h-3.5 text-red-500 cursor-help" />
-                                  <div className="absolute bottom-full right-0 mb-2 w-64 bg-red-600 text-white p-3 rounded-2xl text-[10px] font-black uppercase tracking-tight shadow-xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
-                                    <div className="flex items-center mb-1.5 border-b border-white/20 pb-1.5">
-                                      <AlertCircle className="w-3 h-3 mr-1.5" /> Meta Rejection Reason
+                                  <AlertCircle className="w-3.5 h-3.5 text-red-400 cursor-help" />
+                                  <div className="absolute bottom-full right-0 mb-3 w-64 bg-[#0c0c0e] text-white p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/20 shadow-2xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
+                                    <div className="flex items-center mb-1.5 border-b border-white/5 pb-1.5 text-red-400">
+                                      <AlertCircle className="w-3 h-3 mr-1.5" /> META GATEWAY ERROR
                                     </div>
-                                    <div className="leading-relaxed opacity-90 font-bold">
-                                      {msg.error || 'Unknown Meta API error. Please check logs.'}
-                                    </div>
-                                    <div className="mt-2 text-[8px] opacity-60">
-                                      Tip: Marketing frequency caps (131049) reset every 24 hours.
+                                    <div className="leading-relaxed text-white/60 font-semibold lowercase">
+                                      {msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}
                                     </div>
                                   </div>
                                 </div>
@@ -718,10 +701,11 @@ export default function Inbox() {
                           )}
                         </div>
                       </div>
+                      
                       {isOutbound && (
                         <button 
                           onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-opacity self-center ml-1"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-white/20 hover:text-red-400 transition-opacity self-center ml-1.5 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -734,23 +718,17 @@ export default function Inbox() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
-            <div className="p-6 bg-white border-t border-gray-200/60">
+            {/* Input Composer Panel */}
+            <div className="p-6 bg-[#070709] border-t border-white/5">
               {windowError && (
-                 <div className="mb-4 p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-500">
+                 <div className="mb-4 p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-500">
                     <div className="flex items-center">
-                       <div className="relative group/window-info mr-3">
-                         <AlertCircle className="w-4 h-4 text-amber-600 cursor-help" />
-                         <div className="absolute bottom-full left-0 mb-3 w-72 bg-gray-900 text-white p-4 rounded-2xl text-[11px] font-medium leading-relaxed shadow-2xl opacity-0 group-hover/window-info:opacity-100 transition-all pointer-events-none z-[110] border border-white/10 invisible group-hover/window-info:visible">
-                           <p className="font-black uppercase tracking-widest mb-2 text-amber-400 text-[10px]">What is the 24h Window?</p>
-                           WhatsApp requires you to use an approved <span className="text-amber-400 font-bold">Template Message</span> to restart a chat if more than 24 hours have passed since the customer's last message.
-                         </div>
-                       </div>
-                       <div className="text-xs font-bold text-amber-800">24-Hour window closed. Send a template to re-open.</div>
+                       <AlertCircle className="w-4 h-4 text-amber-400 mr-2 flex-shrink-0" />
+                       <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest">24-Hour Active Window Closed. Link template to re-engage.</div>
                     </div>
                     <button 
                       onClick={() => setShowTemplates(true)}
-                      className="px-4 py-1.5 bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-amber-700 transition-all"
+                      className="px-4 py-1.5 bg-amber-500 text-black hover:bg-neutral-100 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
                     >
                        Choose Template
                     </button>
@@ -758,29 +736,27 @@ export default function Inbox() {
               )}
 
               <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex flex-col space-y-4">
-                
-                {/* STAGED FILE PREVIEW */}
                 {stagedFile && (
-                  <div className="flex items-center self-start bg-blue-50 border border-blue-100 px-4 py-2 rounded-2xl animate-in zoom-in-95 duration-200">
-                    <div className="w-8 h-8 bg-blue-600/10 text-blue-600 rounded-lg flex items-center justify-center mr-3">
+                  <div className="flex items-center self-start bg-indigo-500/5 border border-indigo-500/10 px-4 py-2 rounded-2xl animate-in zoom-in-95 duration-200">
+                    <div className="w-8 h-8 bg-indigo-500/10 text-indigo-400 rounded-lg flex items-center justify-center mr-3">
                       {stagedFile.type.startsWith('image/') ? <Image className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                     </div>
                     <div className="mr-6">
-                      <p className="text-[11px] font-black text-gray-900 truncate max-w-[150px]">{stagedFile.name}</p>
-                      <p className="text-[9px] font-bold text-blue-600/60 uppercase tracking-widest">{Math.round(stagedFile.size / 1024)} KB</p>
+                      <p className="text-[10px] font-black text-white truncate max-w-[150px]">{stagedFile.name}</p>
+                      <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">{Math.round(stagedFile.size / 1024)} KB</p>
                     </div>
                     <button 
                       type="button"
                       onClick={() => setStagedFile(null)}
-                      className="w-6 h-6 bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full flex items-center justify-center shadow-sm transition-all active:scale-90"
+                      className="w-6 h-6 bg-white/5 hover:bg-red-500/10 text-white/40 hover:text-red-400 rounded-full flex items-center justify-center transition-all cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
 
-                <div className="flex items-center space-x-4 bg-gray-50/50 p-2 rounded-[2rem] border border-gray-100 shadow-sm focus-within:ring-4 focus-within:ring-blue-500/5 transition-all">
-                  <div className="flex space-x-2">
+                <div className="flex items-center space-x-3 bg-white/5 p-2 rounded-[2rem] border border-white/5 focus-within:border-white/10 transition-all">
+                  <div className="flex">
                     <input 
                       type="file" 
                       ref={fileInputRef} 
@@ -792,16 +768,17 @@ export default function Inbox() {
                       type="button"
                       disabled={uploading || windowError}
                       onClick={handleFileSelect}
-                      className="flex-shrink-0 h-[52px] w-[52px] rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center transition-all active:scale-90 hover:bg-gray-200 disabled:opacity-50"
+                      className="flex-shrink-0 h-[52px] w-[52px] rounded-2xl bg-white/5 text-white/50 flex items-center justify-center transition-all hover:bg-white/10 hover:text-white disabled:opacity-30 cursor-pointer"
                     >
                       <Paperclip className="w-5 h-5" />
                     </button>
                   </div>
+                  
                   <textarea
                     readOnly={windowError}
                     rows={1}
-                    className={`flex-1 bg-transparent border-0 focus:ring-0 resize-none px-4 py-3.5 text-[15px] font-medium ${windowError ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    placeholder={windowError ? "Chat window closed" : "Write a message..."}
+                    className={`flex-1 bg-transparent border-0 focus:ring-0 resize-none px-4 py-3.5 text-sm font-semibold text-white placeholder:text-white/20 focus:outline-none ${windowError ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    placeholder={windowError ? "Chat window locked" : "Type your message..."}
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
                     onKeyDown={e => {
@@ -811,75 +788,71 @@ export default function Inbox() {
                       }
                     }}
                   />
+                  
                   <button
                     type="button"
                     onClick={() => setShowTemplates(!showTemplates)}
-                    className={`flex-shrink-0 h-[52px] w-[52px] rounded-2xl flex items-center justify-center transition-all active:scale-90 ${showTemplates ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-100 text-gray-500'}`}
+                    className={`flex-shrink-0 h-[52px] w-[52px] rounded-2xl flex items-center justify-center transition-all cursor-pointer ${
+                      showTemplates ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                    }`}
                   >
-                    <Zap className={`w-5 h-5 ${showTemplates ? 'fill-current' : ''}`} />
+                    <Zap className="w-5 h-5" />
                   </button>
+                  
                   <button
                     type="submit"
                     disabled={(!newMessage.trim() && !stagedFile) || sending || uploading || windowError}
-                    className="flex-shrink-0 h-[52px] w-[52px] bg-blue-600 hover:bg-black text-white rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-90 disabled:opacity-50"
+                    className="flex-shrink-0 h-[52px] w-[52px] bg-white hover:bg-neutral-100 text-black rounded-2xl flex items-center justify-center transition-all disabled:opacity-30 cursor-pointer"
                   >
-                    <Send className={`w-5 h-5 ml-1 ${uploading ? 'animate-pulse' : ''}`} />
+                    <Send className={`w-5 h-5 ml-0.5 ${uploading ? 'animate-pulse' : ''}`} />
                   </button>
                 </div>
               </form>
             </div>
 
-            {/* Template Selector Overlay - COMPACT MODAL */}
+            {/* Template Selector Modal */}
             {showTemplates && (
-              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all animate-in fade-in duration-300">
-                  <div className="w-full max-w-md bg-white rounded-[2rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] p-6 flex flex-col max-h-[80%] border border-gray-100 animate-in zoom-in-95 duration-300">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                  <div className="w-full max-w-md bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl p-6 flex flex-col max-h-[80%] animate-in zoom-in-95 duration-300">
                     
-                    {/* Header */}
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                          <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none">Templates</h3>
-                          <div className="flex items-center mt-1">
-                             <div className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2" />
-                             <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Approved</p>
-                          </div>
+                          <h3 className="text-xl font-black text-white tracking-tight">Select Template</h3>
+                          <p className="text-[8px] text-indigo-400 font-black uppercase tracking-widest mt-1">Approved Meta Elements</p>
                         </div>
+                        
                         <div className="flex items-center space-x-2">
                           <Link 
                             href="/templates" 
-                            className="flex items-center px-3 py-2 bg-black hover:bg-gray-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm group"
+                            className="flex items-center px-3 py-1.5 bg-white text-black hover:bg-neutral-100 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm cursor-pointer"
                           >
-                            <Plus className="w-3 h-3 mr-1.5 group-hover:rotate-90 transition-transform" />
-                            Add
+                            <Plus className="w-3.5 h-3.5 mr-1" /> Add
                           </Link>
                           <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowTemplates(false);
-                            }} 
-                            className="w-9 h-9 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-colors"
+                            onClick={() => setShowTemplates(false)} 
+                            className="w-9 h-9 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl flex items-center justify-center transition-colors cursor-pointer"
                           >
-                            <X className="w-4 h-4 text-gray-400" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                     </div>
                     
-                    {/* Template List */}
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 -mr-2 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
                         {selectedTemplate ? (
-                          <div className="animate-in slide-in-from-right-4 duration-300 space-y-6 p-2">
-                             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Preview</h4>
-                                <p className="text-sm text-gray-600 italic leading-relaxed">"{selectedTemplate.content}"</p>
+                          <div className="animate-in slide-in-from-right-4 duration-300 space-y-5">
+                             <div className="bg-white/5 border border-white/5 p-4 rounded-2xl">
+                                <h4 className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1.5">Meta Content Preview</h4>
+                                <p className="text-xs text-white/70 italic leading-relaxed">"{selectedTemplate.content}"</p>
                              </div>
                              
                              <div className="space-y-4">
                                 {Array.from({ length: (selectedTemplate.content?.match(/\{\{\d+\}\}/g) || []).length }).map((_, i) => (
                                    <div key={i} className="space-y-2">
-                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Variable {i + 1}</label>
+                                      <label className="text-[9px] font-black text-white/30 uppercase tracking-widest ml-1">Variable {i + 1}</label>
                                       <input 
                                         type="text"
-                                        placeholder={`Enter value for {{${i + 1}}}...`}
-                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        placeholder={`Value for {{${i + 1}}}...`}
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs font-semibold focus:border-indigo-500 focus:outline-none transition-all text-white"
                                         value={templateVars[i+1] || ''}
                                         onChange={(e) => setTemplateVars({...templateVars, [i+1]: e.target.value})}
                                         autoFocus={i === 0}
@@ -894,13 +867,13 @@ export default function Inbox() {
                                      setSelectedTemplate(null);
                                      setTemplateVars({});
                                   }}
-                                  className="flex-1 px-6 py-3 border border-gray-100 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95"
+                                  className="flex-1 px-6 py-3.5 border border-white/10 hover:bg-white/5 text-white/40 hover:text-white rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
                                 >
                                    Back
                                 </button>
                                 <button 
                                   onClick={() => handleSendTemplate(selectedTemplate)}
-                                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+                                  className="flex-1 px-6 py-3.5 bg-white text-black hover:bg-neutral-100 rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-lg"
                                 >
                                    Send Now
                                 </button>
@@ -908,9 +881,9 @@ export default function Inbox() {
                           </div>
                         ) : (
                           templates.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                              <Zap className="w-8 h-8 text-gray-100 mb-2" />
-                              <p className="text-gray-300 font-bold text-[10px] uppercase tracking-widest">No templates</p>
+                            <div className="flex flex-col items-center justify-center py-12 text-center opacity-30">
+                              <Zap className="w-8 h-8 text-white mb-2" />
+                              <p className="text-white font-black text-[9px] uppercase tracking-widest">No templates configured</p>
                             </div>
                           ) : (
                             templates.map(tpl => {
@@ -926,26 +899,26 @@ export default function Inbox() {
                                       handleSendTemplate(tpl);
                                     }
                                   }}
-                                  className="p-4 border border-gray-50 rounded-2xl hover:border-blue-100 hover:bg-blue-50/20 cursor-pointer group transition-all relative active:scale-[0.98] flex items-center"
+                                  className="p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-white/10 hover:bg-white/[0.02] cursor-pointer group transition-all relative active:scale-[0.98] flex items-center"
                                 >
                                   <div className="flex-1 min-w-0 pr-4">
                                     <div className="flex justify-between items-start mb-1.5">
                                         <div className="flex items-center">
-                                          <h4 className="text-xs font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">{tpl.name}</h4>
+                                          <h4 className="text-xs font-black text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight truncate">{tpl.name}</h4>
                                           {hasVars && (
-                                             <span className="ml-2 px-1.5 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded text-[8px] font-black uppercase tracking-tighter">Requires Inputs</span>
+                                             <span className="ml-2 px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded text-[7px] font-black uppercase tracking-widest">Variable</span>
                                           )}
                                         </div>
-                                        <span className="text-[7px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100/30 ml-2 shrink-0">{tpl.language}</span>
+                                        <span className="text-[7px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 ml-2 shrink-0">{tpl.language}</span>
                                     </div>
-                                    <p className="text-[11px] text-gray-500 leading-snug font-medium line-clamp-2 italic">
+                                    <p className="text-[10px] text-white/40 leading-snug font-semibold line-clamp-2 italic">
                                       "{tpl.content}"
                                     </p>
                                   </div>
                                   
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-2">
-                                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/20">
-                                        {hasVars ? <ArrowRight className="w-3.5 h-3.5 text-white" /> : <Send className="w-3.5 h-3.5 text-white ml-0.5" />}
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                                     <div className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center shadow-lg">
+                                        {hasVars ? <ArrowRight className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5 ml-0.5" />}
                                      </div>
                                   </div>
                                 </div>
@@ -954,21 +927,16 @@ export default function Inbox() {
                           )
                         )}
                     </div>
-                    
-                    {/* Footer Hint */}
-                    <div className="mt-6 pt-4 border-t border-gray-50 text-center">
-                       <p className="text-[9px] text-gray-300 font-bold uppercase tracking-[0.2em] italic">Press any template to send</p>
-                    </div>
                   </div>
               </div>
             )}
           </>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-            <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center shadow-inner">
-              <MessageCircle className="w-10 h-10 text-gray-200" />
+          <div className="h-full flex flex-col items-center justify-center text-white/30 space-y-4 opacity-40">
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center">
+              <MessageCircle className="w-10 h-10" />
             </div>
-            <p className="font-bold text-gray-300">Select a thread to begin chatting</p>
+            <p className="font-black text-xs uppercase tracking-widest">Select a thread to begin chatting</p>
           </div>
         )}
       </div>
@@ -983,4 +951,3 @@ export default function Inbox() {
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCircle, X, Sparkles, ShieldCheck, Key, ExternalLink } from 'lucide-react';
+import { Plus, LayoutTemplate, Trash2, Globe, Tag, RefreshCw, Loader2, AlertCircle, X, Sparkles, ExternalLink, ShieldCheck } from 'lucide-react';
 import Toast from '@/components/Toast';
 
 const LANGUAGES = [
@@ -106,11 +106,9 @@ export default function Templates() {
   const fetchTemplates = async (sync = false) => {
     if (sync) setSyncing(true);
     try {
-      // Use the Meta-specific sync endpoint if requested
       const url = sync ? '/api/whatsapp/meta/templates' : '/api/templates';
       const headers: any = { 'Content-Type': 'application/json' };
       
-      // Add tenant ID header for Meta sync endpoint
       if (sync && tenant?.id) {
         headers['x-tenant-id'] = tenant.id;
       }
@@ -166,7 +164,7 @@ export default function Templates() {
         setToast({ message: 'Template submitted to Meta', type: 'success' });
         setFormData({ name: '', language: 'en_US', category: 'UTILITY', bodyText: '' });
         setShowModal(false);
-        fetchTemplates(true); // Sync after creation
+        fetchTemplates(true);
       } else {
         const err = await res.json();
         const msg = err.dbError 
@@ -215,29 +213,36 @@ export default function Templates() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Message Templates</h1>
-        <div className="flex space-x-3">
+      {/* Header Panel */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-white">Message Templates</h1>
+          <p className="text-white/40 text-sm font-semibold mt-1">Design and sync rich templates directly with Meta WhatsApp systems.</p>
+        </div>
+        
+        <div className="flex flex-wrap gap-3 items-center">
           <button 
             onClick={() => fetchTemplates(true)}
             disabled={syncing}
-            className="flex items-center px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center px-5 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all cursor-pointer"
           >
-            <RefreshCw className={`mr-2 h-4 w-4 text-blue-500 ${syncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`mr-2 h-4 w-4 text-indigo-400 ${syncing ? 'animate-spin' : ''}`} />
             Sync with Meta
           </button>
+          
           {selectedIds.size > 0 && (
             <button 
               onClick={handleDeleteSelected}
-              className="flex items-center px-4 py-2 border border-red-100 rounded-xl shadow-sm text-sm font-bold text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+              className="flex items-center px-5 py-3 border border-red-500/20 rounded-2xl text-xs font-black uppercase tracking-widest text-red-400 bg-red-500/5 hover:bg-red-500/10 transition-colors cursor-pointer"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete ({selectedIds.size})
             </button>
           )}
+          
           <button 
             onClick={() => setShowModal(true)}
-            className="flex items-center px-6 py-2 border border-transparent rounded-xl shadow-xl text-sm font-bold text-white bg-gray-900 hover:bg-black transition-all active:scale-95"
+            className="flex items-center px-6 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 cursor-pointer"
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Template
@@ -245,56 +250,66 @@ export default function Templates() {
         </div>
       </div>
 
+      {/* Templates Catalog */}
       <div className="grid grid-cols-1 gap-6">
         {loading ? (
-          <div className="text-center py-10 text-gray-500">Loading templates...</div>
+          <div className="text-center py-20 opacity-40">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-white mb-4" />
+            <p className="text-xs font-black uppercase tracking-widest">Loading Catalog...</p>
+          </div>
         ) : templates.length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-md p-10 mt-4 rounded-2xl border border-gray-200/60 shadow-sm text-center">
-            <LayoutTemplate className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-            <h3 className="text-base font-semibold text-gray-900">No templates</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by linking a WhatsApp template.</p>
+          <div className="bg-white/[0.01] border border-white/5 p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
+            <LayoutTemplate className="mx-auto h-12 w-12 text-white/20 mb-4 animate-pulse-slow" />
+            <h3 className="text-base font-black text-white mb-1">No Active Templates</h3>
+            <p className="text-xs text-white/40 max-w-xs mx-auto leading-relaxed">Pull templates from Meta cloud sync, or build your first template draft here.</p>
           </div>
         ) : (
           templates.map(template => (
             <div 
               key={template.id} 
-              className={`bg-white/80 backdrop-blur-md p-6 rounded-2xl border relative shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all cursor-pointer group-card ${
-                selectedIds.has(template.id) ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200/60'
+              className={`bg-white/[0.01] border p-6 rounded-[2.5rem] relative shadow-2xl hover:border-white/10 hover:bg-white/[0.02] transition-all duration-300 cursor-pointer ${
+                selectedIds.has(template.id) ? 'border-white ring-1 ring-white/10 bg-white/[0.02]' : 'border-white/5'
               }`}
-              onClick={(e) => toggleSelection(template.id, e as any)}
+              onClick={(e) => toggleSelection(template.id, e)}
             >
               <div className="absolute top-6 right-6 z-30">
                 <input
                   type="checkbox"
                   checked={selectedIds.has(template.id)}
                   onChange={() => {}} 
-                  className="h-5 w-5 text-black focus:ring-black border-gray-300 rounded-lg cursor-pointer transition-transform active:scale-90"
+                  className="h-5 w-5 bg-white/5 border-white/10 text-black focus:ring-white rounded cursor-pointer"
                 />
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center mb-4 gap-2">
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">{template.name}</h3>
+              
+              <div className="flex flex-wrap items-center gap-3 mb-4 pr-10">
+                <h3 className="text-xl font-black text-white tracking-tight">{template.name}</h3>
+                
                 <div className="flex gap-2">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    template.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                    template.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                    'bg-amber-100 text-amber-800'
+                  <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                    template.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    template.status === 'REJECTED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                    'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   }`}>
                     {template.status || 'PENDING'}
                   </span>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-600">
-                    <Globe className="w-3 h-3 mr-1" />
+                  
+                  <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/5 text-white/50 border border-white/5">
+                    <Globe className="w-3 h-3 mr-1.5" />
                     {template.language || 'en_US'}
                   </span>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-600">
-                    <Tag className="w-3 h-3 mr-1" />
+                  
+                  <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <Tag className="w-3 h-3 mr-1.5" />
                     {template.category || 'UTILITY'}
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Meta ID: <span className="text-gray-900 font-mono">{template.template_id}</span></p>
-              <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-100 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed relative">
-                <div className="absolute top-0 right-0 p-2 opacity-10">
-                   <LayoutTemplate className="w-8 h-8" />
+              
+              <p className="text-[10px] text-white/30 font-black uppercase tracking-wider mb-4">Meta ID: <span className="font-mono text-white/50">{template.template_id}</span></p>
+              
+              <div className="bg-black/40 p-5 rounded-2xl border border-white/5 text-sm text-white/70 whitespace-pre-wrap leading-relaxed relative">
+                <div className="absolute top-0 right-0 p-2 opacity-5">
+                   <LayoutTemplate className="w-8 h-8 text-white" />
                 </div>
                 {template.content}
               </div>
@@ -303,164 +318,164 @@ export default function Templates() {
         )}
       </div>
 
+      {/* Sync Failure Troubleshooter Modal */}
       {showTroubleshoot && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-xl w-full p-8 border border-gray-100 animate-in zoom-in-95 duration-300 relative text-left">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl max-w-xl w-full p-8 relative animate-in zoom-in-95 duration-300">
             <button 
               onClick={() => setShowTroubleshoot(false)}
-              className="absolute top-8 right-8 text-gray-400 hover:text-gray-900 transition-colors"
+              className="absolute top-8 right-8 text-white/40 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center mb-6">
-              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mr-6 shadow-sm">
-                 <LayoutTemplate className="w-7 h-7" />
+              <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mr-6">
+                 <LayoutTemplate className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-tight">No Templates Synced</h3>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Sync finished with 0 results</p>
+                <h3 className="text-xl font-black text-white tracking-tight leading-none">Sync Finished Empty</h3>
+                <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-1.5">Meta API returned 0 matching templates</p>
               </div>
             </div>
 
-            {/* Tab Selector */}
-            <div className="flex bg-gray-100/80 p-1.5 rounded-2xl mb-6">
+            {/* Selector Tabs */}
+            <div className="flex bg-white/5 p-1 rounded-2xl mb-6">
               <button
                 type="button"
                 onClick={() => setTroubleshootTab('new_account')}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                className={`flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
                   troubleshootTab === 'new_account' 
-                    ? 'bg-white text-gray-900 shadow-sm font-bold' 
-                    : 'text-gray-400 hover:text-gray-600 font-semibold'
+                    ? 'bg-white text-black shadow-md' 
+                    : 'text-white/40 hover:text-white'
                 }`}
               >
-                New Account / No Templates
+                Brand New Account
               </button>
               <button
                 type="button"
                 onClick={() => setTroubleshootTab('permissions')}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                className={`flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
                   troubleshootTab === 'permissions' 
-                    ? 'bg-white text-gray-900 shadow-sm font-bold' 
-                    : 'text-gray-400 hover:text-gray-600 font-semibold'
+                    ? 'bg-white text-black shadow-md' 
+                    : 'text-white/40 hover:text-white'
                 }`}
               >
-                Permissions Issue
+                Permissions Check
               </button>
             </div>
 
             {troubleshootTab === 'new_account' ? (
               <div className="space-y-6">
-                <div className="bg-blue-50/40 p-6 rounded-3xl border border-blue-100/30">
-                  <p className="text-xs text-blue-900 font-medium leading-relaxed">
-                    If this is a new WhatsApp Business Account, it is completely normal to have no templates yet. You must create and get at least one template approved on Meta before you can sync.
+                <div className="bg-indigo-500/5 p-6 rounded-2xl border border-indigo-500/10">
+                  <p className="text-xs text-white/60 font-semibold leading-relaxed">
+                    If this is a new WhatsApp Business Account, it is completely normal to have no templates. Submit and approve at least one layout on Meta to run sync successfully.
                   </p>
                 </div>
 
-                <div className="space-y-4 mb-8">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">How would you like to create your first template?</p>
+                <div className="space-y-4 mb-6">
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-1">Actions</p>
                   
                   <div 
                     onClick={() => { setShowTroubleshoot(false); setShowModal(true); }}
-                    className="flex items-center p-4 bg-gray-50/60 hover:bg-gray-55/80 hover:border-gray-300 rounded-2xl border border-gray-200/60 cursor-pointer transition-all active:scale-[0.99] group"
+                    className="flex items-center p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 cursor-pointer transition-all active:scale-[0.99] group"
                   >
-                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                    <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center mr-4">
                       <Plus className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-gray-900">Create directly from PingStack</h4>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Submit templates for review without leaving the app.</p>
+                      <h4 className="text-xs font-black text-white uppercase tracking-wider">Create Template Here</h4>
+                      <p className="text-[10px] text-white/40 mt-1 font-semibold">Submit a utility layout directly to Meta from PingStack.</p>
                     </div>
                   </div>
 
                   <a 
                     href="https://business.facebook.com/wa/manage/templates"
                     target="_blank"
-                    className="flex items-center p-4 bg-gray-50/60 hover:bg-gray-55/80 hover:border-gray-300 rounded-2xl border border-gray-200/60 cursor-pointer transition-all active:scale-[0.99] group block"
+                    className="flex items-center p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 cursor-pointer transition-all active:scale-[0.99] group block"
                   >
-                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                    <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center mr-4">
                       <ExternalLink className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-gray-900 flex items-center">
-                        <span>Manage on Meta WhatsApp Manager</span>
+                      <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center">
+                        <span>Meta WhatsApp Manager</span>
                         <ExternalLink className="w-3 h-3 ml-1.5 opacity-40 group-hover:opacity-100 transition-opacity" />
                       </h4>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Manage and preview templates inside the Meta Developer Suite.</p>
+                      <p className="text-[10px] text-white/40 mt-1 font-semibold">Create and configure templates inside WhatsApp Manager Console.</p>
                     </div>
                   </a>
                 </div>
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="bg-amber-50/40 p-6 rounded-3xl border border-amber-100/30">
-                  <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                    If you already have templates in your Meta Business Suite but they are not showing up here, it usually means the <b>System User</b> hasn't been assigned permission to manage this WhatsApp account.
+                <div className="bg-amber-500/5 p-6 rounded-2xl border border-amber-500/10">
+                  <p className="text-xs text-white/60 font-semibold leading-relaxed">
+                    Verify that your <b>System User</b> credentials have permission assigned to link and discover templates on this specific asset.
                   </p>
                 </div>
 
-                <div className="space-y-4 mb-8">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">One-time Permission Setup Steps:</p>
+                <div className="space-y-4 mb-6">
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-1">How to fix permissions:</p>
                   <ul className="space-y-3">
                     {[
-                      { step: 1, text: 'Open Meta Business Settings and go to the WhatsApp Accounts tab.' },
-                      { step: 2, text: 'Select your WhatsApp Account and look at the "People" section.' },
-                      { step: 3, text: 'Ensure your System User (token creator) is assigned with "Full Control" or "Manage" permissions.' }
+                      { step: 1, text: 'Open Meta Business Suite settings and look under WhatsApp Accounts.' },
+                      { step: 2, text: 'Click "People" and select your linked System User profile.' },
+                      { step: 3, text: 'Ensure the "Manage WhatsApp Account" slider is set to Active.' }
                     ].map(item => (
-                      <li key={item.step} className="flex gap-4 items-start bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
-                        <span className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">{item.step}</span>
-                        <span className="text-xs text-gray-600 font-medium leading-normal">{item.text}</span>
+                      <li key={item.step} className="flex gap-4 items-start bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <span className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center text-[10px] font-black shrink-0">{item.step}</span>
+                        <span className="text-xs text-white/50 font-bold leading-normal">{item.text}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="flex gap-4">
-                  <a 
-                    href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
-                    target="_blank"
-                    className="flex-1 py-5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all text-center flex items-center justify-center space-x-2"
-                  >
-                    <span>Go to Meta Settings</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
+                <a 
+                  href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
+                  target="_blank"
+                  className="w-full py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-neutral-100 transition-all text-center flex items-center justify-center space-x-2"
+                >
+                  <span>Verify Meta Settings</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
             )}
           </div>
         </div>
       )}
 
+      {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-[2px] z-[100] overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] overflow-y-auto animate-in fade-in duration-200">
           <div className="flex min-h-full items-start justify-center p-4 text-center sm:items-center sm:p-8">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-xl w-full p-8 border border-gray-100 animate-in zoom-in-95 duration-300 relative text-left my-8 sm:my-0">
+            <div className="bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl max-w-xl w-full p-8 relative text-left my-8 sm:my-0 animate-in zoom-in-95 duration-300">
             <button 
               onClick={() => setShowModal(false)}
-              className="absolute top-8 right-8 text-gray-400 hover:text-gray-900 transition-colors"
+              className="absolute top-8 right-8 text-white/40 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center mb-10">
-              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mr-6 shadow-sm">
-                 <LayoutTemplate className="w-7 h-7" />
+            <div className="flex items-center mb-8">
+              <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mr-6">
+                 <LayoutTemplate className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Create Meta Template</h3>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Direct Cloud API Submission</p>
+                <h3 className="text-xl font-black text-white tracking-tight">Create Meta Template</h3>
+                <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-1.5">Direct Cloud API Submission Pipeline</p>
               </div>
             </div>
 
             <form onSubmit={handleCreateTemplate}>
-              <div className="space-y-8 mb-10">
-                <div className="p-5 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-[2rem] border border-blue-100/50">
-                  <label className="flex items-center text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 px-1">
+              <div className="space-y-6 mb-8">
+                <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
+                  <label className="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3 px-1">
                     <Sparkles className="w-3.5 h-3.5 mr-2" />
-                    Quick Start with Samples
+                    Speed Build Samples
                   </label>
                   <select
-                    className="block w-full rounded-2xl border border-white bg-white/80 px-5 py-4 text-sm font-bold shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer"
+                    className="block w-full bg-[#050507] border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold text-white focus:border-indigo-500 focus:outline-none transition-all cursor-pointer"
                     onChange={(e) => {
                       const sample = SAMPLES.find(s => s.id === e.target.value);
                       if (sample) {
@@ -474,85 +489,86 @@ export default function Templates() {
                     }}
                     defaultValue=""
                   >
-                    <option value="" disabled>Select a sample to pre-fill...</option>
+                    <option value="" disabled className="text-white/20">Select a pre-configured template...</option>
                     {SAMPLES.map(sample => (
-                      <option key={sample.id} value={sample.id}>{sample.label}</option>
+                      <option key={sample.id} value={sample.id} className="bg-[#0f0f11] text-white">{sample.label}</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Template Name</label>
+                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Template Identifier</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. order_confirmation"
-                    className="block w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-5 py-4 text-sm font-bold shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all"
+                    placeholder="e.g. order_confirmation_alert"
+                    className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-indigo-500 focus:outline-none placeholder:text-white/20 transition-all font-mono"
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value.toLowerCase().replace(/\s/g, '_') })}
                   />
-                  <p className="text-[10px] text-gray-400 mt-2.5 px-1 font-medium italic">Lowercase letters and underscores only.</p>
+                  <p className="text-[9px] text-white/30 mt-2 px-1 font-semibold">Lower-case letters and underscores only.</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Category</label>
+                    <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Category</label>
                     <select
-                      className="block w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-5 py-4 text-sm font-bold shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer"
+                      className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-white"
                       value={formData.category}
                       onChange={e => setFormData({ ...formData, category: e.target.value })}
                     >
-                      <option value="UTILITY">Utility</option>
-                      <option value="MARKETING">Marketing</option>
+                      <option value="UTILITY" className="bg-[#0f0f11] text-white">Utility</option>
+                      <option value="MARKETING" className="bg-[#0f0f11] text-white">Marketing</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Language</label>
+                    <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Language</label>
                     <select
-                      className="block w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-5 py-4 text-sm font-bold shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer"
+                      className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-white"
                       value={formData.language}
                       onChange={e => setFormData({ ...formData, language: e.target.value })}
                     >
                       {LANGUAGES.map(lang => (
-                        <option key={lang.code} value={lang.code}>{lang.label}</option>
+                        <option key={lang.code} value={lang.code} className="bg-[#0f0f11] text-white">{lang.label}</option>
                       ))}
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Body Content</label>
+                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Body Text Content</label>
                   <textarea
                     required
                     rows={5}
-                    placeholder="Hi {{1}}, your order {{2}} is ready!"
-                    className="block w-full rounded-2xl border border-gray-100 bg-gray-50/50 px-5 py-4 text-sm font-bold shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all leading-relaxed"
+                    placeholder="Hi {{1}}, your booking for date {{2}} is confirmed."
+                    className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-semibold text-white focus:border-indigo-500 focus:outline-none placeholder:text-white/20 transition-all leading-relaxed resize-none"
                     value={formData.bodyText}
                     onChange={e => setFormData({ ...formData, bodyText: e.target.value })}
                   />
-                  <div className="mt-4 flex items-start p-4 bg-blue-50/40 rounded-2xl border border-blue-100/30">
-                    <AlertCircle className="w-4 h-4 text-blue-500 mr-3 mt-0.5" />
-                    <p className="text-[10px] text-blue-700 font-bold leading-normal uppercase tracking-wider">
-                      Use <code className="bg-blue-100 px-1.5 py-0.5 rounded-md mx-1 font-mono">{"{{1}}"}</code> for variables. Meta will review content before approval.
+                  
+                  <div className="mt-4 flex items-start p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
+                    <AlertCircle className="w-4 h-4 text-indigo-400 mr-3 mt-0.5 flex-shrink-0" />
+                    <p className="text-[10px] text-white/40 font-bold leading-normal uppercase tracking-wider">
+                      Specify dynamic variables as <code className="bg-white/10 px-1 py-0.5 rounded mx-1 text-white font-mono">{"{{1}}"}</code>, <code className="bg-white/10 px-1 py-0.5 rounded mx-1 text-white font-mono">{"{{2}}"}</code>.
                     </p>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3 mt-8">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-5 border border-gray-100 rounded-2xl text-[10px] font-black text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-all uppercase tracking-[0.2em]"
+                  className="flex-1 px-6 py-4 border border-white/10 hover:bg-white/5 rounded-2xl text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={syncing}
-                  className="flex-[2] px-6 py-5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50 disabled:grayscale flex items-center justify-center"
+                  className="flex-[2] px-6 py-4 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 disabled:opacity-40 flex items-center justify-center cursor-pointer"
                 >
-                  {syncing ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Submit to Meta'}
+                  {syncing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Submit to Meta'}
                 </button>
               </div>
             </form>

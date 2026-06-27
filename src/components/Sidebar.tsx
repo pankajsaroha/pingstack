@@ -34,12 +34,16 @@ export function Sidebar({
   };
 
   return (
-    <div className={`transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} border-r border-gray-200/60 bg-white/80 backdrop-blur-md h-screen flex flex-col pt-6 pb-4 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30 relative shrink-0`}>
+    <div className={`transition-all duration-300 ease-in-out ${
+      isCollapsed ? 'w-20' : 'w-64'
+    } border-r border-white/5 bg-[#0a0a0a]/60 backdrop-blur-2xl h-screen flex flex-col pt-6 pb-4 shadow-[4px_0_40px_rgba(0,0,0,0.8)] z-30 relative shrink-0`}>
+      
+      {/* Header Info */}
       <div className={`px-6 mb-8 flex items-center justify-between ${isCollapsed ? 'px-4 flex-col' : ''}`}>
-        <div className="flex items-center space-x-2">
-           <LogoIcon />
+        <div className="flex items-center space-x-3">
+           <LogoIcon bgClass="bg-white" iconClass="text-black" />
            {!isCollapsed && (
-             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 tracking-tight whitespace-nowrap">
+             <span className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 tracking-tighter whitespace-nowrap">
                PingStack
              </span>
            )}
@@ -47,12 +51,15 @@ export function Sidebar({
         
         <button 
           onClick={onToggleCollapse}
-          className={`hidden md:flex p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors ${isCollapsed ? 'mt-4' : ''}`}
+          className={`hidden md:flex p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors cursor-pointer ${
+            isCollapsed ? 'mt-4' : ''
+          }`}
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
 
+      {/* Navigation list */}
       <nav className={`flex-1 px-4 space-y-1.5 ${isCollapsed ? 'px-2' : ''}`}>
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
@@ -61,37 +68,44 @@ export function Sidebar({
               key={item.name}
               href={item.href}
               title={isCollapsed ? item.name : ''}
-              className={`flex items-center py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group ${
+              className={`flex items-center py-2.5 text-sm font-bold rounded-xl transition-all duration-300 group ${
                 isActive 
-                  ? 'bg-gray-900 text-white shadow-sm' 
-                  : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
+                  ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.15)] scale-[1.02]' 
+                  : 'text-white/40 hover:bg-white/5 hover:text-white'
               } ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}
             >
-              <item.icon className={`flex-shrink-0 h-4 w-4 transition-colors ${isActive ? 'text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
-              {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+              <item.icon className={`flex-shrink-0 h-4 w-4 transition-colors ${
+                isActive ? 'text-black' : 'text-white/40 group-hover:text-white'
+              } ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
+              {!isCollapsed && <span className="whitespace-nowrap tracking-wide">{item.name}</span>}
             </Link>
           );
         })}
       </nav>
 
+      {/* Footer Items */}
       <div className={`px-4 mt-auto mb-2 ${isCollapsed ? 'px-2' : ''}`}>
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Logout' : ''}
-          className={`flex items-center w-full py-2.5 text-sm font-medium text-gray-600 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors group ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}
+          className={`flex items-center w-full py-2.5 text-sm font-bold text-white/40 rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer group ${
+            isCollapsed ? 'justify-center px-0' : 'px-3'
+          }`}
         >
-          <LogOut className={`flex-shrink-0 h-4 w-4 text-gray-400 group-hover:text-red-500 transition-colors ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
-          {!isCollapsed && <span className="whitespace-nowrap">Logout</span>}
+          <LogOut className={`flex-shrink-0 h-4 w-4 text-white/40 group-hover:text-red-400 transition-colors ${
+            isCollapsed ? 'mx-auto' : 'mr-3'
+          }`} />
+          {!isCollapsed && <span className="whitespace-nowrap tracking-wide">Logout</span>}
         </button>
         
         {!isCollapsed && (
           <div className="mt-4 px-3 mb-4">
             <Link 
               href="/privacy" 
-              className={`flex items-center text-[10px] font-bold transition-all duration-200 uppercase tracking-widest px-3 py-2 rounded-xl ${
+              className={`flex items-center text-[9px] font-black transition-all duration-300 uppercase tracking-widest px-3 py-2 rounded-xl ${
                 pathname === '/privacy' 
-                  ? 'bg-gray-900 text-white shadow-md' 
-                  : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-white text-black shadow-md' 
+                  : 'text-white/20 hover:text-white hover:bg-white/5'
               }`}
             >
               Privacy Policy
