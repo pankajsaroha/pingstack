@@ -353,8 +353,8 @@ export default function Dashboard() {
           </p>
         </div>
         {isConnected && (
-          <div className="flex items-center self-start px-5 py-2.5 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 rounded-2xl text-sm font-bold border border-green-100 dark:border-green-900/30 shadow-sm transition-all hover:bg-green-100/50 dark:hover:bg-green-900/20">
-            <CheckCircle2 className="w-5 h-5 mr-2" />
+          <div className="flex items-center self-start px-5 py-2.5 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10 text-green-700 dark:text-green-400 rounded-2xl text-sm font-bold border border-green-200/80 dark:border-green-800/40 shadow-sm shadow-green-500/[0.02] transition-all hover:scale-[1.01] cursor-default">
+            <CheckCircle2 className="w-5 h-5 mr-2 text-green-700 dark:text-green-400" />
             Active Connection
           </div>
         )}

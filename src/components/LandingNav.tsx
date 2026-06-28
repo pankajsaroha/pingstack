@@ -7,11 +7,27 @@ import { ThemeToggle } from './ThemeToggle';
 
 export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'register' | 'forgot') => void }) {
   const [scrolled, setScrolled] = useState(false);
+  const [tenant, setTenant] = useState<any>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    async function checkUser() {
+      try {
+        const res = await fetch('/api/tenant/me');
+        if (res.ok) {
+          const data = await res.json();
+          setTenant(data);
+        }
+      } catch (err) {
+        // Ignore unauthenticated errors
+      }
+    }
+    checkUser();
   }, []);
 
   return (
@@ -34,18 +50,29 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
           </div>
 
           <div className="flex items-center space-x-4">
-            <button 
-              onClick={() => onOpenAuth('login')}
-              className="text-xs font-black uppercase tracking-[0.2em] text-fg/60 hover:text-fg transition-colors px-4 cursor-pointer"
-            >
-              Sign In
-            </button>
-            <button 
-              onClick={() => onOpenAuth('register')}
-              className="px-6 py-2.5 bg-fg text-bg text-xs font-black uppercase tracking-[0.2em] rounded-full hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all shadow-md cursor-pointer"
-            >
-              Get Started
-            </button>
+            {tenant ? (
+              <Link 
+                href="/dashboard"
+                className="px-6 py-2.5 bg-fg text-bg text-xs font-black uppercase tracking-[0.2em] rounded-full hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all shadow-md"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <button 
+                  onClick={() => onOpenAuth('login')}
+                  className="text-xs font-black uppercase tracking-[0.2em] text-fg/60 hover:text-fg transition-colors px-4 cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <button 
+                  onClick={() => onOpenAuth('register')}
+                  className="px-6 py-2.5 bg-fg text-bg text-xs font-black uppercase tracking-[0.2em] rounded-full hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all shadow-md cursor-pointer"
+                >
+                  Get Started
+                </button>
+              </>
+            )}
             <ThemeToggle />
           </div>
         </div>
