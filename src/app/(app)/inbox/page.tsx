@@ -29,7 +29,6 @@ export default function Inbox() {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [templateVars, setTemplateVars] = useState<Record<string, string>>({});
   const [windowError, setWindowError] = useState<boolean>(false);
-  const [showSyncNotice, setShowSyncNotice] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -597,21 +596,7 @@ export default function Inbox() {
               )}
             </div>
 
-            {/* Sync Alert Banner */}
-            {showSyncNotice && (
-              <div className="bg-indigo-500/5 border-b border-indigo-500/10 px-6 py-2.5 flex items-center justify-between animate-in fade-in duration-300">
-                 <div className="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-                    <Clock className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
-                    Updates will sync below in real-time.
-                 </div>
-                 <button 
-                   onClick={() => setShowSyncNotice(false)}
-                   className="text-fg/20 hover:text-fg transition-colors cursor-pointer"
-                 >
-                    <X className="w-3.5 h-3.5" />
-                 </button>
-              </div>
-            )}
+
 
             {/* Message Bubble Thread Container */}
             <div 
@@ -662,7 +647,7 @@ export default function Inbox() {
                             isOutbound ? 'bg-black/5 border-black/10' : 'bg-glass-input border-glass-border'
                           }`}>
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
-                              isOutbound ? 'bg-black text-fg' : 'bg-indigo-500/10 text-indigo-400'
+                              isOutbound ? 'bg-bg text-fg' : 'bg-indigo-500/10 text-indigo-400'
                             }`}>
                               {msg.message_type === 'image' && <Image className="w-4 h-4" />}
                               {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
@@ -670,13 +655,13 @@ export default function Inbox() {
                               {!['image', 'video', 'document'].includes(msg.message_type) && <Paperclip className="w-4 h-4" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                               <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-black/40' : 'text-fg/30'}`}>{msg.message_type || 'Media file'}</p>
-                               <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-black' : 'text-fg'}`}>{msg.media_path.split('/').pop()}</p>
+                               <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>{msg.message_type || 'Media file'}</p>
+                               <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-bg' : 'text-fg'}`}>{msg.media_path.split('/').pop()}</p>
                             </div>
                           </div>
                         )}
                         <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.content || (msg.media_path ? '' : '[Template Message]')}</p>
-                        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-black/40' : 'text-fg/30'}`}>
+                        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
                           <span className="text-[8px] font-black uppercase tracking-wider font-mono">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           {isOutbound && (
                             <span className="ml-1 flex items-center">

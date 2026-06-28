@@ -419,8 +419,8 @@ export default function Dashboard() {
                             </p>
 
                             <div className="bg-glass-card border border-glass-border p-6 rounded-2xl max-w-md">
-                              <h4 className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
-                                 <ShieldCheck className="w-3.5 h-3.5" />
+                              <h4 className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
+                                 <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                                  SECURE EMBEDDED INTEGRATION
                               </h4>
                               <p className="text-[11px] text-fg/50 font-bold leading-relaxed">
@@ -447,7 +447,7 @@ export default function Dashboard() {
                         <div className="w-full animate-in fade-in zoom-in-95 duration-700">
                           <div className="mb-10 text-center">
                             <div className="w-20 h-20 mx-auto relative flex items-center justify-center">
-                              <div className={`absolute inset-0 rounded-full bg-indigo-500/10 ${connecting ? 'animate-ping' : 'animate-pulse'}`} />
+                              <div className={`absolute inset-0 rounded-full bg-indigo-100/50 dark:bg-indigo-500/10 ${connecting ? 'animate-ping' : 'animate-pulse'}`} />
                               <div className="relative w-14 h-14 bg-glass-card border border-glass-border rounded-2xl flex items-center justify-center">
                                  <Facebook className={`w-6 h-6 text-fg ${connecting ? 'animate-spin-slow' : ''}`} />
                               </div>
@@ -472,7 +472,7 @@ export default function Dashboard() {
                           {(whatsappAccount || tempToken) && (
                             <button 
                               onClick={handleResetConnection}
-                              className="w-full mt-4 h-12 rounded-xl text-[9px] font-black text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 transition-all active:scale-95 cursor-pointer"
+                              className="w-full mt-4 h-12 rounded-xl text-[9px] font-black text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 border border-red-200 dark:border-red-500/20 transition-all active:scale-95 cursor-pointer"
                             >
                               Reset Connection
                             </button>
@@ -480,7 +480,7 @@ export default function Dashboard() {
                         </div>
                       ) : (
                         <div className="w-full space-y-6 animate-in fade-in slide-in-from-right-10 duration-700">
-                          <div className="space-y-4">
+                          <div className="space-y-6">
                             <div className="space-y-2">
                               <label className="text-[10px] font-black text-fg/30 uppercase tracking-widest ml-1">WABA Business Account</label>
                               {discovery && discovery.length > 0 ? (
@@ -494,7 +494,7 @@ export default function Dashboard() {
                                   className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
                                 >
                                   {discovery.map((waba: any) => (
-                                    <option key={waba.id} value={waba.id} className="bg-[#0f0f11] text-fg">{waba.name}</option>
+                                    <option key={waba.id} value={waba.id} className="bg-bg text-fg">{waba.name}</option>
                                   ))}
                                 </select>
                               ) : (
@@ -527,7 +527,7 @@ export default function Dashboard() {
                                   className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-mono text-fg"
                                 >
                                   {discovery.find((w: any) => w.id === selectedWaba)?.phones?.map((phone: any) => (
-                                    <option key={phone.id} value={phone.id} className="bg-[#0f0f11] text-fg">{phone.display_phone_number}</option>
+                                    <option key={phone.id} value={phone.id} className="bg-bg text-fg">{phone.display_phone_number}</option>
                                   ))}
                                 </select>
                               ) : (
@@ -578,13 +578,13 @@ export default function Dashboard() {
                                 <button 
                                   onClick={handleHealthCheck}
                                   disabled={healthCheck?.status === 'loading'}
-                                  className="px-4 py-1.5 rounded-lg text-[9px] font-black text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 transition-all cursor-pointer"
+                                  className="px-4 py-1.5 rounded-lg text-[9px] font-black text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all cursor-pointer"
                                 >
                                   Health
                                 </button>
                                 <button 
                                   onClick={handleResetConnection}
-                                  className="px-4 py-1.5 rounded-lg text-[9px] font-black text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-all cursor-pointer"
+                                  className="px-4 py-1.5 rounded-lg text-[9px] font-black text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer"
                                 >
                                   Reset
                                 </button>
@@ -652,7 +652,7 @@ export default function Dashboard() {
                 <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
                   <div>
                     <h3 className="text-lg font-black text-fg mb-6 flex items-center">
-                      <Settings className="w-5 h-5 mr-3 text-indigo-400" />
+                      <Settings className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
                       Developers Configuration Steps
                     </h3>
                     
@@ -754,9 +754,9 @@ export default function Dashboard() {
                     Check credentials constraints before committing. Sync will crash if tokens do not match permissions scopes on Meta.
                   </p>
                 </div>
-                <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                  <p className="text-[11px] text-indigo-400/90 leading-relaxed font-bold">
-                    <span className="inline-block px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded text-[9px] font-black uppercase mr-2 tracking-wider">Permits</span>
+                <div className="p-5 bg-indigo-50 dark:bg-indigo-500/5 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
+                  <p className="text-[11px] text-indigo-700 dark:text-indigo-400/90 leading-relaxed font-bold">
+                    <span className="inline-block px-2 py-0.5 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 rounded text-[9px] font-black uppercase mr-2 tracking-wider">Permits</span>
                     Use Permanent System Tokens. Expiry errors will trigger after 24h if standard developer-level temporary codes are linked.
                   </p>
                 </div>
@@ -787,7 +787,7 @@ export default function Dashboard() {
               </button>
               <button 
                 onClick={handleResetConnection}
-                className="px-6 h-12 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                className="px-6 h-12 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
               >
                 Reset Connection
               </button>
@@ -800,13 +800,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-6">
-            <span className="px-3.5 py-1.5 bg-indigo-500/10 text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-500/20">
+            <span className="px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/20">
               {tenant?.plan_type || 'Starter'} Profile
             </span>
           </div>
           
           <h3 className="text-lg font-black text-fg mb-8 flex items-center">
-            <Zap className="w-5 h-5 mr-3 text-indigo-400" />
+            <Zap className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
             Plan Limits & Retainers
           </h3>
 
@@ -858,7 +858,7 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-glass-border flex items-center justify-between">
-            <a href="/pricing" className="text-xs font-black text-indigo-400 hover:text-fg flex items-center uppercase tracking-widest transition-all">
+            <a href="/pricing" className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-fg flex items-center uppercase tracking-widest transition-all">
               Upgrade subscription &rarr;
             </a>
             {tenant?.plan_type && tenant.plan_type !== 'starter' && (
@@ -875,7 +875,7 @@ export default function Dashboard() {
         <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
           <div>
             <h3 className="text-lg font-black text-fg mb-4 flex items-center">
-              <Book className="w-5 h-5 mr-3 text-indigo-400" />
+              <Book className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
               API Guidebook
             </h3>
             <p className="text-muted text-sm font-semibold leading-relaxed">
@@ -907,7 +907,7 @@ export default function Dashboard() {
       {isConnected && stats.sent > 0 && (
         <div className="mt-12 bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl mb-12 animate-in slide-in-from-bottom-4 duration-700">
           <h3 className="text-lg font-black text-fg mb-8 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-3 text-indigo-400" />
+            <BarChart3 className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
             Performance Analysis
           </h3>
           
@@ -916,19 +916,19 @@ export default function Dashboard() {
               <span className="text-[9px] font-black text-fg/30 uppercase tracking-wider block mb-2">Sent Logs</span>
               <span className="text-2xl font-black text-fg">{stats.sent}</span>
             </div>
-            <div className="p-6 bg-blue-500/5 rounded-2xl border border-blue-500/10 text-center">
-              <span className="text-[9px] font-black text-blue-400 uppercase tracking-wider block mb-2">Delivered</span>
-              <span className="text-2xl font-black text-blue-400">{stats.delivered}</span>
-              <span className="text-[9px] font-bold text-muted block mt-1.5">{Math.round((stats.delivered/stats.sent)*100)}% API hit</span>
+            <div className="p-6 bg-blue-50/50 dark:bg-blue-500/5 rounded-2xl border border-blue-100 dark:border-blue-500/10 text-center">
+              <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block mb-2">Delivered</span>
+              <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats.delivered}</span>
+              <span className="text-[9px] font-bold text-fg/40 block mt-1.5">{Math.round((stats.delivered/stats.sent)*100)}% API hit</span>
             </div>
-            <div className="p-6 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 text-center">
-              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider block mb-2">Read Received</span>
-              <span className="text-2xl font-black text-emerald-400">{stats.read}</span>
-              <span className="text-[9px] font-bold text-muted block mt-1.5">{Math.round((stats.read/stats.delivered || 1)*100)}% Read rate</span>
+            <div className="p-6 bg-green-50/50 dark:bg-green-950/20 rounded-2xl border border-green-100 dark:border-green-900/30 text-center">
+              <span className="text-[9px] font-black text-green-700 dark:text-green-400 uppercase tracking-wider block mb-2">Read Received</span>
+              <span className="text-2xl font-black text-green-700 dark:text-green-400">{stats.read}</span>
+              <span className="text-[9px] font-bold text-fg/40 block mt-1.5">{Math.round((stats.read/stats.delivered || 1)*100)}% Read rate</span>
             </div>
-            <div className="p-6 bg-red-500/5 rounded-2xl border border-red-500/10 text-center">
-              <span className="text-[9px] font-black text-red-400 uppercase tracking-wider block mb-2">Rejected Failures</span>
-              <span className="text-2xl font-black text-red-400">{stats.failed}</span>
+            <div className="p-6 bg-red-50/50 dark:bg-red-950/20 rounded-2xl border border-red-100 dark:border-red-900/30 text-center">
+              <span className="text-[9px] font-black text-red-700 dark:text-red-400 uppercase tracking-wider block mb-2">Rejected Failures</span>
+              <span className="text-2xl font-black text-red-700 dark:text-red-400">{stats.failed}</span>
             </div>
           </div>
         </div>

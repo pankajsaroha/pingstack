@@ -414,7 +414,7 @@ export default function Groups() {
                 
                 <div className="relative py-2">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-glass-border"></div></div>
-                  <div className="relative flex justify-center text-[8px] font-black uppercase tracking-widest"><span className="bg-[#0a0a0a] px-3 text-fg/30">Or Populate Asset Import</span></div>
+                  <div className="relative flex justify-center text-[8px] font-black uppercase tracking-widest"><span className="bg-[#0a0a0a] text-white/50 dark:bg-white dark:text-black/50 px-3">Or Populate Asset Import</span></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

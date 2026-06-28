@@ -332,9 +332,9 @@ export default function Campaigns() {
                       value={formData.template_id}
                       onChange={e => setFormData({ ...formData, template_id: e.target.value })}
                     >
-                      <option value="" className="bg-[#0f0f11] text-fg">Select...</option>
+                      <option value="" className="bg-bg text-fg">Select...</option>
                       {templates.filter(t => t.status === 'APPROVED').map(t => (
-                        <option key={t.id} value={t.id} className="bg-[#0f0f11] text-fg">{t.name}</option>
+                        <option key={t.id} value={t.id} className="bg-bg text-fg">{t.name}</option>
                       ))}
                     </select>
                   </div>
@@ -389,10 +389,10 @@ export default function Campaigns() {
                         value={formData.group_id}
                         onChange={e => setFormData({ ...formData, group_id: e.target.value })}
                       >
-                        <option value="" className="bg-[#0f0f11] text-fg">Select...</option>
-                        <option value="EXCEL" className="bg-[#0f0f11] text-fg">Upload File (.csv/.xlsx)</option>
+                        <option value="" className="bg-bg text-fg">Select...</option>
+                        <option value="EXCEL" className="bg-bg text-fg">Upload File (.csv/.xlsx)</option>
                         {groups.map(g => (
-                          <option key={g.id} value={g.id} className="bg-[#0f0f11] text-fg">{g.name}</option>
+                          <option key={g.id} value={g.id} className="bg-bg text-fg">{g.name}</option>
                         ))}
                       </select>
                     )}

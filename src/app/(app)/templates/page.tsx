@@ -491,7 +491,7 @@ export default function Templates() {
                   >
                     <option value="" disabled className="text-fg/20">Select a pre-configured template...</option>
                     {SAMPLES.map(sample => (
-                      <option key={sample.id} value={sample.id} className="bg-[#0f0f11] text-fg">{sample.label}</option>
+                      <option key={sample.id} value={sample.id} className="bg-bg text-fg">{sample.label}</option>
                     ))}
                   </select>
                 </div>
@@ -517,8 +517,8 @@ export default function Templates() {
                       value={formData.category}
                       onChange={e => setFormData({ ...formData, category: e.target.value })}
                     >
-                      <option value="UTILITY" className="bg-[#0f0f11] text-fg">Utility</option>
-                      <option value="MARKETING" className="bg-[#0f0f11] text-fg">Marketing</option>
+                      <option value="UTILITY" className="bg-bg text-fg">Utility</option>
+                      <option value="MARKETING" className="bg-bg text-fg">Marketing</option>
                     </select>
                   </div>
                   <div>
@@ -529,7 +529,7 @@ export default function Templates() {
                       onChange={e => setFormData({ ...formData, language: e.target.value })}
                     >
                       {LANGUAGES.map(lang => (
-                        <option key={lang.code} value={lang.code} className="bg-[#0f0f11] text-fg">{lang.label}</option>
+                        <option key={lang.code} value={lang.code} className="bg-bg text-fg">{lang.label}</option>
                       ))}
                     </select>
                   </div>
