@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, ChevronRight } from 'lucide-react';
 import { LogoIcon } from './Logo';
+import { ThemeToggle } from './ThemeToggle';
 import { setSupabaseSession } from '@/lib/db';
 
 const navItems = [
@@ -34,29 +35,36 @@ export function Sidebar({
   };
 
   return (
-    <div className={`transition-all duration-300 ease-in-out ${
+    <div className={`group/sidebar transition-all duration-300 ease-in-out ${
       isCollapsed ? 'w-20' : 'w-64'
-    } border-r border-white/5 bg-[#0a0a0a]/60 backdrop-blur-2xl h-screen flex flex-col pt-6 pb-4 shadow-[4px_0_40px_rgba(0,0,0,0.8)] z-30 relative shrink-0`}>
+    } border-r border-glass-border bg-glass-card/50 backdrop-blur-2xl h-screen flex flex-col pt-6 pb-4 shadow-sm z-30 relative shrink-0`}>
       
+      {/* Collapse/Expand Floating Button */}
+      <button 
+        onClick={onToggleCollapse}
+        className="absolute top-[38px] -right-3 hidden md:flex w-6 h-6 bg-bg border border-glass-border rounded-full items-center justify-center text-muted hover:text-fg hover:border-fg/30 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md transition-all duration-300 z-50 cursor-pointer opacity-0 group-hover/sidebar:opacity-100"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-500 ease-out ${
+          isCollapsed ? 'rotate-0' : 'rotate-180'
+        }`} />
+      </button>
+
       {/* Header Info */}
-      <div className={`px-6 mb-8 flex items-center justify-between ${isCollapsed ? 'px-4 flex-col' : ''}`}>
+      <div className={`px-6 mb-8 flex items-center justify-between ${isCollapsed ? 'px-4 flex-col gap-4' : ''}`}>
         <div className="flex items-center space-x-3">
-           <LogoIcon bgClass="bg-white" iconClass="text-black" />
+           <LogoIcon bgClass="bg-fg" iconClass="text-bg" />
            {!isCollapsed && (
-             <span className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 tracking-tighter whitespace-nowrap">
+             <span className="text-xl font-black text-fg tracking-tighter whitespace-nowrap">
                PingStack
              </span>
            )}
         </div>
         
-        <button 
-          onClick={onToggleCollapse}
-          className={`hidden md:flex p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors cursor-pointer ${
-            isCollapsed ? 'mt-4' : ''
-          }`}
-        >
-          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center space-x-2">
+          {!isCollapsed && <ThemeToggle />}
+        </div>
+        {isCollapsed && <ThemeToggle />}
       </div>
 
       {/* Navigation list */}
@@ -70,12 +78,12 @@ export function Sidebar({
               title={isCollapsed ? item.name : ''}
               className={`flex items-center py-2.5 text-sm font-bold rounded-xl transition-all duration-300 group ${
                 isActive 
-                  ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.15)] scale-[1.02]' 
-                  : 'text-white/40 hover:bg-white/5 hover:text-white'
+                  ? 'bg-fg text-bg shadow-md scale-[1.02]' 
+                  : 'text-muted hover:bg-glass-card hover:text-fg'
               } ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}
             >
               <item.icon className={`flex-shrink-0 h-4 w-4 transition-colors ${
-                isActive ? 'text-black' : 'text-white/40 group-hover:text-white'
+                isActive ? 'text-bg' : 'text-muted group-hover:text-fg'
               } ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
               {!isCollapsed && <span className="whitespace-nowrap tracking-wide">{item.name}</span>}
             </Link>
@@ -88,11 +96,11 @@ export function Sidebar({
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Logout' : ''}
-          className={`flex items-center w-full py-2.5 text-sm font-bold text-white/40 rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer group ${
+          className={`flex items-center w-full py-2.5 text-sm font-bold text-muted rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer group ${
             isCollapsed ? 'justify-center px-0' : 'px-3'
           }`}
         >
-          <LogOut className={`flex-shrink-0 h-4 w-4 text-white/40 group-hover:text-red-400 transition-colors ${
+          <LogOut className={`flex-shrink-0 h-4 w-4 text-muted group-hover:text-red-400 transition-colors ${
             isCollapsed ? 'mx-auto' : 'mr-3'
           }`} />
           {!isCollapsed && <span className="whitespace-nowrap tracking-wide">Logout</span>}
@@ -104,8 +112,8 @@ export function Sidebar({
               href="/privacy" 
               className={`flex items-center text-[9px] font-black transition-all duration-300 uppercase tracking-widest px-3 py-2 rounded-xl ${
                 pathname === '/privacy' 
-                  ? 'bg-white text-black shadow-md' 
-                  : 'text-white/20 hover:text-white hover:bg-white/5'
+                  ? 'bg-fg text-bg shadow-md' 
+                  : 'text-muted hover:text-fg hover:bg-glass-card'
               }`}
             >
               Privacy Policy

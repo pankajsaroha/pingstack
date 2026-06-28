@@ -198,12 +198,12 @@ export default function Campaigns() {
       {/* Header Panel */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-white">Campaigns</h1>
-          <p className="text-white/40 text-sm font-semibold mt-1">Manage bulk messaging workflows and logs.</p>
+          <h1 className="text-3xl font-black tracking-tight text-fg">Campaigns</h1>
+          <p className="text-muted text-sm font-semibold mt-1">Manage bulk messaging workflows and logs.</p>
         </div>
         <button 
           onClick={() => setShowModal(true)}
-          className="flex items-center px-5 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5"
+          className="flex items-center px-5 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5"
         >
           <Plus className="mr-2 h-4 w-4" />
           Launch Campaign
@@ -214,29 +214,29 @@ export default function Campaigns() {
       <div className="grid grid-cols-1 gap-6">
         {loading ? (
           <div className="text-center py-20 opacity-40">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-white mb-4" />
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-fg mb-4" />
             <p className="text-xs font-black uppercase tracking-widest">Loading Campaigns...</p>
           </div>
         ) : campaigns.length === 0 ? (
-          <div className="bg-white/[0.01] border border-white/5 p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
-            <Send className="mx-auto h-12 w-12 text-white/20 mb-4 animate-pulse-slow" />
-            <h3 className="text-base font-black text-white mb-1">No Active Campaigns</h3>
-            <p className="text-xs text-white/40 max-w-xs mx-auto leading-relaxed">Spawn a new outreach workflow to send bulk WhatsApp messages.</p>
+          <div className="bg-glass-card border border-glass-border p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
+            <Send className="mx-auto h-12 w-12 text-fg/20 mb-4 animate-pulse-slow" />
+            <h3 className="text-base font-black text-fg mb-1">No Active Campaigns</h3>
+            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Spawn a new outreach workflow to send bulk WhatsApp messages.</p>
           </div>
         ) : (
           campaigns.map(campaign => (
-            <div key={campaign.id} className="bg-white/[0.01] border border-white/5 p-6 rounded-[2.5rem] shadow-2xl hover:border-white/10 hover:bg-white/[0.02] transition-all duration-300">
+            <div key={campaign.id} className="bg-glass-card border border-glass-border p-6 rounded-[2.5rem] shadow-2xl hover:border-glass-border hover:bg-glass-card transition-all duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                 <div>
                   <div className="flex items-center space-x-3">
-                    <h3 className="text-xl font-black text-white tracking-tight">{campaign.name}</h3>
+                    <h3 className="text-xl font-black text-fg tracking-tight">{campaign.name}</h3>
                     {campaign.scheduled_at && campaign.status === 'draft' && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[9px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest">
                          Scheduled
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-white/40 font-semibold mt-1">Template: <span className="text-white/60">{campaign.templates?.name || 'Unknown'}</span></p>
+                  <p className="text-xs text-muted font-semibold mt-1">Template: <span className="text-fg/60">{campaign.templates?.name || 'Unknown'}</span></p>
                 </div>
                 
                 <div className="flex flex-col items-end shrink-0">
@@ -244,19 +244,19 @@ export default function Campaigns() {
                     campaign.status === 'running' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
                     campaign.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                     campaign.status === 'draft' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                    'bg-white/5 text-white/55 border border-white/5'
+                    'bg-glass-input text-fg/55 border border-glass-border'
                   }`}>
                     {campaign.status}
                   </span>
                   {campaign.scheduled_at && campaign.status === 'draft' && (
-                     <p className="text-[10px] text-white/30 mt-1.5 font-bold">Due: {new Date(campaign.scheduled_at).toLocaleString()}</p>
+                     <p className="text-[10px] text-fg/30 mt-1.5 font-bold">Due: {new Date(campaign.scheduled_at).toLocaleString()}</p>
                   )}
                 </div>
               </div>
               
-              <div className="border-t border-white/5 pt-6 mt-4">
+              <div className="border-t border-glass-border pt-6 mt-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-[9px] font-black text-white/30 uppercase tracking-widest flex items-center">
+                  <h4 className="text-[9px] font-black text-fg/30 uppercase tracking-widest flex items-center">
                     <Activity className="mr-2 h-4 w-4 text-indigo-400" /> Delivery Performance
                   </h4>
                   {planType !== 'starter' && (
@@ -266,16 +266,16 @@ export default function Campaigns() {
                         setShowReportModal(true);
                         fetchReportData(campaign.id);
                       }}
-                      className="text-[10px] font-black text-indigo-400 hover:text-white uppercase tracking-widest transition-all cursor-pointer"
+                      className="text-[10px] font-black text-indigo-400 hover:text-fg uppercase tracking-widest transition-all cursor-pointer"
                     >
                        Detailed Logs &rarr;
                     </button>
                   )}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div className="bg-white/[0.01] border border-white/5 p-4 rounded-2xl">
-                    <p className="text-[9px] text-white/30 font-black uppercase tracking-wider mb-1">Sent</p>
-                    <p className="text-xl font-black text-white">{campaign.stats?.sent || 0}</p>
+                  <div className="bg-glass-card border border-glass-border p-4 rounded-2xl">
+                    <p className="text-[9px] text-fg/30 font-black uppercase tracking-wider mb-1">Sent</p>
+                    <p className="text-xl font-black text-fg">{campaign.stats?.sent || 0}</p>
                   </div>
                   <div className="bg-blue-500/5 border border-blue-500/10 p-4 rounded-2xl">
                     <p className="text-[9px] text-blue-400/90 font-black uppercase tracking-wider mb-1">Delivered</p>
@@ -299,25 +299,25 @@ export default function Campaigns() {
       {/* Create Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
-          <div className="bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl max-w-lg w-full p-8 relative animate-in zoom-in-95 duration-300">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-lg w-full p-8 relative animate-in zoom-in-95 duration-300">
             <button 
               onClick={() => setShowModal(false)}
-              className="absolute top-8 right-8 text-white/40 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+              className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             
-            <h3 className="text-2xl font-black text-white mb-6 tracking-tight">Spawn Campaign</h3>
+            <h3 className="text-2xl font-black text-fg mb-6 tracking-tight">Spawn Campaign</h3>
             
             <form onSubmit={handleCreateCampaign}>
               <div className="space-y-6 mb-8">
                 <div>
-                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Campaign Title</label>
+                  <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Campaign Title</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Summer Outreach 2026"
-                    className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-indigo-500 focus:outline-none placeholder:text-white/20 transition-all"
+                    className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none placeholder:text-fg/20 transition-all"
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                   />
@@ -325,22 +325,22 @@ export default function Campaigns() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Meta Template</label>
+                    <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Meta Template</label>
                     <select
                       required
-                      className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-white"
+                      className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
                       value={formData.template_id}
                       onChange={e => setFormData({ ...formData, template_id: e.target.value })}
                     >
-                      <option value="" className="bg-[#0f0f11] text-white">Select...</option>
+                      <option value="" className="bg-[#0f0f11] text-fg">Select...</option>
                       {templates.filter(t => t.status === 'APPROVED').map(t => (
-                        <option key={t.id} value={t.id} className="bg-[#0f0f11] text-white">{t.name}</option>
+                        <option key={t.id} value={t.id} className="bg-[#0f0f11] text-fg">{t.name}</option>
                       ))}
                     </select>
                   </div>
                   
                   <div>
-                    <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Recipients Source</label>
+                    <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Recipients Source</label>
                     {needsVariables ? (
                       <div className="space-y-3">
                          <button 
@@ -349,7 +349,7 @@ export default function Campaigns() {
                            className={`w-full py-3.5 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
                              excelData 
                                ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400' 
-                               : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                               : 'border-glass-border hover:border-white/20 hover:bg-glass-input'
                            }`}
                          >
                             {excelData ? (
@@ -359,8 +359,8 @@ export default function Campaigns() {
                               </>
                             ) : (
                               <>
-                                <Upload className="w-5 h-5 text-white/40" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Upload CSV/Excel</span>
+                                <Upload className="w-5 h-5 text-muted" />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-muted">Upload CSV/Excel</span>
                               </>
                             )}
                          </button>
@@ -369,14 +369,14 @@ export default function Campaigns() {
                             <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest mb-1.5 flex items-center">
                                <FileText className="w-3.5 h-3.5 mr-1.5" /> PERSONALIZATION METADATA
                             </p>
-                            <p className="text-[10px] text-white/50 font-bold leading-normal">
+                            <p className="text-[10px] text-fg/50 font-bold leading-normal">
                                Variables detected. Upload file structure must be:
                             </p>
-                            <div className="mt-2 flex items-center space-x-2 text-[8px] font-mono bg-black/60 border border-white/5 p-2 rounded-lg text-indigo-300">
+                            <div className="mt-2 flex items-center space-x-2 text-[8px] font-mono bg-black/60 border border-glass-border p-2 rounded-lg text-indigo-300">
                                <span>Col A: Phone</span>
-                               <span className="text-white/20">|</span>
+                               <span className="text-fg/20">|</span>
                                <span>Col B: Var 1</span>
-                               <span className="text-white/20">|</span>
+                               <span className="text-fg/20">|</span>
                                <span>Col C: Var 2...</span>
                             </div>
                          </div>
@@ -385,14 +385,14 @@ export default function Campaigns() {
                     ) : (
                       <select
                         required
-                        className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-white"
+                        className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
                         value={formData.group_id}
                         onChange={e => setFormData({ ...formData, group_id: e.target.value })}
                       >
-                        <option value="" className="bg-[#0f0f11] text-white">Select...</option>
-                        <option value="EXCEL" className="bg-[#0f0f11] text-white">Upload File (.csv/.xlsx)</option>
+                        <option value="" className="bg-[#0f0f11] text-fg">Select...</option>
+                        <option value="EXCEL" className="bg-[#0f0f11] text-fg">Upload File (.csv/.xlsx)</option>
                         {groups.map(g => (
-                          <option key={g.id} value={g.id} className="bg-[#0f0f11] text-white">{g.name}</option>
+                          <option key={g.id} value={g.id} className="bg-[#0f0f11] text-fg">{g.name}</option>
                         ))}
                       </select>
                     )}
@@ -405,10 +405,10 @@ export default function Campaigns() {
                              className={`w-full py-3.5 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center space-x-2 cursor-pointer ${
                                excelData 
                                  ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400' 
-                                 : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                                 : 'border-glass-border hover:border-white/20 hover:bg-glass-input'
                              }`}
                           >
-                             {excelData ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Upload className="w-4 h-4 text-white/30" />}
+                             {excelData ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Upload className="w-4 h-4 text-fg/30" />}
                              <span className="text-[9px] font-black uppercase tracking-widest">
                                 {excelData ? `${excelData.length} Contacts Loaded` : 'Select File'}
                              </span>
@@ -419,7 +419,7 @@ export default function Campaigns() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5">
+                <div className="pt-4 border-t border-glass-border">
                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center">
                         <input 
@@ -428,9 +428,9 @@ export default function Campaigns() {
                           disabled={planType !== 'growth'}
                           checked={isScheduled}
                           onChange={(e) => setIsScheduled(e.target.checked)}
-                          className="h-4 w-4 bg-white/5 border-white/10 text-black focus:ring-white rounded cursor-pointer"
+                          className="h-4 w-4 bg-glass-input border-glass-border text-black focus:ring-white rounded cursor-pointer"
                         />
-                        <label htmlFor="scheduled" className="ml-2 block text-xs font-black uppercase tracking-widest text-white/50 cursor-pointer">
+                        <label htmlFor="scheduled" className="ml-2 block text-xs font-black uppercase tracking-widest text-fg/50 cursor-pointer">
                            Schedule Dispatch
                         </label>
                         {planType === 'starter' && (
@@ -443,11 +443,11 @@ export default function Campaigns() {
                         <input 
                            type="datetime-local"
                            required
-                           className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all text-white font-mono"
+                           className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all text-fg font-mono"
                            value={scheduledAt}
                            onChange={(e) => setScheduledAt(e.target.value)}
                         />
-                         <p className="text-[9px] text-white/30 mt-2 font-medium">Cron engine triggers campaigns automatically at the designated local timezone stamp.</p>
+                         <p className="text-[9px] text-fg/30 mt-2 font-medium">Cron engine triggers campaigns automatically at the designated local timezone stamp.</p>
                       </div>
                    )}
                 </div>
@@ -460,14 +460,14 @@ export default function Campaigns() {
                     setShowModal(false);
                     setIsScheduled(false);
                   }}
-                  className="px-6 py-3.5 border border-white/10 hover:bg-white/5 rounded-2xl text-xs font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors cursor-pointer"
+                  className="px-6 py-3.5 border border-glass-border hover:bg-glass-input rounded-2xl text-xs font-black uppercase tracking-widest text-muted hover:text-fg transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-8 py-3.5 bg-white text-black hover:bg-neutral-100 disabled:opacity-40 disabled:text-white/40 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all flex items-center justify-center cursor-pointer"
+                  className="px-8 py-3.5 bg-fg text-bg hover:opacity-90 disabled:opacity-40 disabled:text-muted rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all flex items-center justify-center cursor-pointer"
                 >
                   {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {submitting ? 'Dispatching...' : (isScheduled ? 'Schedule Dispatch' : 'Queue Send Now')}
@@ -489,11 +489,11 @@ export default function Campaigns() {
       {/* Detailed Logs Report Modal */}
       {showReportModal && activeCampaign && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
-          <div className="bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl max-w-4xl w-full flex flex-col max-h-[85vh] overflow-hidden relative animate-in zoom-in-95 duration-300">
-            <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between bg-[#020202]/30">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-4xl w-full flex flex-col max-h-[85vh] overflow-hidden relative animate-in zoom-in-95 duration-300">
+            <div className="p-6 sm:p-8 border-b border-glass-border flex items-center justify-between bg-glass-card/10">
                <div>
-                  <h3 className="text-xl font-black text-white tracking-tight">{activeCampaign.name}</h3>
-                  <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-1.5">Delivery Status Metrics Logs</p>
+                  <h3 className="text-xl font-black text-fg tracking-tight">{activeCampaign.name}</h3>
+                  <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Delivery Status Metrics Logs</p>
                </div>
                <button 
                  onClick={() => {
@@ -501,25 +501,25 @@ export default function Campaigns() {
                    setReportData([]);
                    setReportSearch('');
                  }}
-                 className="p-2 hover:bg-white/5 rounded-xl transition-colors cursor-pointer text-white/40 hover:text-white"
+                 className="p-2 hover:bg-glass-input rounded-xl transition-colors cursor-pointer text-muted hover:text-fg"
                >
                   <X className="w-5 h-5" />
                </button>
             </div>
 
-            <div className="p-6 bg-black/40 border-b border-white/5">
+            <div className="p-6 bg-glass-card/20 border-b border-glass-border">
                <div className="flex items-center space-x-4">
                   <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/20" />
                     <input 
                       type="text"
                       placeholder="Search recipients name or phone..."
-                      className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/5 rounded-2xl text-xs font-semibold focus:bg-white/10 focus:border-indigo-500 focus:outline-none transition-all text-white placeholder:text-white/25"
+                      className="w-full pl-12 pr-4 py-3 bg-glass-input border border-glass-border rounded-2xl text-xs font-semibold focus:bg-white/10 focus:border-indigo-500 focus:outline-none transition-all text-fg placeholder:text-fg/25"
                       value={reportSearch}
                       onChange={(e) => setReportSearch(e.target.value)}
                     />
                   </div>
-                  <button className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer">
+                  <button className="px-6 py-3 bg-glass-input hover:bg-white/10 border border-glass-border text-fg rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer">
                      Export CSV
                   </button>
                </div>
@@ -537,13 +537,13 @@ export default function Campaigns() {
                  </div>
                ) : (
                  <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-[#0c0c0e] border-b border-white/5 z-10">
+                    <thead className="sticky top-0 bg-glass-card/85 border-b border-glass-border z-10">
                        <tr>
-                          <th className="px-6 py-4 text-[9px] font-black text-white/40 uppercase tracking-widest">Recipient</th>
-                          <th className="px-6 py-4 text-[9px] font-black text-white/40 uppercase tracking-widest">Phone</th>
-                          <th className="px-6 py-4 text-[9px] font-black text-white/40 uppercase tracking-widest">Variables</th>
-                          <th className="px-6 py-4 text-[9px] font-black text-white/40 uppercase tracking-widest text-center">Status</th>
-                          <th className="px-6 py-4 text-[9px] font-black text-white/40 uppercase tracking-widest text-right">Timestamp</th>
+                          <th className="px-6 py-4 text-[9px] font-black text-muted uppercase tracking-widest">Recipient</th>
+                          <th className="px-6 py-4 text-[9px] font-black text-muted uppercase tracking-widest">Phone</th>
+                          <th className="px-6 py-4 text-[9px] font-black text-muted uppercase tracking-widest">Variables</th>
+                          <th className="px-6 py-4 text-[9px] font-black text-muted uppercase tracking-widest text-center">Status</th>
+                          <th className="px-6 py-4 text-[9px] font-black text-muted uppercase tracking-widest text-right">Timestamp</th>
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -553,15 +553,15 @@ export default function Campaigns() {
                            (r.phone_number || '').includes(reportSearch)
                          )
                          .map((row, idx) => (
-                           <tr key={idx} className="hover:bg-white/[0.01] transition-colors">
-                              <td className="px-6 py-4 font-bold text-white text-sm">
+                           <tr key={idx} className="hover:bg-glass-card transition-colors">
+                              <td className="px-6 py-4 font-bold text-fg text-sm">
                                  {row.contacts?.name || (row.variables?.length > 0 ? (row.variables[0] || 'Unknown') : 'Customer')}
                               </td>
-                              <td className="px-6 py-4 text-xs text-white/50 font-semibold font-mono">{row.phone_number}</td>
+                              <td className="px-6 py-4 text-xs text-fg/50 font-semibold font-mono">{row.phone_number}</td>
                               <td className="px-6 py-4">
                                  <div className="flex flex-wrap gap-1.5">
                                     {row.variables?.map((v: any, i: number) => (
-                                       <span key={i} className="px-2 py-0.5 bg-white/5 text-white/50 rounded-lg text-[8px] font-black uppercase border border-white/5">
+                                       <span key={i} className="px-2 py-0.5 bg-glass-input text-fg/50 rounded-lg text-[8px] font-black uppercase border border-glass-border">
                                           v{i+1}: {v}
                                        </span>
                                     ))}
@@ -572,12 +572,12 @@ export default function Campaigns() {
                                    row.status === 'read' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
                                    row.status === 'delivered' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
                                    row.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
-                                   'bg-white/5 border-white/5 text-white/50'
+                                   'bg-glass-input border-glass-border text-fg/50'
                                  }`}>
                                     {row.status}
                                  </span>
                               </td>
-                              <td className="px-6 py-4 text-right text-[10px] text-white/30 font-semibold font-mono">
+                              <td className="px-6 py-4 text-right text-[10px] text-fg/30 font-semibold font-mono">
                                  {new Date(row.created_at).toLocaleString()}
                               </td>
                            </tr>
@@ -587,10 +587,10 @@ export default function Campaigns() {
                )}
             </div>
             
-            <div className="p-6 border-t border-white/5 bg-[#020202]/30 flex justify-end">
+            <div className="p-6 border-t border-glass-border bg-glass-card/10 flex justify-end">
                <button 
                  onClick={() => setShowReportModal(false)}
-                 className="px-6 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg"
+                 className="px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg"
                >
                   Close Logs
                </button>

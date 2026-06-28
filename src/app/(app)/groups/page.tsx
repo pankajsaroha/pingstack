@@ -291,8 +291,8 @@ export default function Groups() {
       {/* Header Panel */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-white">Groups</h1>
-          <p className="text-white/40 text-sm font-semibold mt-1">Organize and segment contacts into distribution lists.</p>
+          <h1 className="text-3xl font-black tracking-tight text-fg">Groups</h1>
+          <p className="text-muted text-sm font-semibold mt-1">Organize and segment contacts into distribution lists.</p>
         </div>
         <div className="flex space-x-3">
           {selectedIds.size > 0 && (
@@ -306,7 +306,7 @@ export default function Groups() {
           )}
           <button 
             onClick={() => setShowModal(true)}
-            className="flex items-center px-6 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 cursor-pointer"
+            className="flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 cursor-pointer"
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Group
@@ -318,21 +318,21 @@ export default function Groups() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           <div className="col-span-full text-center py-20 opacity-40">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-white mb-4" />
-            <p className="text-xs font-black uppercase tracking-widest text-white/50">Loading groups directory...</p>
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-fg mb-4" />
+            <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading groups directory...</p>
           </div>
         ) : groups.length === 0 ? (
-          <div className="col-span-full bg-white/[0.01] border border-white/5 p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
-            <Folder className="mx-auto h-12 w-12 text-white/20 mb-4 animate-pulse-slow" />
-            <h3 className="text-base font-black text-white mb-1">No Active Groups</h3>
-            <p className="text-xs text-white/40 max-w-xs mx-auto leading-relaxed">Spawn a new group to segment your contacts directory lists.</p>
+          <div className="col-span-full bg-glass-card border border-glass-border p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
+            <Folder className="mx-auto h-12 w-12 text-fg/20 mb-4 animate-pulse-slow" />
+            <h3 className="text-base font-black text-fg mb-1">No Active Groups</h3>
+            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Spawn a new group to segment your contacts directory lists.</p>
           </div>
         ) : (
           groups.map(group => (
             <div 
               key={group.id} 
-              className={`bg-white/[0.01] border p-6 rounded-[2.5rem] relative shadow-2xl hover:border-white/10 hover:bg-white/[0.02] transition-all duration-300 ${
-                selectedIds.has(group.id) ? 'border-white ring-1 ring-white/10 bg-white/[0.02]' : 'border-white/5'
+              className={`bg-glass-card border p-6 rounded-[2.5rem] relative shadow-2xl hover:border-glass-border hover:bg-glass-card transition-all duration-300 ${
+                selectedIds.has(group.id) ? 'border-white ring-1 ring-white/10 bg-glass-card' : 'border-glass-border'
               }`}
             >
               <div className="absolute top-5 right-5 z-30">
@@ -342,18 +342,18 @@ export default function Groups() {
                   checked={selectedIds.has(group.id)}
                   onClick={(e) => e.stopPropagation()}
                   onChange={() => toggleSelection(group.id)}
-                  className="h-5 w-5 bg-white/5 border-white/10 text-indigo-500 focus:ring-white rounded cursor-pointer"
+                  className="h-5 w-5 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
                 />
               </div>
               <div className="flex items-center mb-6 pr-8">
-                <div className="w-12 h-12 bg-white/5 border border-white/10 text-white rounded-2xl flex items-center justify-center mr-4">
+                <div className="w-12 h-12 bg-glass-input border border-glass-border text-fg rounded-2xl flex items-center justify-center mr-4">
                   <Folder className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-black text-white tracking-tight truncate">{group.name}</h3>
+                <h3 className="text-lg font-black text-fg tracking-tight truncate">{group.name}</h3>
               </div>
               
-              <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/5 text-white/50 border border-white/5">
+              <div className="flex items-center justify-between pt-4 border-t border-glass-border">
+                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-glass-input text-fg/50 border border-glass-border">
                    {group.public_id}
                 </span>
                 
@@ -366,7 +366,7 @@ export default function Groups() {
                     setShowDetailModal(true);
                     fetchGroupContacts(group.id);
                   }}
-                  className="text-xs font-black text-indigo-400 hover:text-white transition-colors cursor-pointer flex items-center py-2 px-3 rounded-xl hover:bg-white/5"
+                  className="text-xs font-black text-indigo-400 hover:text-fg transition-colors cursor-pointer flex items-center py-2 px-3 rounded-xl hover:bg-glass-input"
                 >
                   <Plus className="w-3.5 h-3.5 mr-1" />
                   Manage List
@@ -380,24 +380,24 @@ export default function Groups() {
       {/* Create Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 relative animate-in zoom-in-95 duration-300">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 relative animate-in zoom-in-95 duration-300">
             <button 
               onClick={() => setShowModal(false)}
-              className="absolute top-8 right-8 text-white/40 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+              className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             
-            <h3 className="text-xl font-black text-white mb-6 tracking-tight">Spawn Segment Group</h3>
+            <h3 className="text-xl font-black text-fg mb-6 tracking-tight">Spawn Segment Group</h3>
             
             <form onSubmit={handleCreateGroup}>
               <div className="mb-6">
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 px-1">Group Label</label>
+                <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Group Label</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. VIP Customers"
-                  className="block w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-indigo-500 focus:outline-none placeholder:text-white/20 transition-all"
+                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none placeholder:text-fg/20 transition-all"
                   value={newGroupName}
                   onChange={e => setNewGroupName(e.target.value)}
                 />
@@ -407,14 +407,14 @@ export default function Groups() {
                 <button
                   type="submit"
                   disabled={isImporting}
-                  className="w-full py-4 bg-white text-black hover:bg-neutral-100 disabled:opacity-40 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl cursor-pointer transition-all flex items-center justify-center"
+                  className="w-full py-4 bg-fg text-bg hover:opacity-90 disabled:opacity-40 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl cursor-pointer transition-all flex items-center justify-center"
                 >
                   {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Empty Group'}
                 </button>
                 
                 <div className="relative py-2">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
-                  <div className="relative flex justify-center text-[8px] font-black uppercase tracking-widest"><span className="bg-[#0a0a0a] px-3 text-white/30">Or Populate Asset Import</span></div>
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-glass-border"></div></div>
+                  <div className="relative flex justify-center text-[8px] font-black uppercase tracking-widest"><span className="bg-[#0a0a0a] px-3 text-fg/30">Or Populate Asset Import</span></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -422,7 +422,7 @@ export default function Groups() {
                     type="button"
                     disabled={isImporting}
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center justify-center px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white cursor-pointer transition-all"
+                    className="flex items-center justify-center px-4 py-3 bg-glass-input hover:bg-white/10 border border-glass-border rounded-2xl font-black text-[10px] uppercase tracking-widest text-fg cursor-pointer transition-all"
                   >
                     <Upload className="w-4 h-4 mr-2 text-emerald-400" />
                     Upload File
@@ -432,7 +432,7 @@ export default function Groups() {
                     type="button"
                     disabled={isImporting}
                     onClick={() => handleGoogleImport()}
-                    className="flex items-center justify-center px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white cursor-pointer transition-all"
+                    className="flex items-center justify-center px-4 py-3 bg-glass-input hover:bg-white/10 border border-glass-border rounded-2xl font-black text-[10px] uppercase tracking-widest text-fg cursor-pointer transition-all"
                   >
                     <Globe className="w-4 h-4 mr-2 text-indigo-400" />
                     Google Contacts
@@ -456,11 +456,11 @@ export default function Groups() {
       {/* Group Detail Modal */}
       {showDetailModal && activeGroup && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-200">
-            <div className="bg-[#0a0a0a]/95 border border-white/10 rounded-t-3xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full flex flex-col h-full sm:h-auto sm:max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300">
-               <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between bg-[#020202]/30">
+            <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-t-3xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full flex flex-col h-full sm:h-auto sm:max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300">
+               <div className="p-6 sm:p-8 border-b border-glass-border flex items-center justify-between bg-glass-card/10">
                   <div>
-                    <h2 className="text-2xl font-black text-white tracking-tight">{activeGroup.name}</h2>
-                    <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-1.5">Group Directory Management</p>
+                    <h2 className="text-2xl font-black text-fg tracking-tight">{activeGroup.name}</h2>
+                    <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Group Directory Management</p>
                   </div>
                   <button 
                     onClick={() => {
@@ -469,7 +469,7 @@ export default function Groups() {
                       setActiveGroupId(null);
                       setSelectedMemberIds(new Set());
                     }}
-                    className="p-2 hover:bg-white/5 rounded-xl transition-colors cursor-pointer text-white/40 hover:text-white"
+                    className="p-2 hover:bg-glass-input rounded-xl transition-colors cursor-pointer text-muted hover:text-fg"
                   >
                      <X className="w-5 h-5" />
                   </button>
@@ -477,7 +477,7 @@ export default function Groups() {
                
                <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar bg-black/10">
                   <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                     <h3 className="text-sm font-black text-white/30 uppercase tracking-widest">Active Members ({groupContacts.length})</h3>
+                     <h3 className="text-sm font-black text-fg/30 uppercase tracking-widest">Active Members ({groupContacts.length})</h3>
                      <div className="flex space-x-2">
                         {selectedMemberIds.size > 0 && (
                           <button 
@@ -493,7 +493,7 @@ export default function Groups() {
                             setShowSelector(true);
                             fetchAvailableContacts();
                           }}
-                          className="flex items-center px-5 py-2.5 bg-white text-black hover:bg-neutral-100 rounded-xl text-xs font-black shadow-lg transition-all cursor-pointer"
+                          className="flex items-center px-5 py-2.5 bg-fg text-bg hover:opacity-90 rounded-xl text-xs font-black shadow-lg transition-all cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5 mr-1.5" />
                           Add Contacts
@@ -503,13 +503,13 @@ export default function Groups() {
 
                   {loadingContacts ? (
                     <div className="flex flex-col items-center justify-center py-20 opacity-40">
-                       <Loader2 className="w-8 h-8 animate-spin mb-4 text-white" />
+                       <Loader2 className="w-8 h-8 animate-spin mb-4 text-fg" />
                        <p className="text-xs font-black uppercase tracking-widest">Syncing members...</p>
                     </div>
                   ) : groupContacts.length === 0 ? (
-                    <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.01]">
-                       <Folder className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                       <p className="text-sm font-black text-white/40 uppercase tracking-widest">Group contains no contacts</p>
+                    <div className="text-center py-20 border-2 border-dashed border-glass-border rounded-3xl bg-glass-card">
+                       <Folder className="w-12 h-12 text-fg/10 mx-auto mb-4" />
+                       <p className="text-sm font-black text-muted uppercase tracking-widest">Group contains no contacts</p>
                     </div>
                   ) : (
                      <div className="space-y-2">
@@ -522,19 +522,19 @@ export default function Groups() {
                                else next.add(contact.id);
                                setSelectedMemberIds(next);
                              }}
-                             className={`flex items-center justify-between p-4 bg-white/5 border rounded-2xl cursor-pointer transition-all ${
-                               selectedMemberIds.has(contact.id) ? 'border-red-500 ring-1 ring-red-500 bg-red-500/5' : 'border-white/5 hover:border-white/10'
+                             className={`flex items-center justify-between p-4 bg-glass-input border rounded-2xl cursor-pointer transition-all ${
+                               selectedMemberIds.has(contact.id) ? 'border-red-500 ring-1 ring-red-500 bg-red-500/5' : 'border-glass-border hover:border-glass-border'
                              }`}
                            >
                               <div className="flex items-center">
                                  <div className={`w-4 h-4 rounded border flex items-center justify-center mr-3 transition-colors ${
-                                   selectedMemberIds.has(contact.id) ? 'bg-red-500 border-red-500' : 'border-white/10 bg-white/5'
+                                   selectedMemberIds.has(contact.id) ? 'bg-red-500 border-red-500' : 'border-glass-border bg-glass-input'
                                  }`}>
-                                    {selectedMemberIds.has(contact.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                                    {selectedMemberIds.has(contact.id) && <Check className="w-2.5 h-2.5 text-fg" />}
                                  </div>
                                  <div>
-                                   <p className="font-bold text-white leading-none mb-1.5">{contact.name || 'Anonymous'}</p>
-                                   <p className="text-[10px] text-white/40 font-semibold font-mono">{contact.phone_number}</p>
+                                   <p className="font-bold text-fg leading-none mb-1.5">{contact.name || 'Anonymous'}</p>
+                                   <p className="text-[10px] text-muted font-semibold font-mono">{contact.phone_number}</p>
                                  </div>
                               </div>
                               
@@ -543,7 +543,7 @@ export default function Groups() {
                                   e.stopPropagation();
                                   handleRemoveContact(contact.id);
                                 }}
-                                className={`p-2 transition-all rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 cursor-pointer`}
+                                className={`p-2 transition-all rounded-lg text-fg/20 hover:text-red-400 hover:bg-red-500/10 cursor-pointer`}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -553,7 +553,7 @@ export default function Groups() {
                   )}
                </div>
                
-               <div className="p-6 border-t border-white/5 bg-[#020202]/30 flex justify-end">
+               <div className="p-6 border-t border-glass-border bg-glass-card/10 flex justify-end">
                   <button 
                     onClick={() => {
                       setShowDetailModal(false);
@@ -561,7 +561,7 @@ export default function Groups() {
                       setActiveGroupId(null);
                       setSearchTerm('');
                     }}
-                    className="w-full sm:w-auto px-8 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer transition-all shadow-lg"
+                    className="w-full sm:w-auto px-8 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer transition-all shadow-lg"
                   >
                      Done
                   </button>
@@ -573,12 +573,12 @@ export default function Groups() {
       {/* Available Selector Modal */}
       {showSelector && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[55] animate-in fade-in duration-200">
-          <div className="bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-white/5 bg-[#020202]/30">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-glass-border bg-glass-card/10">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-black text-white tracking-tight">Add Group Members</h3>
-                  <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-1">Select from main contacts registry</p>
+                  <h3 className="text-lg font-black text-fg tracking-tight">Add Group Members</h3>
+                  <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1">Select from main contacts registry</p>
                 </div>
                 <button 
                   onClick={() => {
@@ -586,7 +586,7 @@ export default function Groups() {
                     setSelectorIds(new Set());
                     setSearchTerm('');
                   }}
-                  className="text-white/40 hover:text-white font-black text-[9px] uppercase tracking-widest cursor-pointer border border-white/10 px-3 py-1 rounded-lg"
+                  className="text-muted hover:text-fg font-black text-[9px] uppercase tracking-widest cursor-pointer border border-glass-border px-3 py-1 rounded-lg"
                 >
                   Close
                 </button>
@@ -595,7 +595,7 @@ export default function Groups() {
                 <input 
                   type="text"
                   placeholder="Search contact pool..."
-                  className="w-full pl-4 pr-10 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-semibold focus:outline-none transition-all text-white placeholder:text-white/20"
+                  className="w-full pl-4 pr-10 py-3 bg-glass-input border border-glass-border rounded-2xl text-xs font-semibold focus:outline-none transition-all text-fg placeholder:text-fg/20"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -605,12 +605,12 @@ export default function Groups() {
             <div className="flex-1 overflow-y-auto p-6 bg-black/10 custom-scrollbar">
               {loadingAvailable ? (
                 <div className="flex flex-col items-center justify-center py-20 opacity-40">
-                  <Loader2 className="w-8 h-8 animate-spin mb-3 text-white" />
-                  <p className="text-xs font-black uppercase tracking-widest text-white/40">Loading directory pool...</p>
+                  <Loader2 className="w-8 h-8 animate-spin mb-3 text-fg" />
+                  <p className="text-xs font-black uppercase tracking-widest text-muted">Loading directory pool...</p>
                 </div>
               ) : availableContacts.length === 0 ? (
                 <div className="text-center py-20 opacity-40">
-                  <p className="text-xs font-black uppercase tracking-widest text-white/50">All contacts are inside this list</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-fg/50">All contacts are inside this list</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -628,19 +628,19 @@ export default function Groups() {
                             else next.add(contact.id);
                             setSelectorIds(next);
                          }}
-                         className={`flex items-center justify-between p-4 bg-white/5 border rounded-2xl cursor-pointer transition-all ${
-                            selectorIds.has(contact.id) ? 'border-white bg-white/[0.02]' : 'border-white/5'
+                         className={`flex items-center justify-between p-4 bg-glass-input border rounded-2xl cursor-pointer transition-all ${
+                            selectorIds.has(contact.id) ? 'border-white bg-glass-card' : 'border-glass-border'
                          }`}
                        >
                           <div className="flex items-center">
                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-3 transition-colors ${
-                               selectorIds.has(contact.id) ? 'bg-white border-white' : 'border-white/10 bg-white/5'
+                               selectorIds.has(contact.id) ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
                              }`}>
                                 {selectorIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-black" />}
                              </div>
                              <div>
-                               <p className="font-bold text-white text-sm">{contact.name || 'Anonymous'}</p>
-                               <p className="text-[10px] text-white/40 font-semibold tracking-wide font-mono mt-0.5">{contact.phone_number}</p>
+                               <p className="font-bold text-fg text-sm">{contact.name || 'Anonymous'}</p>
+                               <p className="text-[10px] text-muted font-semibold tracking-wide font-mono mt-0.5">{contact.phone_number}</p>
                              </div>
                           </div>
                        </div>
@@ -649,13 +649,13 @@ export default function Groups() {
               )}
             </div>
 
-            <div className="p-6 border-t border-white/5 flex items-center justify-between bg-[#020202]/30">
+            <div className="p-6 border-t border-glass-border flex items-center justify-between bg-glass-card/10">
               <button 
                 onClick={() => {
                   setShowImportModal(true);
                   setShowSelector(false);
                 }}
-                className="text-xs font-black text-indigo-400 hover:text-white transition-colors uppercase tracking-widest cursor-pointer"
+                className="text-xs font-black text-indigo-400 hover:text-fg transition-colors uppercase tracking-widest cursor-pointer"
               >
                 Import Pool
               </button>
@@ -663,7 +663,7 @@ export default function Groups() {
               <button 
                 disabled={selectorIds.size === 0 || isImporting}
                 onClick={handleAddSelectedToGroup}
-                className="px-6 py-3.5 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl disabled:opacity-40 flex items-center justify-center cursor-pointer"
+                className="px-6 py-3.5 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl disabled:opacity-40 flex items-center justify-center cursor-pointer"
               >
                 {isImporting ? 'Adding...' : `Add Selected (${selectorIds.size})`}
               </button>

@@ -332,7 +332,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-32 grayscale opacity-45">
-        <Loader2 className="w-8 h-8 animate-spin mb-4 text-white" />
+        <Loader2 className="w-8 h-8 animate-spin mb-4 text-fg" />
         <p className="text-xs font-black uppercase tracking-[0.2em]">Initializing system controls...</p>
       </div>
     );
@@ -347,15 +347,15 @@ export default function Dashboard() {
       {/* Header Panel */}
       <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">WhatsApp API Grid</h1>
-          <p className="text-white/40 mt-2 text-base">
+          <h1 className="text-3xl font-black tracking-tight text-fg sm:text-4xl">WhatsApp API Grid</h1>
+          <p className="text-muted mt-2 text-base">
             {isConnected ? 'Your official Meta Cloud API infrastructure is online.' : 'Link your Meta Business profile to launch notifications.'}
           </p>
         </div>
         {isConnected && (
-          <div className="flex items-center self-start px-5 py-2.5 bg-emerald-500/10 text-emerald-400 rounded-2xl text-xs font-black border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 mr-3 animate-pulse" />
-            Meta Channel Online
+          <div className="flex items-center self-start px-5 py-2.5 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 rounded-2xl text-sm font-bold border border-green-100 dark:border-green-900/30 shadow-sm transition-all hover:bg-green-100/50 dark:hover:bg-green-900/20">
+            <CheckCircle2 className="w-5 h-5 mr-2" />
+            Active Connection
           </div>
         )}
       </div>
@@ -364,13 +364,13 @@ export default function Dashboard() {
         <div className="mb-12">
           {/* Wizard Type Selector */}
           <div className="flex justify-center mb-10">
-            <div className="inline-flex p-1.5 bg-white/[0.02] border border-white/5 rounded-2xl">
+            <div className="inline-flex p-1.5 bg-glass-card border border-glass-border rounded-2xl">
               <button 
                 onClick={() => setUseManual(false)}
                 className={`px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                   !useManual 
-                    ? 'bg-white text-black shadow-lg shadow-white/10' 
-                    : 'text-white/40 hover:text-white'
+                    ? 'bg-fg text-bg shadow-lg shadow-white/10' 
+                    : 'text-muted hover:text-fg'
                 }`}
               >
                 Embedded Setup
@@ -379,8 +379,8 @@ export default function Dashboard() {
                 onClick={() => setUseManual(true)}
                 className={`px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                   useManual 
-                    ? 'bg-white text-black shadow-lg' 
-                    : 'text-white/40 hover:text-white'
+                    ? 'bg-fg text-bg shadow-lg' 
+                    : 'text-muted hover:text-fg'
                 }`}
               >
                 Manual Config
@@ -390,10 +390,10 @@ export default function Dashboard() {
           
           {!useManual ? (
             /* Premium Embedded Onboarding */
-            <div className="max-w-5xl mx-auto bg-white/[0.01] border border-white/5 rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.6)] overflow-hidden animate-in zoom-in-95 duration-700 relative">
+            <div className="max-w-5xl mx-auto bg-glass-card border border-glass-border rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.6)] overflow-hidden animate-in zoom-in-95 duration-700 relative">
               
               {/* Progress bar line */}
-              <div className="absolute top-0 left-0 w-full h-1 bg-white/5">
+              <div className="absolute top-0 left-0 w-full h-1 bg-glass-input">
                 <div 
                   className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-indigo-300 transition-all duration-1000 ease-out"
                   style={{ width: onboardingStep === 1 ? '33.33%' : onboardingStep === 2 ? '66.66%' : '100%' }}
@@ -404,34 +404,34 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 flex-grow">
                   
                   {/* Left Column: Instructions details */}
-                  <div className="lg:col-span-7 p-12 lg:p-16 bg-white/[0.01] border-r border-white/5 flex flex-col justify-between">
+                  <div className="lg:col-span-7 p-12 lg:p-16 bg-glass-card border-r border-glass-border flex flex-col justify-between">
                     <div>
-                      <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-8">
-                        <Facebook className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mb-8">
+                        <Facebook className="w-6 h-6 text-fg" />
                       </div>
                       
                       <div className="overflow-visible">
                         {onboardingStep === 1 ? (
                           <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                            <h2 className="text-3xl font-black text-white mb-4 leading-tight tracking-tight">Link Meta Business</h2>
-                            <p className="text-sm text-white/40 font-semibold leading-relaxed max-w-lg mb-8">
+                            <h2 className="text-3xl font-black text-fg mb-4 leading-tight tracking-tight">Link Meta Business</h2>
+                            <p className="text-sm text-muted font-semibold leading-relaxed max-w-lg mb-8">
                               Connect your Meta credentials to discover approved WhatsApp Business Accounts (WABA) and sync numbers automatically.
                             </p>
 
-                            <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl max-w-md">
+                            <div className="bg-glass-card border border-glass-border p-6 rounded-2xl max-w-md">
                               <h4 className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
                                  <ShieldCheck className="w-3.5 h-3.5" />
                                  SECURE EMBEDDED INTEGRATION
                               </h4>
-                              <p className="text-[11px] text-white/50 font-bold leading-relaxed">
+                              <p className="text-[11px] text-fg/50 font-bold leading-relaxed">
                                 We utilize secure Meta partner integrations. PingStack never holds your master credentials; communications are signed and handled using partner-level auth.
                               </p>
                             </div>
                           </div>
                         ) : (
                           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <h2 className="text-3xl font-black text-white mb-4 leading-tight tracking-tight">Configure Assets</h2>
-                            <p className="text-sm text-white/40 font-semibold leading-relaxed max-w-lg">
+                            <h2 className="text-3xl font-black text-fg mb-4 leading-tight tracking-tight">Configure Assets</h2>
+                            <p className="text-sm text-muted font-semibold leading-relaxed max-w-lg">
                               Specify which WABA ID and registered phone assets you want to link to this workspaces project.
                             </p>
                           </div>
@@ -441,24 +441,24 @@ export default function Dashboard() {
                   </div>
 
                   {/* Right Column: Interaction inputs */}
-                  <div className="lg:col-span-5 p-10 flex flex-col items-center justify-center bg-black/40 relative">
+                  <div className="lg:col-span-5 p-10 flex flex-col items-center justify-center bg-glass-card/20 relative">
                     <div className="w-full max-w-[320px]">
                       {onboardingStep === 1 ? (
                         <div className="w-full animate-in fade-in zoom-in-95 duration-700">
                           <div className="mb-10 text-center">
                             <div className="w-20 h-20 mx-auto relative flex items-center justify-center">
                               <div className={`absolute inset-0 rounded-full bg-indigo-500/10 ${connecting ? 'animate-ping' : 'animate-pulse'}`} />
-                              <div className="relative w-14 h-14 bg-white/[0.02] border border-white/10 rounded-2xl flex items-center justify-center">
-                                 <Facebook className={`w-6 h-6 text-white ${connecting ? 'animate-spin-slow' : ''}`} />
+                              <div className="relative w-14 h-14 bg-glass-card border border-glass-border rounded-2xl flex items-center justify-center">
+                                 <Facebook className={`w-6 h-6 text-fg ${connecting ? 'animate-spin-slow' : ''}`} />
                               </div>
                             </div>
-                            <p className="mt-6 text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Awaiting Meta Connection</p>
+                            <p className="mt-6 text-[9px] font-black text-fg/30 uppercase tracking-[0.2em]">Awaiting Meta Connection</p>
                           </div>
 
                           <button 
                             onClick={handleEmbeddedConnect}
                             disabled={connecting || !fbLoaded}
-                            className="w-full bg-white text-black hover:bg-neutral-100 disabled:opacity-30 disabled:text-white/40 h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] flex items-center justify-center group cursor-pointer"
+                            className="w-full bg-fg text-bg hover:opacity-90 disabled:opacity-30 disabled:text-muted h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] flex items-center justify-center group cursor-pointer"
                           >
                             {!fbLoaded ? (
                                <span className="flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin opacity-50" /> Initializing SDK...</span>
@@ -482,7 +482,7 @@ export default function Dashboard() {
                         <div className="w-full space-y-6 animate-in fade-in slide-in-from-right-10 duration-700">
                           <div className="space-y-4">
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-1">WABA Business Account</label>
+                              <label className="text-[10px] font-black text-fg/30 uppercase tracking-widest ml-1">WABA Business Account</label>
                               {discovery && discovery.length > 0 ? (
                                 <select 
                                   value={selectedWaba}
@@ -491,10 +491,10 @@ export default function Dashboard() {
                                     const waba = discovery.find((w: any) => w.id === e.target.value);
                                     if (waba?.phones?.length > 0) setSelectedPhone(waba.phones[0].id);
                                   }}
-                                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-white"
+                                  className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
                                 >
                                   {discovery.map((waba: any) => (
-                                    <option key={waba.id} value={waba.id} className="bg-[#0f0f11] text-white">{waba.name}</option>
+                                    <option key={waba.id} value={waba.id} className="bg-[#0f0f11] text-fg">{waba.name}</option>
                                   ))}
                                 </select>
                               ) : (
@@ -503,13 +503,13 @@ export default function Dashboard() {
                                        <AlertCircle className="w-3.5 h-3.5" />
                                        Assets Not Shared
                                     </p>
-                                    <p className="text-xs text-white/50 font-bold leading-relaxed mb-4">
+                                    <p className="text-xs text-fg/50 font-bold leading-relaxed mb-4">
                                        Link complete, but WhatsApp accounts are missing. Share your assets with partner ID **1571768617266202**.
                                     </p>
                                     <a 
                                        href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
                                        target="_blank" 
-                                       className="w-full py-2.5 bg-white text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 transition-all flex items-center justify-center shadow-sm"
+                                       className="w-full py-2.5 bg-fg text-bg rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 transition-all flex items-center justify-center shadow-sm"
                                     >
                                        Meta Partner Settings
                                        <ArrowRight className="w-3 h-3 ml-1.5" />
@@ -519,19 +519,19 @@ export default function Dashboard() {
                             </div>
 
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-1">Phone Number ID</label>
+                              <label className="text-[10px] font-black text-fg/30 uppercase tracking-widest ml-1">Phone Number ID</label>
                               {discovery && discovery.length > 0 ? (
                                 <select 
                                   value={selectedPhone}
                                   onChange={(e) => setSelectedPhone(e.target.value)}
-                                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-mono text-white"
+                                  className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-mono text-fg"
                                 >
                                   {discovery.find((w: any) => w.id === selectedWaba)?.phones?.map((phone: any) => (
-                                    <option key={phone.id} value={phone.id} className="bg-[#0f0f11] text-white">{phone.display_phone_number}</option>
+                                    <option key={phone.id} value={phone.id} className="bg-[#0f0f11] text-fg">{phone.display_phone_number}</option>
                                   ))}
                                 </select>
                               ) : (
-                                <div className="p-4 bg-white/5 text-white/30 rounded-2xl text-[9px] font-black border border-white/5">
+                                <div className="p-4 bg-glass-input text-fg/30 rounded-2xl text-[9px] font-black border border-glass-border">
                                    N/A
                                 </div>
                               )}
@@ -560,15 +560,15 @@ export default function Dashboard() {
                             <button 
                               onClick={handleFinishOnboarding}
                               disabled={connecting || !selectedPhone}
-                              className="w-full bg-white text-black hover:bg-neutral-100 disabled:opacity-40 disabled:text-white/40 h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center"
+                              className="w-full bg-fg text-bg hover:opacity-90 disabled:opacity-40 disabled:text-muted h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center"
                             >
                               {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Complete Setup'}
                             </button>
 
-                            <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                            <div className="pt-4 border-t border-glass-border flex items-center justify-between">
                               <button 
                                 onClick={() => setOnboardingStep(1)}
-                                className="text-[9px] font-black text-white/30 hover:text-white transition-all uppercase tracking-widest flex items-center cursor-pointer"
+                                className="text-[9px] font-black text-fg/30 hover:text-fg transition-all uppercase tracking-widest flex items-center cursor-pointer"
                               >
                                 <ArrowRight className="w-3 h-3 mr-1.5 rotate-180" />
                                 Back
@@ -597,10 +597,10 @@ export default function Dashboard() {
                       {error && (
                         <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
                           <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-1">Auth Error</p>
-                          <p className="text-xs font-bold leading-snug mb-3 text-white/70">{error}</p>
+                          <p className="text-xs font-bold leading-snug mb-3 text-fg/70">{error}</p>
                           <button 
                             onClick={handleEmbeddedConnect}
-                            className="px-3 py-1.5 bg-white text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 transition-all cursor-pointer"
+                            className="px-3 py-1.5 bg-fg text-bg rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 transition-all cursor-pointer"
                           >
                             Retry Auth
                           </button>
@@ -611,7 +611,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Steps Footer Indicators */}
-                <div className="px-12 py-8 bg-[#020202]/40 border-t border-white/5">
+                <div className="px-12 py-8 bg-glass-card/20 border-t border-glass-border">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-6 max-w-3xl mx-auto">
                     {[ 
                       { step: 1, label: 'Meta Auth', Icon: ShieldCheck },
@@ -622,21 +622,21 @@ export default function Dashboard() {
                         <div className="flex items-center">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 border ${
                             onboardingStep === item.step 
-                              ? 'bg-white border-white text-black shadow-[0_0_15px_rgba(255,255,255,0.15)]' 
+                              ? 'bg-fg border-fg text-bg shadow-[0_0_15px_rgba(255,255,255,0.15)]' 
                               : onboardingStep > item.step 
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                              : 'bg-white/5 border-white/5 text-white/30'
+                              : 'bg-glass-input border-glass-border text-fg/30'
                           }`}>
                             {onboardingStep > item.step ? <CheckCircle2 className="w-4 h-4" /> : <item.Icon className="w-4 h-4" />}
                           </div>
                           <span className={`text-[10px] font-black uppercase tracking-widest ${
-                            onboardingStep === item.step ? 'text-white' : 'text-white/30'
+                            onboardingStep === item.step ? 'text-fg' : 'text-fg/30'
                           }`}>
                             {item.label}
                           </span>
                         </div>
                         {idx < 2 && (
-                          <div className="hidden sm:block h-[1px] flex-grow mx-6 bg-white/5" />
+                          <div className="hidden sm:block h-[1px] flex-grow mx-6 bg-glass-input" />
                         )}
                       </div>
                     ))}
@@ -649,9 +649,9 @@ export default function Dashboard() {
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 max-w-5xl mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Guide Panel */}
-                <div className="bg-white/[0.01] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
+                <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
                   <div>
-                    <h3 className="text-lg font-black text-white mb-6 flex items-center">
+                    <h3 className="text-lg font-black text-fg mb-6 flex items-center">
                       <Settings className="w-5 h-5 mr-3 text-indigo-400" />
                       Developers Configuration Steps
                     </h3>
@@ -663,10 +663,10 @@ export default function Dashboard() {
                         { step: 3, title: 'Verify Permanent Access Token', text: 'Generate a Permanent Token and extract your Phone Number ID and WABA Business Account ID.' }
                       ].map(item => (
                         <div key={item.step} className="flex items-start">
-                          <div className="w-7 h-7 rounded-xl bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center mr-4 shrink-0 mt-0.5">{item.step}</div>
+                          <div className="w-7 h-7 rounded-xl bg-glass-input border border-glass-border text-xs font-black flex items-center justify-center mr-4 shrink-0 mt-0.5">{item.step}</div>
                           <div>
-                            <p className="font-bold text-sm text-white">{item.title}</p>
-                            <p className="text-xs text-white/40 mt-1 font-semibold leading-relaxed">{item.text}</p>
+                            <p className="font-bold text-sm text-fg">{item.title}</p>
+                            <p className="text-xs text-muted mt-1 font-semibold leading-relaxed">{item.text}</p>
                           </div>
                         </div>
                       ))}
@@ -676,52 +676,52 @@ export default function Dashboard() {
                   <a 
                     href="https://developers.facebook.com/apps" 
                     target="_blank" 
-                    className="mt-8 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center block transition-all"
+                    className="mt-8 py-3.5 bg-glass-input hover:bg-white/10 text-fg border border-glass-border rounded-2xl text-[10px] font-black uppercase tracking-widest text-center block transition-all"
                   >
                     Open Developers Console
                   </a>
                 </div>
 
                 {/* Form Panel */}
-                <div className="bg-white/[0.01] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between relative overflow-hidden">
+                <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between relative overflow-hidden">
                   <div>
-                    <h3 className="text-lg font-black text-white mb-6 flex items-center">
+                    <h3 className="text-lg font-black text-fg mb-6 flex items-center">
                       <CheckSquare className="w-5 h-5 mr-3 text-emerald-400" />
                       Configure API Credentials
                     </h3>
 
                     <form onSubmit={handleManualConnect} className="space-y-5">
                       <div>
-                        <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 ml-1">Meta Access Token (Permanent)</label>
+                        <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 ml-1">Meta Access Token (Permanent)</label>
                         <input 
                           type="password"
                           value={manualToken}
                           onChange={(e) => setManualToken(e.target.value)}
                           placeholder="EAAB..."
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:outline-none transition-all placeholder:text-white/10 font-mono text-white"
+                          className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/10 font-mono text-fg"
                           required
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 ml-1">Phone Asset ID</label>
+                          <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 ml-1">Phone Asset ID</label>
                           <input 
                             type="text"
                             value={manualPhoneId}
                             onChange={(e) => setManualPhoneId(e.target.value)}
                             placeholder="1098..."
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:outline-none transition-all placeholder:text-white/10 font-mono text-white"
+                            className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/10 font-mono text-fg"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2 ml-1">WABA Account ID</label>
+                          <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 ml-1">WABA Account ID</label>
                           <input 
                             type="text"
                             value={manualWabaId}
                             onChange={(e) => setManualWabaId(e.target.value)}
                             placeholder="2384..."
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:outline-none transition-all placeholder:text-white/10 font-mono text-white"
+                            className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/10 font-mono text-fg"
                             required
                           />
                         </div>
@@ -737,7 +737,7 @@ export default function Dashboard() {
                       <button 
                         type="submit"
                         disabled={connecting}
-                        className="w-full bg-white text-black hover:bg-neutral-100 disabled:opacity-40 disabled:text-white/40 h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center mt-6"
+                        className="w-full bg-fg text-bg hover:opacity-90 disabled:opacity-40 disabled:text-muted h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center mt-6"
                       >
                         {connecting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Save Setup'}
                       </button>
@@ -767,29 +767,29 @@ export default function Dashboard() {
       )}
 
       {isConnected && (
-        <div className="mb-12 bg-white/[0.01] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl">
+        <div className="mb-12 bg-glass-card border border-glass-border rounded-[2.5rem] p-8 shadow-2xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-center gap-6">
-              <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center">
-                <Settings className="w-6 h-6 text-white/60" />
+              <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center">
+                <Settings className="w-6 h-6 text-fg/60" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-white tracking-tight">Active API Gateway</h3>
-                <p className="text-sm text-white/40 mt-1 font-semibold">Verify tokens or break Meta connectivity safely.</p>
+                <h3 className="text-xl font-black text-fg tracking-tight">Manage Connection</h3>
+                <p className="text-sm text-muted mt-1 font-semibold">Configure or reset your WhatsApp Cloud API link.</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button 
                 onClick={handleEmbeddedConnect}
-                className="px-6 h-12 bg-white text-black hover:bg-neutral-100 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5"
+                className="px-6 h-12 bg-fg text-bg hover:opacity-90 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5"
               >
-                Change Channel
+                Change Account
               </button>
               <button 
                 onClick={handleResetConnection}
                 className="px-6 h-12 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
               >
-                Reset Link
+                Reset Connection
               </button>
             </div>
           </div>
@@ -798,14 +798,14 @@ export default function Dashboard() {
 
       {/* Plan & Resources Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        <div className="bg-white/[0.01] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+        <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-6">
             <span className="px-3.5 py-1.5 bg-indigo-500/10 text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-500/20">
               {tenant?.plan_type || 'Starter'} Profile
             </span>
           </div>
           
-          <h3 className="text-lg font-black text-white mb-8 flex items-center">
+          <h3 className="text-lg font-black text-fg mb-8 flex items-center">
             <Zap className="w-5 h-5 mr-3 text-indigo-400" />
             Plan Limits & Retainers
           </h3>
@@ -813,12 +813,12 @@ export default function Dashboard() {
           <div className="space-y-6">
             <div>
               <div className="flex justify-between items-end mb-2">
-                <span className="text-xs font-bold text-white/50">Campaigns Used Today</span>
-                <span className="text-[10px] font-black text-white/30 uppercase">
+                <span className="text-xs font-bold text-fg/50">Campaigns Used Today</span>
+                <span className="text-[10px] font-black text-fg/30 uppercase">
                   {tenant?.campaigns_sent_today || 0} / {PLANS[tenant?.plan_type as PlanType || 'starter'].maxCampaignsPerDay === Infinity ? '∞' : PLANS[tenant?.plan_type as PlanType || 'starter'].maxCampaignsPerDay}
                 </span>
               </div>
-              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div className="h-1.5 w-full bg-glass-input rounded-full overflow-hidden border border-glass-border">
                 <div 
                   className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000"
                   style={{ width: `${Math.min(100, ((tenant?.campaigns_sent_today || 0) / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxCampaignsPerDay || 1)) * 100)}%` }}
@@ -828,12 +828,12 @@ export default function Dashboard() {
 
             <div>
               <div className="flex justify-between items-end mb-2">
-                <span className="text-xs font-bold text-white/50">Total Managed Contacts</span>
-                <span className="text-[10px] font-black text-white/30 uppercase">
+                <span className="text-xs font-bold text-fg/50">Total Managed Contacts</span>
+                <span className="text-[10px] font-black text-fg/30 uppercase">
                   {stats.totalContacts || 0} / {PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts === Infinity ? '∞' : PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts}
                 </span>
               </div>
-              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div className="h-1.5 w-full bg-glass-input rounded-full overflow-hidden border border-glass-border">
                 <div 
                   className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-1000"
                   style={{ width: `${Math.min(100, ((stats.totalContacts || 0) / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxContacts || 1)) * 100)}%` }}
@@ -843,12 +843,12 @@ export default function Dashboard() {
 
             <div>
               <div className="flex justify-between items-end mb-2">
-                <span className="text-xs font-bold text-white/50">WABA Storage Usage</span>
-                <span className="text-[10px] font-black text-white/30 uppercase">
+                <span className="text-xs font-bold text-fg/50">WABA Storage Usage</span>
+                <span className="text-[10px] font-black text-fg/30 uppercase">
                   {Math.round((tenant?.storage_usage_bytes || 0) / 1024 / 1024)} MB / {PLANS[tenant?.plan_type as PlanType || 'starter'].maxStorageMb} MB
                 </span>
               </div>
-              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div className="h-1.5 w-full bg-glass-input rounded-full overflow-hidden border border-glass-border">
                 <div 
                   className="h-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-1000"
                   style={{ width: `${Math.min(100, (((tenant?.storage_usage_bytes || 0) / 1024 / 1024) / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxStorageMb || 1)) * 100)}%` }}
@@ -857,14 +857,14 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
-            <a href="/pricing" className="text-xs font-black text-indigo-400 hover:text-white flex items-center uppercase tracking-widest transition-all">
+          <div className="mt-8 pt-6 border-t border-glass-border flex items-center justify-between">
+            <a href="/pricing" className="text-xs font-black text-indigo-400 hover:text-fg flex items-center uppercase tracking-widest transition-all">
               Upgrade subscription &rarr;
             </a>
             {tenant?.plan_type && tenant.plan_type !== 'starter' && (
               <button 
                 onClick={handleCancelSubscription}
-                className="text-[9px] font-black text-white/20 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer"
+                className="text-[9px] font-black text-fg/20 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer"
               >
                 Cancel Sub
               </button>
@@ -872,18 +872,18 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white/[0.01] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
+        <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-black text-white mb-4 flex items-center">
+            <h3 className="text-lg font-black text-fg mb-4 flex items-center">
               <Book className="w-5 h-5 mr-3 text-indigo-400" />
               API Guidebook
             </h3>
-            <p className="text-white/40 text-sm font-semibold leading-relaxed">
+            <p className="text-muted text-sm font-semibold leading-relaxed">
               PingStack syncs templates in background. Reference endpoints or learn variables templates layouts implementation inside our developers portal docs.
             </p>
           </div>
-          <div className="mt-8 pt-6 border-t border-white/5">
-            <a href="/docs" className="inline-flex items-center px-6 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95">
+          <div className="mt-8 pt-6 border-t border-glass-border">
+            <a href="/docs" className="inline-flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95">
                 Developer Manuals
             </a>
           </div>
@@ -897,34 +897,34 @@ export default function Dashboard() {
           { label: 'Meta Templates Approved', value: stats.templatesApproved },
           { label: 'Inbound Logged Messages', value: stats.inboundMessages }
         ].map((stat, i) => (
-          <div key={i} className="bg-white/[0.01] border border-white/5 p-6 rounded-[2rem] shadow-xl relative overflow-hidden">
-            <h3 className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">{stat.label}</h3>
-            <p className="text-4xl font-black text-white tracking-tighter">{stat.value}</p>
+          <div key={i} className="bg-glass-card border border-glass-border p-6 rounded-[2rem] shadow-xl relative overflow-hidden">
+            <h3 className="text-[9px] font-black text-fg/30 uppercase tracking-[0.2em] mb-4">{stat.label}</h3>
+            <p className="text-4xl font-black text-fg tracking-tighter">{stat.value}</p>
           </div>
         ))}
       </div>
 
       {isConnected && stats.sent > 0 && (
-        <div className="mt-12 bg-white/[0.01] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl mb-12 animate-in slide-in-from-bottom-4 duration-700">
-          <h3 className="text-lg font-black text-white mb-8 flex items-center">
+        <div className="mt-12 bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl mb-12 animate-in slide-in-from-bottom-4 duration-700">
+          <h3 className="text-lg font-black text-fg mb-8 flex items-center">
             <BarChart3 className="w-5 h-5 mr-3 text-indigo-400" />
             Performance Analysis
           </h3>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="p-6 bg-white/[0.01] rounded-2xl border border-white/5 text-center">
-              <span className="text-[9px] font-black text-white/30 uppercase tracking-wider block mb-2">Sent Logs</span>
-              <span className="text-2xl font-black text-white">{stats.sent}</span>
+            <div className="p-6 bg-glass-card rounded-2xl border border-glass-border text-center">
+              <span className="text-[9px] font-black text-fg/30 uppercase tracking-wider block mb-2">Sent Logs</span>
+              <span className="text-2xl font-black text-fg">{stats.sent}</span>
             </div>
             <div className="p-6 bg-blue-500/5 rounded-2xl border border-blue-500/10 text-center">
               <span className="text-[9px] font-black text-blue-400 uppercase tracking-wider block mb-2">Delivered</span>
               <span className="text-2xl font-black text-blue-400">{stats.delivered}</span>
-              <span className="text-[9px] font-bold text-white/40 block mt-1.5">{Math.round((stats.delivered/stats.sent)*100)}% API hit</span>
+              <span className="text-[9px] font-bold text-muted block mt-1.5">{Math.round((stats.delivered/stats.sent)*100)}% API hit</span>
             </div>
             <div className="p-6 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 text-center">
               <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider block mb-2">Read Received</span>
               <span className="text-2xl font-black text-emerald-400">{stats.read}</span>
-              <span className="text-[9px] font-bold text-white/40 block mt-1.5">{Math.round((stats.read/stats.delivered || 1)*100)}% Read rate</span>
+              <span className="text-[9px] font-bold text-muted block mt-1.5">{Math.round((stats.read/stats.delivered || 1)*100)}% Read rate</span>
             </div>
             <div className="p-6 bg-red-500/5 rounded-2xl border border-red-500/10 text-center">
               <span className="text-[9px] font-black text-red-400 uppercase tracking-wider block mb-2">Rejected Failures</span>
@@ -935,14 +935,14 @@ export default function Dashboard() {
       )}
 
       {/* Action Footer banner */}
-      <div className="mt-12 bg-white/[0.01] border border-white/5 p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden group text-center">
+      <div className="mt-12 bg-glass-card border border-glass-border p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden group text-center">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.03] to-transparent pointer-events-none" />
         <div className="relative z-10 flex flex-col items-center">
-          <div className="w-16 h-16 bg-white text-black rounded-3xl flex items-center justify-center mb-8 shadow-xl rotate-6 group-hover:rotate-0 transition-all duration-500">
+          <div className="w-16 h-16 bg-fg text-bg rounded-3xl flex items-center justify-center mb-8 shadow-xl rotate-6 group-hover:rotate-0 transition-all duration-500">
             <MessageCircle className="w-8 h-8" />
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tight">Direct Cloud Routing Engine</h3>
-          <p className="text-white/40 text-sm font-semibold mt-4 max-w-xl leading-relaxed">
+          <h3 className="text-2xl font-black text-fg tracking-tight">Direct Cloud Routing Engine</h3>
+          <p className="text-muted text-sm font-semibold mt-4 max-w-xl leading-relaxed">
             By avoiding middle-ware proxies, PingStack delivers WhatsApp API requests straight to Meta and queues responses with sub-second latency.
           </p>
         </div>

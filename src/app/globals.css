@@ -4,22 +4,50 @@
   --font-sans: var(--font-outfit);
   --animate-spin-slow: spin 8s linear infinite;
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  
+  --color-bg: var(--background);
+  --color-fg: var(--foreground);
+  --color-muted: var(--text-muted);
+  --color-glass-card: var(--card-bg);
+  --color-glass-border: var(--card-border);
+  --color-glass-input: var(--input-bg);
+  --color-glass-input-border: var(--input-border);
+}
+
+/* Light Mode Defaults */
+:root {
+  --background: #fbfbfd;
+  --foreground: #09090b;
+  --text-muted: rgba(9, 9, 11, 0.4);
+  --card-bg: rgba(9, 9, 11, 0.015);
+  --card-border: rgba(9, 9, 11, 0.06);
+  --input-bg: rgba(9, 9, 11, 0.02);
+  --input-border: rgba(9, 9, 11, 0.08);
+}
+
+/* Dark Mode Overrides */
+html.dark {
+  --background: #050505;
+  --foreground: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(255, 255, 255, 0.03);
+  --input-border: rgba(255, 255, 255, 0.06);
 }
 
 html {
   scroll-behavior: smooth;
-  background-color: #050505;
-}
-
-:root {
-  --background: #050505;
-  --foreground: #ffffff;
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom Scrollbar for a premium feel */
@@ -31,47 +59,50 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(128, 128, 128, 0.25);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(128, 128, 128, 0.4);
 }
 
 /* Glassmorphism Utilities */
 @utility glass-panel {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--card-bg);
   backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
 }
 
 @utility glass-card {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--card-bg);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.03);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  html.dark & {
+    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+  }
 }
 
 @utility glass-card-hover {
   &:hover {
-    background-color: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
     transform: scale(1.01);
   }
 }
 
 @utility glass-input {
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
   transition: all 0.2s ease;
 }
 
 @utility glass-input-focus {
   &:focus {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.2);
+    background-color: var(--input-bg);
+    border-color: rgba(128, 128, 128, 0.4);
     outline: none;
   }
 }
-

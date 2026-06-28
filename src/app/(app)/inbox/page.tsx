@@ -441,7 +441,7 @@ export default function Inbox() {
   if (loading && !tenant) {
     return (
       <div className="h-full flex flex-col items-center justify-center py-32 grayscale opacity-45">
-        <Loader2 className="w-8 h-8 animate-spin mb-4 text-white" />
+        <Loader2 className="w-8 h-8 animate-spin mb-4 text-fg" />
         <p className="text-xs font-black uppercase tracking-[0.2em]">Initializing messaging streams...</p>
       </div>
     );
@@ -449,13 +449,13 @@ export default function Inbox() {
 
   if (status === 'NOT_CONNECTED') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-white/[0.01] border border-white/5 rounded-[2.5rem] shadow-2xl text-center p-12 max-w-2xl mx-auto my-12">
-        <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6">
-          <MessageCircle className="w-8 h-8 text-white/30" />
+      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-glass-card border border-glass-border rounded-[2.5rem] shadow-2xl text-center p-12 max-w-2xl mx-auto my-12">
+        <div className="w-16 h-16 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mb-6">
+          <MessageCircle className="w-8 h-8 text-fg/30" />
         </div>
-        <h2 className="text-2xl font-black text-white tracking-tight">WhatsApp Offline</h2>
-        <p className="text-white/40 mt-3 text-sm leading-relaxed max-w-sm">Please head over to your API Settings dashboard and link your Meta Business Profile to activate inbox streaming.</p>
-        <Link href="/dashboard" className="mt-8 px-8 py-3 bg-white text-black hover:bg-neutral-100 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
+        <h2 className="text-2xl font-black text-fg tracking-tight">WhatsApp Offline</h2>
+        <p className="text-muted mt-3 text-sm leading-relaxed max-w-sm">Please head over to your API Settings dashboard and link your Meta Business Profile to activate inbox streaming.</p>
+        <Link href="/dashboard" className="mt-8 px-8 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
           Connect Gateway
         </Link>
       </div>
@@ -466,20 +466,20 @@ export default function Inbox() {
     return (
       <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-[#050505] text-center p-10">
         <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mb-6" />
-        <h2 className="text-xl font-black text-white uppercase tracking-widest">Configuring Channel...</h2>
-        <p className="text-white/40 text-xs mt-3 max-w-xs font-semibold leading-relaxed">Resolving partner authentication mappings on Meta developers dashboard.</p>
+        <h2 className="text-xl font-black text-fg uppercase tracking-widest">Configuring Channel...</h2>
+        <p className="text-muted text-xs mt-3 max-w-xs font-semibold leading-relaxed">Resolving partner authentication mappings on Meta developers dashboard.</p>
       </div>
     );
   }
 
   if (status === 'FAILED') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-white/[0.01] border border-red-500/10 rounded-[2.5rem] text-center p-12 max-w-2xl mx-auto my-12 shadow-2xl">
+      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-glass-card border border-red-500/10 rounded-[2.5rem] text-center p-12 max-w-2xl mx-auto my-12 shadow-2xl">
         <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-6">
           <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
-        <h2 className="text-2xl font-black text-white tracking-tight">Sync Pipeline Crashed</h2>
-        <p className="text-white/40 mt-3 text-sm leading-relaxed max-w-sm font-semibold">Verification check failed. Retrigger partner permissions on Facebook settings.</p>
+        <h2 className="text-2xl font-black text-fg tracking-tight">Sync Pipeline Crashed</h2>
+        <p className="text-muted mt-3 text-sm leading-relaxed max-w-sm font-semibold">Verification check failed. Retrigger partner permissions on Facebook settings.</p>
         <Link href="/dashboard" className="mt-8 px-6 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl font-bold transition-all">
           Retry Setup
         </Link>
@@ -490,12 +490,12 @@ export default function Inbox() {
   const activeConversation = conversations.find(c => c.contact.id === activeContactId);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex bg-white/[0.01] border border-white/5 rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden -mx-2 sm:mx-0">
+    <div className="h-[calc(100vh-8rem)] flex bg-glass-card border border-glass-border rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden -mx-2 sm:mx-0">
       
       {/* Conversations Master List */}
-      <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-white/5 bg-[#070709]`}>
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
-          <h2 className="text-xl font-black text-white tracking-tight">Inbox</h2>
+      <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-glass-border bg-glass-card/30`}>
+        <div className="p-6 border-b border-glass-border flex items-center justify-between">
+          <h2 className="text-xl font-black text-fg tracking-tight">Inbox</h2>
           <div className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
             Live Sync
@@ -504,8 +504,8 @@ export default function Inbox() {
         
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {conversations.length === 0 ? (
-            <div className="p-8 text-xs text-white/30 font-black uppercase tracking-widest text-center mt-20">
-              <MessageCircle className="w-12 h-12 text-white/10 mx-auto mb-4" />
+            <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-20">
+              <MessageCircle className="w-12 h-12 text-fg/10 mx-auto mb-4" />
               Inbox is empty
             </div>
           ) : (
@@ -520,30 +520,30 @@ export default function Inbox() {
                         setShowChatOnMobile(true);
                       }}
                      className={`p-5 cursor-pointer transition-all relative ${
-                       isActive ? 'bg-white text-black shadow-lg z-10 scale-[1.01]' : 'hover:bg-white/[0.02]'
+                       isActive ? 'bg-fg text-bg shadow-lg z-10 scale-[1.01]' : 'hover:bg-glass-card'
                      }`}
                    >
                      {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />}
                      <div className="flex justify-between items-start mb-1.5">
-                       <h3 className={`font-black text-sm truncate pr-2 ${isActive ? 'text-black' : 'text-white'}`}>
+                       <h3 className={`font-black text-sm truncate pr-2 ${isActive ? 'text-bg' : 'text-fg'}`}>
                          {conv.contact.name || conv.contact.phone_number}
                        </h3>
-                       <span className={`text-[9px] font-black uppercase font-mono ${isActive ? 'text-black/50' : 'text-white/30'}`}>
+                       <span className={`text-[9px] font-black uppercase font-mono ${isActive ? 'text-bg/60' : 'text-fg/30'}`}>
                           {new Date(conv.latestMessage.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                        </span>
                      </div>
                      <div className="flex justify-between items-end">
                        <p className={`text-xs truncate w-full ${
                          conv.unreadCount > 0 
-                           ? (isActive ? 'text-black font-black' : 'text-white font-black') 
-                           : (isActive ? 'text-black/60' : 'text-white/40')
+                           ? (isActive ? 'text-bg font-black' : 'text-fg font-black') 
+                           : (isActive ? 'text-bg/70' : 'text-muted')
                        }`}>
                          {conv.latestMessage.direction === 'outbound' && <span className="mr-1 font-black text-indigo-400">You:</span>}
                          {conv.latestMessage.content || 'Attachment File'}
                        </p>
                        {conv.unreadCount > 0 && (
                          <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-lg shadow-indigo-600/10">
-                           <span className="text-[10px] font-black text-white">{conv.unreadCount}</span>
+                           <span className="text-[10px] font-black text-fg">{conv.unreadCount}</span>
                          </div>
                        )}
                      </div>
@@ -556,33 +556,33 @@ export default function Inbox() {
       </div>
 
       {/* Chat Thread Workspace */}
-      <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-[#050507] relative`}>
+      <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-glass-input relative`}>
         {activeContactId && activeConversation ? (
           <>
             {/* Header Panel */}
-            <div className="h-20 px-6 border-b border-white/5 flex items-center bg-[#070709]/80 backdrop-blur-md z-10 sticky top-0 justify-between">
+            <div className="h-20 px-6 border-b border-glass-border flex items-center bg-bg/85 backdrop-blur-md z-10 sticky top-0 justify-between">
               <div className="flex items-center min-w-0">
                 <button 
                   onClick={() => setShowChatOnMobile(false)}
-                  className="md:hidden p-2 -ml-2 mr-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer text-white/50 hover:text-white"
+                  className="md:hidden p-2 -ml-2 mr-2 hover:bg-glass-input rounded-lg transition-colors cursor-pointer text-fg/50 hover:text-fg"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="w-10 h-10 bg-white/5 border border-white/10 text-white rounded-xl flex items-center justify-center mr-3 shadow-lg shrink-0">
+                <div className="w-10 h-10 bg-glass-input border border-glass-border text-fg rounded-xl flex items-center justify-center mr-3 shadow-lg shrink-0">
                   <User className="w-5 h-5" />
                 </div>
                 <div className="truncate">
-                  <h3 className="font-black text-white tracking-tight truncate text-base">{activeConversation.contact.name || 'Anonymous Client'}</h3>
-                  <p className="text-[9px] text-white/30 font-black tracking-widest uppercase truncate mt-0.5">Mobile: {activeConversation.contact.phone_number}</p>
+                  <h3 className="font-black text-fg tracking-tight truncate text-base">{activeConversation.contact.name || 'Anonymous Client'}</h3>
+                  <p className="text-[9px] text-fg/30 font-black tracking-widest uppercase truncate mt-0.5">Mobile: {activeConversation.contact.phone_number}</p>
                 </div>
               </div>
               
               {selectedMessageIds.size > 0 && (
                 <div className="flex items-center space-x-3">
-                  <span className="text-xs font-bold text-white/40">{selectedMessageIds.size} Selected</span>
+                  <span className="text-xs font-bold text-muted">{selectedMessageIds.size} Selected</span>
                   <button 
                     onClick={() => setSelectedMessageIds(new Set())}
-                    className="text-xs font-black uppercase text-white/30 hover:text-white tracking-wider cursor-pointer"
+                    className="text-xs font-black uppercase text-fg/30 hover:text-fg tracking-wider cursor-pointer"
                   >
                     Clear
                   </button>
@@ -606,7 +606,7 @@ export default function Inbox() {
                  </div>
                  <button 
                    onClick={() => setShowSyncNotice(false)}
-                   className="text-white/20 hover:text-white transition-colors cursor-pointer"
+                   className="text-fg/20 hover:text-fg transition-colors cursor-pointer"
                  >
                     <X className="w-3.5 h-3.5" />
                  </button>
@@ -616,15 +616,15 @@ export default function Inbox() {
             {/* Message Bubble Thread Container */}
             <div 
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto p-6 space-y-4 relative custom-scrollbar bg-black/20"
+              className="flex-1 overflow-y-auto p-6 space-y-4 relative custom-scrollbar bg-transparent"
             >
               {loadingMore && (
                 <div className="flex justify-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-white/30" />
+                  <Loader2 className="w-5 h-5 animate-spin text-fg/30" />
                 </div>
               )}
               {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-[0.2em]">
+                <div className="h-full flex items-center justify-center text-fg/20 text-xs font-black uppercase tracking-[0.2em]">
                   Session initialized
                 </div>
               ) : (
@@ -639,14 +639,14 @@ export default function Inbox() {
                           type="checkbox" 
                           checked={isSelected}
                           onChange={() => toggleMessageSelection(msg.id)}
-                          className="h-4 w-4 bg-white/5 border-white/10 text-indigo-500 focus:ring-white rounded cursor-pointer"
+                          className="h-4 w-4 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
                          />
                       </div>
 
                       {!isOutbound && (
                         <button 
                           onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-white/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -654,15 +654,15 @@ export default function Inbox() {
                       
                       <div className={`max-w-[70%] sm:max-w-[60%] rounded-[1.5rem] px-5 py-3.5 shadow-xl relative border ${
                         isOutbound 
-                          ? 'bg-white text-black border-white rounded-br-sm' 
-                          : 'bg-white/[0.01] border-white/5 text-white rounded-bl-sm'
+                          ? 'bg-fg text-bg border-white rounded-br-sm' 
+                          : 'bg-glass-card border-glass-border text-fg rounded-bl-sm'
                       }`}>
                         {msg.media_path && (
                           <div className={`mb-3 p-3 rounded-xl border flex items-center ${
-                            isOutbound ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'
+                            isOutbound ? 'bg-black/5 border-black/10' : 'bg-glass-input border-glass-border'
                           }`}>
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
-                              isOutbound ? 'bg-black text-white' : 'bg-indigo-500/10 text-indigo-400'
+                              isOutbound ? 'bg-black text-fg' : 'bg-indigo-500/10 text-indigo-400'
                             }`}>
                               {msg.message_type === 'image' && <Image className="w-4 h-4" />}
                               {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
@@ -670,13 +670,13 @@ export default function Inbox() {
                               {!['image', 'video', 'document'].includes(msg.message_type) && <Paperclip className="w-4 h-4" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                               <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-black/40' : 'text-white/30'}`}>{msg.message_type || 'Media file'}</p>
-                               <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-black' : 'text-white'}`}>{msg.media_path.split('/').pop()}</p>
+                               <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-black/40' : 'text-fg/30'}`}>{msg.message_type || 'Media file'}</p>
+                               <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-black' : 'text-fg'}`}>{msg.media_path.split('/').pop()}</p>
                             </div>
                           </div>
                         )}
                         <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.content || (msg.media_path ? '' : '[Template Message]')}</p>
-                        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-black/40' : 'text-white/30'}`}>
+                        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-black/40' : 'text-fg/30'}`}>
                           <span className="text-[8px] font-black uppercase tracking-wider font-mono">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           {isOutbound && (
                             <span className="ml-1 flex items-center">
@@ -687,11 +687,11 @@ export default function Inbox() {
                               {msg.status === 'failed' && (
                                 <div className="relative group/error">
                                   <AlertCircle className="w-3.5 h-3.5 text-red-400 cursor-help" />
-                                  <div className="absolute bottom-full right-0 mb-3 w-64 bg-[#0c0c0e] text-white p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/20 shadow-2xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
-                                    <div className="flex items-center mb-1.5 border-b border-white/5 pb-1.5 text-red-400">
+                                  <div className="absolute bottom-full right-0 mb-3 w-64 bg-glass-card/85 text-fg p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/20 shadow-2xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
+                                    <div className="flex items-center mb-1.5 border-b border-glass-border pb-1.5 text-red-400">
                                       <AlertCircle className="w-3 h-3 mr-1.5" /> META GATEWAY ERROR
                                     </div>
-                                    <div className="leading-relaxed text-white/60 font-semibold lowercase">
+                                    <div className="leading-relaxed text-fg/60 font-semibold lowercase">
                                       {msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}
                                     </div>
                                   </div>
@@ -705,7 +705,7 @@ export default function Inbox() {
                       {isOutbound && (
                         <button 
                           onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-white/20 hover:text-red-400 transition-opacity self-center ml-1.5 cursor-pointer"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center ml-1.5 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -719,16 +719,16 @@ export default function Inbox() {
             </div>
 
             {/* Input Composer Panel */}
-            <div className="p-6 bg-[#070709] border-t border-white/5">
+            <div className="p-6 bg-glass-card/50 border-t border-glass-border">
               {windowError && (
-                 <div className="mb-4 p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-500">
-                    <div className="flex items-center">
-                       <AlertCircle className="w-4 h-4 text-amber-400 mr-2 flex-shrink-0" />
-                       <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest">24-Hour Active Window Closed. Link template to re-engage.</div>
+                 <div className="mb-3 py-2 px-4 bg-amber-500/5 border border-amber-500/10 rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-500 gap-4">
+                    <div className="flex items-center min-w-0">
+                       <AlertCircle className="w-3.5 h-3.5 text-amber-400 mr-2 flex-shrink-0" />
+                       <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest truncate">24H active window closed. Send template to re-engage.</span>
                     </div>
                     <button 
                       onClick={() => setShowTemplates(true)}
-                      className="px-4 py-1.5 bg-amber-500 text-black hover:bg-neutral-100 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
+                      className="px-2.5 py-1 bg-amber-500 text-black hover:bg-neutral-100 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all shrink-0"
                     >
                        Choose Template
                     </button>
@@ -742,20 +742,20 @@ export default function Inbox() {
                       {stagedFile.type.startsWith('image/') ? <Image className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                     </div>
                     <div className="mr-6">
-                      <p className="text-[10px] font-black text-white truncate max-w-[150px]">{stagedFile.name}</p>
+                      <p className="text-[10px] font-black text-fg truncate max-w-[150px]">{stagedFile.name}</p>
                       <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">{Math.round(stagedFile.size / 1024)} KB</p>
                     </div>
                     <button 
                       type="button"
                       onClick={() => setStagedFile(null)}
-                      className="w-6 h-6 bg-white/5 hover:bg-red-500/10 text-white/40 hover:text-red-400 rounded-full flex items-center justify-center transition-all cursor-pointer"
+                      className="w-6 h-6 bg-glass-input hover:bg-red-500/10 text-muted hover:text-red-400 rounded-full flex items-center justify-center transition-all cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
 
-                <div className="flex items-center space-x-3 bg-white/5 p-2 rounded-[2rem] border border-white/5 focus-within:border-white/10 transition-all">
+                <div className="flex items-center space-x-3 bg-glass-input p-2 rounded-[2rem] border border-glass-border focus-within:border-glass-border transition-all">
                   <div className="flex">
                     <input 
                       type="file" 
@@ -768,7 +768,7 @@ export default function Inbox() {
                       type="button"
                       disabled={uploading || windowError}
                       onClick={handleFileSelect}
-                      className="flex-shrink-0 h-[52px] w-[52px] rounded-2xl bg-white/5 text-white/50 flex items-center justify-center transition-all hover:bg-white/10 hover:text-white disabled:opacity-30 cursor-pointer"
+                      className="flex-shrink-0 h-[52px] w-[52px] rounded-2xl bg-glass-input text-fg/50 flex items-center justify-center transition-all hover:bg-white/10 hover:text-fg disabled:opacity-30 cursor-pointer"
                     >
                       <Paperclip className="w-5 h-5" />
                     </button>
@@ -777,7 +777,7 @@ export default function Inbox() {
                   <textarea
                     readOnly={windowError}
                     rows={1}
-                    className={`flex-1 bg-transparent border-0 focus:ring-0 resize-none px-4 py-3.5 text-sm font-semibold text-white placeholder:text-white/20 focus:outline-none ${windowError ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    className={`flex-1 bg-transparent border-0 focus:ring-0 resize-none px-4 py-3.5 text-sm font-semibold text-fg placeholder:text-fg/20 focus:outline-none ${windowError ? 'opacity-30 cursor-not-allowed' : ''}`}
                     placeholder={windowError ? "Chat window locked" : "Type your message..."}
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
@@ -793,7 +793,7 @@ export default function Inbox() {
                     type="button"
                     onClick={() => setShowTemplates(!showTemplates)}
                     className={`flex-shrink-0 h-[52px] w-[52px] rounded-2xl flex items-center justify-center transition-all cursor-pointer ${
-                      showTemplates ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                      showTemplates ? 'bg-fg text-bg' : 'bg-glass-input text-muted hover:bg-white/10 hover:text-fg'
                     }`}
                   >
                     <Zap className="w-5 h-5" />
@@ -813,24 +813,24 @@ export default function Inbox() {
             {/* Template Selector Modal */}
             {showTemplates && (
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="w-full max-w-md bg-[#0a0a0a]/95 border border-white/10 rounded-[2.5rem] shadow-2xl p-6 flex flex-col max-h-[80%] animate-in zoom-in-95 duration-300">
+                  <div className="w-full max-w-md bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl p-6 flex flex-col max-h-[80%] animate-in zoom-in-95 duration-300">
                     
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                          <h3 className="text-xl font-black text-white tracking-tight">Select Template</h3>
+                          <h3 className="text-xl font-black text-fg tracking-tight">Select Template</h3>
                           <p className="text-[8px] text-indigo-400 font-black uppercase tracking-widest mt-1">Approved Meta Elements</p>
                         </div>
                         
                         <div className="flex items-center space-x-2">
                           <Link 
                             href="/templates" 
-                            className="flex items-center px-3 py-1.5 bg-white text-black hover:bg-neutral-100 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm cursor-pointer"
+                            className="flex items-center px-3 py-1.5 bg-fg text-bg hover:opacity-90 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5 mr-1" /> Add
                           </Link>
                           <button 
                             onClick={() => setShowTemplates(false)} 
-                            className="w-9 h-9 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                            className="w-9 h-9 bg-glass-input border border-glass-border hover:bg-white/10 text-fg rounded-xl flex items-center justify-center transition-colors cursor-pointer"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -840,19 +840,19 @@ export default function Inbox() {
                     <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
                         {selectedTemplate ? (
                           <div className="animate-in slide-in-from-right-4 duration-300 space-y-5">
-                             <div className="bg-white/5 border border-white/5 p-4 rounded-2xl">
-                                <h4 className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1.5">Meta Content Preview</h4>
-                                <p className="text-xs text-white/70 italic leading-relaxed">"{selectedTemplate.content}"</p>
+                             <div className="bg-glass-input border border-glass-border p-4 rounded-2xl">
+                                <h4 className="text-[8px] font-black text-fg/30 uppercase tracking-widest mb-1.5">Meta Content Preview</h4>
+                                <p className="text-xs text-fg/70 italic leading-relaxed">"{selectedTemplate.content}"</p>
                              </div>
                              
                              <div className="space-y-4">
                                 {Array.from({ length: (selectedTemplate.content?.match(/\{\{\d+\}\}/g) || []).length }).map((_, i) => (
                                    <div key={i} className="space-y-2">
-                                      <label className="text-[9px] font-black text-white/30 uppercase tracking-widest ml-1">Variable {i + 1}</label>
+                                      <label className="text-[9px] font-black text-fg/30 uppercase tracking-widest ml-1">Variable {i + 1}</label>
                                       <input 
                                         type="text"
                                         placeholder={`Value for {{${i + 1}}}...`}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs font-semibold focus:border-indigo-500 focus:outline-none transition-all text-white"
+                                        className="w-full bg-glass-input border border-glass-border rounded-2xl px-4 py-3 text-xs font-semibold focus:border-indigo-500 focus:outline-none transition-all text-fg"
                                         value={templateVars[i+1] || ''}
                                         onChange={(e) => setTemplateVars({...templateVars, [i+1]: e.target.value})}
                                         autoFocus={i === 0}
@@ -867,13 +867,13 @@ export default function Inbox() {
                                      setSelectedTemplate(null);
                                      setTemplateVars({});
                                   }}
-                                  className="flex-1 px-6 py-3.5 border border-white/10 hover:bg-white/5 text-white/40 hover:text-white rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
+                                  className="flex-1 px-6 py-3.5 border border-glass-border hover:bg-glass-input text-muted hover:text-fg rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer"
                                 >
                                    Back
                                 </button>
                                 <button 
                                   onClick={() => handleSendTemplate(selectedTemplate)}
-                                  className="flex-1 px-6 py-3.5 bg-white text-black hover:bg-neutral-100 rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-lg"
+                                  className="flex-1 px-6 py-3.5 bg-fg text-bg hover:opacity-90 rounded-2xl text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-lg"
                                 >
                                    Send Now
                                 </button>
@@ -882,8 +882,8 @@ export default function Inbox() {
                         ) : (
                           templates.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-12 text-center opacity-30">
-                              <Zap className="w-8 h-8 text-white mb-2" />
-                              <p className="text-white font-black text-[9px] uppercase tracking-widest">No templates configured</p>
+                              <Zap className="w-8 h-8 text-fg mb-2" />
+                              <p className="text-fg font-black text-[9px] uppercase tracking-widest">No templates configured</p>
                             </div>
                           ) : (
                             templates.map(tpl => {
@@ -899,25 +899,25 @@ export default function Inbox() {
                                       handleSendTemplate(tpl);
                                     }
                                   }}
-                                  className="p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-white/10 hover:bg-white/[0.02] cursor-pointer group transition-all relative active:scale-[0.98] flex items-center"
+                                  className="p-4 bg-glass-input border border-glass-border rounded-2xl hover:border-glass-border hover:bg-glass-card cursor-pointer group transition-all relative active:scale-[0.98] flex items-center"
                                 >
                                   <div className="flex-1 min-w-0 pr-4">
                                     <div className="flex justify-between items-start mb-1.5">
                                         <div className="flex items-center">
-                                          <h4 className="text-xs font-black text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight truncate">{tpl.name}</h4>
+                                          <h4 className="text-xs font-black text-fg group-hover:text-indigo-400 transition-colors uppercase tracking-tight truncate">{tpl.name}</h4>
                                           {hasVars && (
                                              <span className="ml-2 px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded text-[7px] font-black uppercase tracking-widest">Variable</span>
                                           )}
                                         </div>
                                         <span className="text-[7px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 ml-2 shrink-0">{tpl.language}</span>
                                     </div>
-                                    <p className="text-[10px] text-white/40 leading-snug font-semibold line-clamp-2 italic">
+                                    <p className="text-[10px] text-muted leading-snug font-semibold line-clamp-2 italic">
                                       "{tpl.content}"
                                     </p>
                                   </div>
                                   
                                   <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-                                     <div className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center shadow-lg">
+                                     <div className="w-8 h-8 bg-fg text-bg rounded-full flex items-center justify-center shadow-lg">
                                         {hasVars ? <ArrowRight className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5 ml-0.5" />}
                                      </div>
                                   </div>
@@ -932,8 +932,8 @@ export default function Inbox() {
             )}
           </>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-white/30 space-y-4 opacity-40">
-            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center">
+          <div className="h-full flex flex-col items-center justify-center text-fg/30 space-y-4 opacity-40">
+            <div className="w-20 h-20 bg-glass-input rounded-full flex items-center justify-center">
               <MessageCircle className="w-10 h-10" />
             </div>
             <p className="font-black text-xs uppercase tracking-widest">Select a thread to begin chatting</p>
