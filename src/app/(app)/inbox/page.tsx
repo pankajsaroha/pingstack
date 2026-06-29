@@ -556,6 +556,11 @@ export default function Inbox() {
 
       {/* Chat Thread Workspace */}
       <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-glass-input relative`}>
+        {/* Chat Background Pattern Wallpaper */}
+        <div 
+          className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.22] dark:opacity-[0.15] invert dark:invert-0 pointer-events-none"
+        />
+        
         {activeContactId && activeConversation ? (
           <>
             {/* Header Panel */}
