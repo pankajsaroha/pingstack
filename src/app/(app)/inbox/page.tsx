@@ -116,6 +116,7 @@ export default function Inbox() {
             next[existingIndex] = { ...next[existingIndex], ...message };
             return next;
           }
+          setTimeout(scrollToBottom, 50);
           return [...prev, message].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         });
       }
@@ -225,14 +226,10 @@ export default function Inbox() {
     }
   }, [activeContactId, conversations]);
 
-  useEffect(() => {
-    if (!loadingMore) {
-        scrollToBottom();
-    }
-  }, [messages, loadingMore]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   const fetchStatusAndData = async () => {
@@ -266,19 +263,32 @@ export default function Inbox() {
     if (isLoadMore && (!hasMore || loadingMore)) return;
     if (isLoadMore) setLoadingMore(true);
     
+    const container = chatContainerRef.current;
+    const previousScrollHeight = container ? container.scrollHeight : 0;
+    const previousScrollTop = container ? container.scrollTop : 0;
+    
     try {
       const before = isLoadMore && messages.length > 0 ? messages[0].created_at : '';
-      const url = `/api/chat/${contactId}?limit=30${before ? `&before=${before}` : ''}`;
+      const limit = isLoadMore ? 30 : 15;
+      const url = `/api/chat/${contactId}?limit=${limit}${before ? `&before=${before}` : ''}`;
       
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (data.length < 30) setHasMore(false);
+        if (data.length < limit) setHasMore(false);
         
         if (isLoadMore) {
           setMessages(prev => [...data, ...prev]);
+          
+          setTimeout(() => {
+            if (container) {
+              const heightDifference = container.scrollHeight - previousScrollHeight;
+              container.scrollTop = previousScrollTop + heightDifference;
+            }
+          }, 0);
         } else {
           setMessages(data);
+          setTimeout(() => scrollToBottom('auto'), 50);
         }
       }
     } catch (e) {
