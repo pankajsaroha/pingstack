@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Fragment } from 'react';
-import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Zap, X, Paperclip, Image, FileText, ArrowRight } from 'lucide-react';
+import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Zap, X, Paperclip, Image, FileText, ArrowRight, Search } from 'lucide-react';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
 import { PLANS, PlanType } from '@/lib/plans';
@@ -31,6 +31,8 @@ export default function Inbox() {
   const [tenant, setTenant] = useState<any>(null);
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allContacts, setAllContacts] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -74,9 +76,22 @@ export default function Inbox() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const fetchContacts = async () => {
+    try {
+      const res = await fetch('/api/contacts', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setAllContacts(data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch contacts:', e);
+    }
+  };
+
   useEffect(() => {
     fetchStatusAndData();
     fetchTemplates();
+    fetchContacts();
     const interval = setInterval(fetchStatusAndData, 10000);
     return () => clearInterval(interval);
   }, []); 
@@ -506,7 +521,35 @@ export default function Inbox() {
     );
   }
 
-  const activeConversation = conversations.find(c => c.contact.id === activeContactId);
+  const activeConversation = conversations.find(c => c.contact.id === activeContactId) || (() => {
+    const contact = allContacts.find(c => c.id === activeContactId);
+    if (!contact) return null;
+    return {
+      contact,
+      latestMessage: null,
+      unreadCount: 0
+    };
+  })();
+
+  const conversationsContactIds = new Set(conversations.map(c => c.contact.id));
+
+  const filteredConversations = conversations.filter(conv => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    const name = (conv.contact.name || '').toLowerCase();
+    const phone = (conv.contact.phone_number || '').toLowerCase();
+    return name.includes(query) || phone.includes(query);
+  });
+
+  const matchingNewContacts = searchQuery.trim() 
+    ? allContacts.filter(contact => {
+        const query = searchQuery.toLowerCase().trim();
+        const name = (contact.name || '').toLowerCase();
+        const phone = (contact.phone_number || '').toLowerCase();
+        const matches = name.includes(query) || phone.includes(query);
+        return matches && !conversationsContactIds.has(contact.id);
+      })
+    : [];
 
   let lastDateString = '';
 
@@ -522,16 +565,38 @@ export default function Inbox() {
             Live Sync
           </div>
         </div>
+
+        {/* Search Input */}
+        <div className="p-4 border-b border-glass-border">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
+            <input 
+              type="text" 
+              placeholder="Search chats or contacts..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-glass-input border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-indigo-500 text-fg placeholder:text-fg/20 transition-all"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-fg/30 hover:text-fg transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
         
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {conversations.length === 0 ? (
+          {conversations.length === 0 && allContacts.length === 0 ? (
             <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-20">
               <MessageCircle className="w-12 h-12 text-fg/10 mx-auto mb-4" />
               Inbox is empty
             </div>
           ) : (
             <div className="divide-y divide-white/5">
-              {conversations.map((conv) => {
+              {filteredConversations.map((conv) => {
                 const isActive = conv.contact.id === activeContactId;
                 return (
                    <div 
@@ -571,6 +636,55 @@ export default function Inbox() {
                    </div>
                 );
               })}
+
+              {/* Matching Contacts (No history) */}
+              {matchingNewContacts.length > 0 && (
+                <>
+                  <div className="bg-glass-input/50 px-5 py-3 border-y border-glass-border sticky top-0 z-10 backdrop-blur-sm">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-fg/30">Contacts (No History)</span>
+                  </div>
+                  {matchingNewContacts.map((contact) => {
+                    const isActive = contact.id === activeContactId;
+                    return (
+                      <div 
+                        key={contact.id}
+                        onClick={() => {
+                          setActiveContactId(contact.id);
+                          setShowChatOnMobile(true);
+                        }}
+                        className={`p-5 cursor-pointer transition-all relative ${
+                          isActive ? 'bg-fg text-bg shadow-lg z-10 scale-[1.01]' : 'hover:bg-glass-card'
+                        }`}
+                      >
+                        {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />}
+                        <div className="flex justify-between items-center">
+                          <div className="min-w-0 flex-1 pr-4">
+                            <h3 className={`font-black text-sm truncate ${isActive ? 'text-bg' : 'text-fg'}`}>
+                              {contact.name || contact.phone_number}
+                            </h3>
+                            <p className={`text-[9px] font-black uppercase tracking-widest truncate mt-0.5 ${isActive ? 'text-bg/60' : 'text-fg/30'}`}>
+                              {contact.phone_number}
+                            </p>
+                          </div>
+                          <span className={`text-[8px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-md shrink-0 ${
+                            isActive 
+                              ? 'bg-bg/10 border-bg/20 text-bg' 
+                              : 'bg-glass-input border-glass-border text-fg/40'
+                          }`}>
+                            Start Chat
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              {searchQuery && filteredConversations.length === 0 && matchingNewContacts.length === 0 && (
+                <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-12">
+                  No matching chats or contacts
+                </div>
+              )}
             </div>
           )}
         </div>
