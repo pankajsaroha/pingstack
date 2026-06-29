@@ -1,11 +1,31 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Zap, X, Paperclip, Image, FileText, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
 import { PLANS, PlanType } from '@/lib/plans';
 import { dbPublic } from '@/lib/db';
+
+const formatSeparatorDate = (dateString: string) => {
+  const d = new Date(dateString);
+  const now = new Date();
+  
+  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  const diffTime = nowDate.getTime() - dDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  
+  return d.toLocaleDateString(undefined, { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+};
 
 export default function Inbox() {
   const [tenant, setTenant] = useState<any>(null);
@@ -488,6 +508,8 @@ export default function Inbox() {
 
   const activeConversation = conversations.find(c => c.contact.id === activeContactId);
 
+  let lastDateString = '';
+
   return (
     <div className="h-[calc(100vh-8rem)] flex bg-glass-card border border-glass-border rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden -mx-2 sm:mx-0">
       
@@ -621,86 +643,100 @@ export default function Inbox() {
                 messages.map((msg) => {
                   const isOutbound = msg.direction === 'outbound';
                   const isSelected = selectedMessageIds.has(msg.id);
+                  const msgDateString = new Date(msg.created_at).toDateString();
+                  const showDateHeader = msgDateString !== lastDateString;
+                  if (showDateHeader) {
+                    lastDateString = msgDateString;
+                  }
                   return (
-                    <div key={msg.id} className={`flex group items-center ${isOutbound ? 'justify-end' : 'justify-start'}`}>
-                      
-                      <div className={`mr-3 transition-all ${selectedMessageIds.size > 0 || isSelected ? 'opacity-100 w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-6 overflow-hidden'}`}>
-                         <input 
-                          type="checkbox" 
-                          checked={isSelected}
-                          onChange={() => toggleMessageSelection(msg.id)}
-                          className="h-4 w-4 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
-                         />
-                      </div>
-
-                      {!isOutbound && (
-                        <button 
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    <Fragment key={msg.id}>
+                      {showDateHeader && (
+                        <div className="sticky top-2 z-20 flex justify-center my-4 pointer-events-none">
+                          <span className="bg-bg/95 backdrop-blur-md border border-glass-border px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-fg/50 shadow-md">
+                            {formatSeparatorDate(msg.created_at)}
+                          </span>
+                        </div>
                       )}
-                      
-                      <div className={`max-w-[70%] sm:max-w-[60%] rounded-[1.5rem] px-5 py-3.5 shadow-xl relative border ${
-                        isOutbound 
-                          ? 'bg-fg text-bg border-white rounded-br-sm' 
-                          : 'bg-glass-card border-glass-border text-fg rounded-bl-sm'
-                      }`}>
-                        {msg.media_path && (
-                          <div className={`mb-3 p-3 rounded-xl border flex items-center ${
-                            isOutbound ? 'bg-black/5 border-black/10' : 'bg-glass-input border-glass-border'
-                          }`}>
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
-                              isOutbound ? 'bg-bg text-fg' : 'bg-indigo-500/10 text-indigo-400'
-                            }`}>
-                              {msg.message_type === 'image' && <Image className="w-4 h-4" />}
-                              {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
-                              {msg.message_type === 'document' && <FileText className="w-4 h-4" />}
-                              {!['image', 'video', 'document'].includes(msg.message_type) && <Paperclip className="w-4 h-4" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                               <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>{msg.message_type || 'Media file'}</p>
-                               <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-bg' : 'text-fg'}`}>{msg.media_path.split('/').pop()}</p>
-                            </div>
-                          </div>
+                      <div className={`flex group items-center ${isOutbound ? 'justify-end' : 'justify-start'}`}>
+                        
+                        <div className={`mr-3 transition-all ${selectedMessageIds.size > 0 || isSelected ? 'opacity-100 w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-6 overflow-hidden'}`}>
+                           <input 
+                            type="checkbox" 
+                            checked={isSelected}
+                            onChange={() => toggleMessageSelection(msg.id)}
+                            className="h-4 w-4 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
+                           />
+                        </div>
+
+                        {!isOutbound && (
+                          <button 
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.content || (msg.media_path ? '' : '[Template Message]')}</p>
-                        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
-                          <span className="text-[8px] font-black uppercase tracking-wider font-mono">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                          {isOutbound && (
-                            <span className="ml-1 flex items-center">
-                              {msg.status === 'pending' && <Clock className="w-3 h-3" />}
-                              {msg.status === 'sent' && <Check className="w-3.5 h-3.5" />}
-                              {msg.status === 'delivered' && <CheckCheck className="w-3.5 h-3.5" />}
-                              {msg.status === 'read' && <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />}
-                              {msg.status === 'failed' && (
-                                <div className="relative group/error">
-                                  <AlertCircle className="w-3.5 h-3.5 text-red-400 cursor-help" />
-                                  <div className="absolute bottom-full right-0 mb-3 w-64 bg-glass-card/85 text-fg p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/20 shadow-2xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
-                                    <div className="flex items-center mb-1.5 border-b border-glass-border pb-1.5 text-red-400">
-                                      <AlertCircle className="w-3 h-3 mr-1.5" /> META GATEWAY ERROR
-                                    </div>
-                                    <div className="leading-relaxed text-fg/60 font-semibold lowercase">
-                                      {msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}
+                        
+                        <div className={`max-w-[70%] sm:max-w-[60%] rounded-[1.5rem] px-5 py-3.5 shadow-xl relative border ${
+                          isOutbound 
+                            ? 'bg-fg text-bg border-white rounded-br-sm' 
+                            : 'bg-glass-card border-glass-border text-fg rounded-bl-sm'
+                        }`}>
+                          {msg.media_path && (
+                            <div className={`mb-3 p-3 rounded-xl border flex items-center ${
+                              isOutbound ? 'bg-black/5 border-black/10' : 'bg-glass-input border-glass-border'
+                            }`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
+                                isOutbound ? 'bg-bg text-fg' : 'bg-indigo-500/10 text-indigo-400'
+                              }`}>
+                                {msg.message_type === 'image' && <Image className="w-4 h-4" />}
+                                {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
+                                {msg.message_type === 'document' && <FileText className="w-4 h-4" />}
+                                {!['image', 'video', 'document'].includes(msg.message_type) && <Paperclip className="w-4 h-4" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                 <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>{msg.message_type || 'Media file'}</p>
+                                 <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-bg' : 'text-fg'}`}>{msg.media_path.split('/').pop()}</p>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.content || (msg.media_path ? '' : '[Template Message]')}</p>
+                          <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
+                            <span className="text-[8px] font-black uppercase tracking-wider font-mono">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            {isOutbound && (
+                              <span className="ml-1 flex items-center">
+                                {msg.status === 'pending' && <Clock className="w-3 h-3" />}
+                                {msg.status === 'sent' && <Check className="w-3.5 h-3.5" />}
+                                {msg.status === 'delivered' && <CheckCheck className="w-3.5 h-3.5" />}
+                                {msg.status === 'read' && <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />}
+                                {msg.status === 'failed' && (
+                                  <div className="relative group/error">
+                                    <AlertCircle className="w-3.5 h-3.5 text-red-400 cursor-help" />
+                                    <div className="absolute bottom-full right-0 mb-3 w-64 bg-glass-card/85 text-fg p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/20 shadow-2xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
+                                      <div className="flex items-center mb-1.5 border-b border-glass-border pb-1.5 text-red-400">
+                                        <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> META GATEWAY ERROR
+                                      </div>
+                                      <div className="leading-relaxed text-fg/60 font-semibold lowercase">
+                                        {msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              )}
-                            </span>
-                          )}
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        
+                        {isOutbound && (
+                          <button 
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center ml-1.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      
-                      {isOutbound && (
-                        <button 
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center ml-1.5 cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                    </Fragment>
                   );
                 })
               )}
