@@ -166,7 +166,6 @@ export default function Contacts() {
     const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
     try {
-      // Map bulkVars to the format API expects: Record<contactId, string[]>
       const contactVars: Record<string, string[]> = {};
       Object.entries(bulkVars).forEach(([cid, vars]) => {
         contactVars[cid] = Object.values(vars);
@@ -199,9 +198,9 @@ export default function Contacts() {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        setToast({ message: 'Request timed out. Please check your internet or if the server is down.', type: 'error' });
+        setToast({ message: 'Request timed out. Please retry.', type: 'error' });
       } else {
-        setToast({ message: 'Network error or server unavailable. Please try again.', type: 'error' });
+        setToast({ message: 'Network error occurred.', type: 'error' });
       }
       console.error('Send error:', err);
     } finally {
@@ -251,26 +250,29 @@ export default function Contacts() {
 
   return (
     <div className="pb-10">
+      {/* Header Panel */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <h1 className="text-3xl font-black tracking-tight text-gray-900 ring-offset-4">Contacts</h1>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-fg">Contacts</h1>
+          <p className="text-muted text-sm font-semibold mt-1">Manage, import, and sync your outreach contacts directories.</p>
+        </div>
+        
+        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
           {selectedIds.size > 0 && (
             <div className="flex gap-2 w-full sm:w-auto">
               <button 
                 onClick={handleDeleteSelected}
-                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-200 rounded-2xl shadow-sm text-xs font-black text-red-700 bg-red-50 hover:bg-red-100 transition-all active:scale-95"
+                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                <span className="sm:hidden">Delete</span>
-                <span className="hidden sm:inline">Delete Selected</span>
+                <span>Delete ({selectedIds.size})</span>
               </button>
               <button 
                 onClick={() => setShowSendModal(true)}
-                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-transparent rounded-2xl shadow-sm text-xs font-black text-white bg-blue-600 hover:bg-blue-700 transition-all active:scale-95"
+                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg"
               >
                 <Send className="mr-2 h-4 w-4" />
-                <span className="sm:hidden">Send ({selectedIds.size})</span>
-                <span className="hidden sm:inline">Send Message ({selectedIds.size})</span>
+                <span>Send template</span>
               </button>
             </div>
           )}
@@ -278,28 +280,28 @@ export default function Contacts() {
           <div className="flex gap-2 w-full sm:w-auto">
             <button 
               onClick={() => setShowAddModal(true)}
-              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-transparent rounded-2xl shadow-lg text-xs font-black text-white bg-gray-900 hover:bg-black transition-all active:scale-95"
+              className="flex-1 sm:flex-none flex items-center justify-center px-5 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Add
+              Add Contact
             </button>
             
             <button 
               onClick={handleGoogleImport}
               disabled={isImporting}
-              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-white border border-gray-100 rounded-2xl font-black text-[10px] sm:text-xs text-gray-700 hover:bg-gray-50 transition-all shadow-md active:scale-95 uppercase tracking-wider"
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-glass-input border border-glass-border rounded-2xl font-black text-xs text-fg hover:bg-white/10 transition-all cursor-pointer uppercase tracking-wider"
             >
-              {isImporting ? <Loader2 className="w-4 h-4 animate-spin text-blue-500" /> : <Globe className="w-4 h-4 mr-2 text-blue-500" />}
-              Google
+              {isImporting ? <Loader2 className="w-4 h-4 animate-spin text-indigo-400" /> : <Globe className="w-4 h-4 mr-2 text-indigo-400" />}
+              Google Contacts
             </button>
 
             <button 
               onClick={() => document.getElementById('file-upload')?.click()}
               disabled={uploading}
-              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-white border border-gray-100 rounded-2xl font-black text-[10px] sm:text-xs text-gray-700 hover:bg-gray-50 transition-all shadow-md active:scale-95 uppercase tracking-wider"
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-glass-input border border-glass-border rounded-2xl font-black text-xs text-fg hover:bg-white/10 transition-all cursor-pointer uppercase tracking-wider"
             >
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin text-green-500" /> : <Upload className="w-4 h-4 mr-2 text-green-500" />}
-              File
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> : <Upload className="w-4 h-4 mr-2 text-emerald-400" />}
+              Upload CSV
             </button>
           </div>
 
@@ -313,15 +315,14 @@ export default function Contacts() {
         </div>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-md shadow-sm rounded-xl border border-gray-200/60 overflow-hidden">
-        <div className="p-4 border-b border-gray-200/60 bg-gray-50/50 flex justify-between items-center">
-          <div className="relative rounded-md shadow-sm w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
+      {/* Search and Table Grid */}
+      <div className="bg-glass-card border border-glass-border shadow-2xl rounded-[2.5rem] overflow-hidden">
+        <div className="p-6 border-b border-glass-border flex justify-between items-center">
+          <div className="relative rounded-2xl w-64 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-fg/20 group-focus-within:text-indigo-400 transition-colors" />
             <input
               type="text"
-              className="focus:ring-black focus:border-black block w-full pl-10 sm:text-sm border-gray-300 rounded-md bg-white/50"
+              className="focus:border-indigo-500 focus:outline-none block w-full pl-11 pr-4 py-3 text-sm font-semibold border border-glass-border rounded-2xl bg-glass-input text-fg placeholder:text-fg/20 transition-all"
               placeholder="Search contacts..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -330,78 +331,78 @@ export default function Contacts() {
         </div>
         
         {loading ? (
-          <div className="p-20 text-center flex flex-col items-center justify-center grayscale opacity-50">
-             <Loader2 className="w-8 h-8 animate-spin mb-4" />
-             <p className="text-xs font-black uppercase tracking-widest text-gray-500">Syncing your contacts library...</p>
+          <div className="p-20 text-center flex flex-col items-center justify-center opacity-40">
+             <Loader2 className="w-8 h-8 animate-spin mb-4 text-fg" />
+             <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading contacts directory...</p>
           </div>
         ) : contacts.length === 0 ? (
-          <div className="p-20 text-center flex flex-col items-center justify-center opacity-50">
-             <Globe className="w-12 h-12 text-gray-200 mb-4" />
-             <p className="text-sm font-bold text-gray-500">No contacts found</p>
-             <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">Import an Excel/CSV file or connect Google Contacts to get started.</p>
+          <div className="p-20 text-center flex flex-col items-center justify-center opacity-30">
+             <Globe className="w-12 h-12 text-fg mb-4" />
+             <p className="text-sm font-black uppercase tracking-widest text-fg/60">No Contacts Found</p>
+             <p className="text-xs text-muted mt-2 max-w-xs mx-auto leading-relaxed">Import contacts using Excel, CSV templates or sync your Google Contacts.</p>
           </div>
         ) : (
           <>
-            {/* Desktop Table View */}
+            {/* Desktop Table */}
             <div className="hidden sm:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200/60">
-                <thead className="bg-gray-50/80">
+              <table className="min-w-full divide-y divide-white/5">
+                <thead className="bg-glass-card/85 border-b border-glass-border">
                   <tr>
                     <th scope="col" className="px-6 py-4 text-left w-12">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
                         onChange={toggleAll}
-                        className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                        className="h-5 w-5 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
                       />
                     </th>
-                    <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                    <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Phone Number</th>
-                    <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Added On</th>
+                    <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Name</th>
+                    <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Phone Number</th>
+                    <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Added On</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-100/60">
+                <tbody className="divide-y divide-white/5 bg-transparent">
                   {filteredContacts.map((contact) => (
-                    <tr key={contact.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <tr key={contact.id} className="hover:bg-glass-card transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap w-12 text-sm">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(contact.id)}
                           onChange={() => toggleSelection(contact.id)}
-                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer transition-transform active:scale-90"
+                          className="h-5 w-5 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="text-sm font-bold text-gray-900">{contact.name || 'Anonymous'}</p>
+                        <p className="text-sm font-bold text-fg">{contact.name || 'Anonymous'}</p>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-400 font-mono tracking-tight">{contact.phone_number}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs font-black text-gray-300 uppercase tracking-tight">{new Date(contact.created_at).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-fg/50 font-mono tracking-tight">{contact.phone_number}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-[10px] font-black text-fg/30 uppercase tracking-tight">{new Date(contact.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Mobile Card List View */}
-            <div className="sm:hidden divide-y divide-gray-100">
+            {/* Mobile View */}
+            <div className="sm:hidden divide-y divide-white/5">
               {filteredContacts.map((contact) => (
                 <div 
                   key={contact.id} 
                   onClick={() => toggleSelection(contact.id)}
-                  className={`p-4 flex items-center justify-between active:bg-gray-50 transition-colors ${selectedIds.has(contact.id) ? 'bg-blue-50/30' : ''}`}
+                  className={`p-5 flex items-center justify-between active:bg-glass-card transition-colors ${selectedIds.has(contact.id) ? 'bg-indigo-500/5' : ''}`}
                 >
                   <div className="flex items-center">
                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-4 transition-colors ${
-                       selectedIds.has(contact.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'
+                       selectedIds.has(contact.id) ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
                      }`}>
-                        {selectedIds.has(contact.id) && <Plus className="w-3 h-3 text-white" />}
+                        {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-black" />}
                      </div>
                      <div>
-                        <p className="font-bold text-gray-900 text-sm">{contact.name || 'No Name'}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-0.5">{contact.phone_number}</p>
+                        <p className="font-bold text-fg text-sm">{contact.name || 'Anonymous'}</p>
+                        <p className="text-[10px] text-muted font-semibold tracking-wide mt-1 font-mono">{contact.phone_number}</p>
                      </div>
                   </div>
-                  <span className="text-[9px] text-gray-300 font-black uppercase tracking-tight">
+                  <span className="text-[9px] text-fg/30 font-black uppercase tracking-tight">
                      {new Date(contact.created_at).toLocaleDateString([], {month: 'short', day: 'numeric'})}
                   </span>
                 </div>
@@ -411,45 +412,56 @@ export default function Contacts() {
         )}
       </div>
 
-      {/* Modals omitted for brevity - wait, write_to_file needs everything so I include them */}
+      {/* Add Contact Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 tracking-tight">Add Contact</h3>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 relative animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowAddModal(false)}
+              className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-xl font-black text-fg mb-6 tracking-tight">Add Contact</h3>
             <form onSubmit={handleAddContact}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
-                <input
-                  type="text"
-                  className="block w-full rounded-xl border border-gray-200 px-3 py-2.5 shadow-[0_2px_4px_rgba(0,0,0,0.02)] focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm"
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                />
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="+1234567890"
-                  className="block w-full rounded-xl border border-gray-200 px-3 py-2.5 shadow-[0_2px_4px_rgba(0,0,0,0.02)] focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm"
-                  value={newPhone}
-                  onChange={e => setNewPhone(e.target.value)}
-                />
+              <div className="space-y-5 mb-8">
+                <div>
+                  <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. John Doe"
+                    className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/20"
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Phone Number (with Country Code)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. +919876543210"
+                    className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/20 font-mono"
+                    value={newPhone}
+                    onChange={e => setNewPhone(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                  className="px-6 py-3.5 border border-glass-border hover:bg-glass-input rounded-2xl text-[10px] font-black text-muted hover:text-fg uppercase tracking-widest cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-black transition-colors"
+                  className="px-8 py-3.5 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all cursor-pointer"
                 >
-                  Save
+                  Save Contact
                 </button>
               </div>
             </form>
@@ -457,19 +469,19 @@ export default function Contacts() {
         </div>
       )}
 
+      {/* Send Message Wizard Modal */}
       {showSendModal && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] max-w-2xl w-full flex flex-col max-h-[90vh] border border-white/20 animate-in zoom-in-95 duration-300 overflow-hidden">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-300 overflow-hidden">
             
-            {/* Modal Header */}
-            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div className="p-6 sm:p-8 border-b border-glass-border flex justify-between items-center bg-glass-card/10">
                <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
-                    {templateStep === 'SELECT' ? 'Choose Template' : 'Personalize Content'}
+                  <h3 className="text-xl font-black text-fg tracking-tight">
+                    {templateStep === 'SELECT' ? 'Choose Template' : 'Personalize variables'}
                   </h3>
-                  <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-widest flex items-center">
-                     <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2" />
-                     {selectedIds.size} recipient{selectedIds.size > 1 ? 's' : ''} selected
+                  <p className="text-[9px] font-black text-indigo-400 mt-1.5 uppercase tracking-widest flex items-center">
+                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-2 animate-pulse" />
+                     Dispatching to {selectedIds.size} contact{selectedIds.size > 1 ? 's' : ''}
                   </p>
                </div>
                <button 
@@ -479,14 +491,13 @@ export default function Contacts() {
                    setTemplateStep('SELECT');
                    setBulkVars({});
                 }} 
-                className="w-12 h-12 bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90 border border-gray-100"
+                className="p-2 hover:bg-glass-input rounded-xl transition-colors cursor-pointer text-muted hover:text-fg"
                >
-                 <X className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
                {templateStep === 'SELECT' ? (
                   <div className="grid grid-cols-1 gap-4">
                      {templates.filter(t => t.status === 'APPROVED').map(tpl => {
@@ -498,33 +509,31 @@ export default function Contacts() {
                                setSelectedTemplate(tpl);
                                if (hasVars) {
                                  setTemplateStep('VARS');
-                                 // Initialize bulkVars for selected contacts
                                  const initial: any = {};
                                  Array.from(selectedIds).forEach(cid => {
                                    initial[cid] = {};
                                  });
                                  setBulkVars(initial);
                                } else {
-                                 // Auto-send or confirmation? Let's just go to a confirmation if no vars
                                  setTemplateStep('VARS');
                                }
                             }}
-                            className="p-5 border border-gray-100 rounded-3xl hover:border-blue-200 hover:bg-blue-50/20 cursor-pointer group transition-all relative active:scale-[0.98] flex items-center shadow-sm"
+                            className="p-5 bg-glass-input border border-glass-border rounded-2xl hover:border-glass-border hover:bg-glass-card cursor-pointer group transition-all relative active:scale-[0.98] flex items-center shadow-md"
                           >
                              <div className="flex-1 min-w-0 pr-4">
                                 <div className="flex justify-between items-start mb-2">
                                    <div className="flex items-center">
-                                      <h4 className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{tpl.name}</h4>
+                                      <h4 className="text-xs font-black text-fg group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{tpl.name}</h4>
                                       {hasVars && (
-                                         <span className="ml-2 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg text-[8px] font-black uppercase tracking-widest">Personalization required</span>
+                                         <span className="ml-2 px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-[7px] font-black uppercase tracking-widest">Personalization required</span>
                                       )}
                                    </div>
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100/50">{tpl.language}</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{tpl.language}</span>
                                 </div>
-                                <p className="text-xs text-gray-500 leading-snug italic font-medium line-clamp-2">"{tpl.content}"</p>
+                                <p className="text-xs text-muted leading-snug italic font-semibold line-clamp-2">"{tpl.content}"</p>
                              </div>
-                              <div className="w-10 h-10 bg-gray-50 group-hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all group-hover:shadow-lg group-hover:shadow-blue-600/20">
-                                 <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-white transition-colors" />
+                              <div className="w-8 h-8 bg-fg text-bg rounded-full flex items-center justify-center shrink-0">
+                                 <ArrowRight className="w-4 h-4" />
                               </div>
                           </div>
                         )
@@ -532,23 +541,21 @@ export default function Contacts() {
                   </div>
                ) : (
                   <div className="space-y-6">
-                    <div className="bg-gray-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden group">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 blur-3xl rounded-full translate-x-10 -translate-y-10 group-hover:bg-blue-600/20 transition-all" />
-                       <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center">
-                          <Zap className="w-3 h-3 mr-1.5 fill-current" /> Preview
+                    <div className="bg-glass-card/20 p-5 rounded-2xl border border-glass-border">
+                       <h4 className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 flex items-center">
+                          <Zap className="w-3 h-3 mr-1.5" /> Template Layout Preview
                        </h4>
-                       <p className="text-sm leading-relaxed italic opacity-90">"{selectedTemplate?.content}"</p>
+                       <p className="text-xs leading-relaxed italic text-fg/70">"{selectedTemplate?.content}"</p>
                     </div>
 
                     {(selectedTemplate?.content?.match(/\{\{\d+\}\}/g) || []).length > 0 ? (
                        <div className="space-y-4">
                           <div className="flex justify-between items-center mb-2">
-                             <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Personalize for {selectedIds.size} recipients</h5>
+                             <h5 className="text-[9px] font-black text-fg/30 uppercase tracking-widest ml-1">Dynamic values</h5>
                              {selectedIds.size > 1 && (
                                <button 
                                  type="button"
                                  onClick={() => {
-                                    // Use first contact's vars as base for everyone
                                     const firstId = Array.from(selectedIds)[0];
                                     const baseVars = bulkVars[firstId] || {};
                                     const updated = { ...bulkVars };
@@ -557,42 +564,42 @@ export default function Contacts() {
                                     });
                                     setBulkVars(updated);
                                  }}
-                                 className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                                 className="text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:text-fg transition-colors cursor-pointer"
                                >
-                                  Apply Top to All
+                                  Copy Variable 1 to all rows
                                </button>
                              )}
                           </div>
                           
-                          <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
-                             <table className="min-w-full divide-y divide-gray-100">
-                                <thead className="bg-gray-50/50">
+                          <div className="bg-glass-input border border-glass-border rounded-3xl overflow-hidden shadow-sm">
+                             <table className="min-w-full divide-y divide-white/5">
+                                <thead className="bg-glass-card/85">
                                    <tr>
-                                      <th className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Recipient</th>
+                                      <th className="px-4 py-3 text-left text-[9px] font-black text-muted uppercase tracking-widest">Contact</th>
                                       {(selectedTemplate.content?.match(/\{\{\d+\}\}/g) || []).map((_: any, i: number) => (
-                                         <th key={i} className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Var {i + 1}</th>
+                                         <th key={i} className="px-4 py-3 text-left text-[9px] font-black text-muted uppercase tracking-widest">Var {i + 1}</th>
                                       ))}
                                    </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                <tbody className="divide-y divide-white/5 bg-transparent">
                                    {Array.from(selectedIds).map(cid => {
                                       const contact = contacts.find(c => c.id === cid);
                                       return (
-                                        <tr key={cid} className="hover:bg-gray-50/30">
+                                        <tr key={cid} className="hover:bg-glass-card">
                                            <td className="px-4 py-3 whitespace-nowrap">
-                                              <p className="text-xs font-bold text-gray-900 truncate max-w-[120px]">{contact?.name || contact?.phone_number}</p>
+                                              <p className="text-xs font-bold text-fg truncate max-w-[120px]">{contact?.name || contact?.phone_number}</p>
                                            </td>
                                            {(selectedTemplate.content?.match(/\{\{\d+\}\}/g) || []).map((_: any, i: number) => (
                                               <td key={i} className="px-2 py-2">
                                                  <input 
                                                    type="text"
-                                                   placeholder={`{{${i+1}}}`}
+                                                   placeholder={`value...`}
                                                    value={bulkVars[cid]?.[i+1] || ''}
                                                    onChange={(e) => setBulkVars({
                                                       ...bulkVars,
                                                       [cid]: { ...(bulkVars[cid] || {}), [i+1]: e.target.value }
                                                    })}
-                                                   className="w-full bg-gray-50 border-0 focus:ring-2 focus:ring-blue-500 rounded-xl px-3 py-2 text-xs font-medium placeholder:text-gray-300"
+                                                   className="w-full bg-glass-input border border-glass-border focus:border-indigo-500 focus:outline-none rounded-xl px-3 py-2 text-xs font-semibold text-fg placeholder:text-fg/10"
                                                  />
                                               </td>
                                            ))}
@@ -602,49 +609,49 @@ export default function Contacts() {
                                 </tbody>
                              </table>
                           </div>
+                          
                           {selectedIds.size > 10 && (
-                             <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-start">
-                                <Search className="w-4 h-4 text-blue-600 mr-3 mt-0.5" />
-                                <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                                   <span className="font-black uppercase tracking-tight">Tip:</span> Sending to more than 10 people? It's faster to create a <Link href="/campaigns" className="underline font-black">Campaign</Link> using an Excel file for automatic personalization.
+                             <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 flex items-start">
+                                <p className="text-[10px] text-muted font-semibold leading-relaxed">
+                                   <span className="font-black uppercase tracking-tight text-indigo-400 mr-1.5">Note:</span> 
+                                   For bulk dispatches over 10 contacts, we recommend using <Link href="/campaigns" className="underline text-fg font-bold hover:text-indigo-400">Campaigns Excel Drops</Link> for unified file parsing.
                                 </p>
                              </div>
                           )}
                        </div>
                     ) : (
                        <div className="py-12 text-center">
-                          <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                             <Check className="w-8 h-8 text-blue-600" />
+                          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                             <Check className="w-6 h-6 text-emerald-400" />
                           </div>
-                          <h5 className="font-black text-gray-900 uppercase tracking-widest text-xs">Ready to Send</h5>
-                          <p className="text-xs text-gray-500 mt-2">No personalization required for this template.</p>
+                          <h5 className="font-black text-fg uppercase tracking-widest text-xs">Awaiting dispatch</h5>
+                          <p className="text-xs text-muted mt-1.5">This template layout is static and does not contain variable hooks.</p>
                        </div>
                     )}
                   </div>
                )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center sm:flex-row flex-col gap-4">
+            <div className="p-6 border-t border-glass-border bg-glass-card/10 flex justify-between items-center sm:flex-row flex-col gap-4">
                {templateStep === 'VARS' ? (
                   <>
                     <button 
                       onClick={() => setTemplateStep('SELECT')}
-                      className="w-full sm:w-auto px-8 py-4 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
+                      className="w-full sm:w-auto px-6 py-3 text-[10px] font-black uppercase tracking-widest text-muted hover:text-fg cursor-pointer transition-colors"
                     >
-                      Back to Templates
+                      Back
                     </button>
                     <button 
                       onClick={handleSendMessage}
                       disabled={sending}
-                      className="w-full sm:w-auto px-10 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center"
+                      className="w-full sm:w-auto px-8 py-3.5 bg-fg text-bg hover:opacity-90 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-40 flex items-center justify-center cursor-pointer"
                     >
                       {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                       {sending ? 'Sending...' : `Send to ${selectedIds.size} Contacts`}
                     </button>
                   </>
                ) : (
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mx-auto sm:mx-0">Select a template to continue</p>
+                  <p className="text-[9px] font-black text-fg/30 uppercase tracking-widest mx-auto sm:mx-0">Select a template to proceed</p>
                )}
             </div>
 

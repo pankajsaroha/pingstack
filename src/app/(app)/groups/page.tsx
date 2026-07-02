@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Folder, Trash2, Upload, Globe, Loader2, X, ChevronLeft } from 'lucide-react';
+import { Plus, Folder, Trash2, Upload, Globe, Loader2, X, ChevronLeft, Check } from 'lucide-react';
 import Script from 'next/script';
 import Toast from '@/components/Toast';
 
@@ -65,7 +65,6 @@ export default function Groups() {
       const res = await fetch('/api/contacts');
       if (res.ok) {
         const data = await res.json();
-        // Filter out contacts already in the group
         const groupContactIds = new Set(groupContacts.map(c => c.id));
         const filtered = data.filter((c: any) => !groupContactIds.has(c.id));
         setAvailableContacts(filtered);
@@ -168,7 +167,7 @@ export default function Groups() {
       setToast({ message: 'Please enter a group name first', type: 'info' });
       return;
     }
-    // ... rest of logic
+    
     if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
       setToast({ message: 'Google Client ID not configured', type: 'error' });
       return;
@@ -195,10 +194,10 @@ export default function Groups() {
               setToast({ message: `Group created and ${data.count} contacts imported`, type: 'success' });
               setNewGroupName('');
               setShowModal(false);
-              setShowImportModal(false); // Close import modal
-              setShowSelector(false); // Close selector if open
+              setShowImportModal(false);
+              setShowSelector(false);
               fetchGroups();
-              if (activeGroupId) fetchGroupContacts(activeGroupId); // Refresh contacts if in detail view
+              if (activeGroupId) fetchGroupContacts(activeGroupId);
             } else {
               setToast({ message: data.error || 'Import failed', type: 'error' });
             }
@@ -280,8 +279,7 @@ export default function Groups() {
     }
   };
 
-  const toggleSelection = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleSelection = (id: string) => {
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -290,21 +288,25 @@ export default function Groups() {
 
   return (
     <div>
+      {/* Header Panel */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Groups</h1>
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-fg">Groups</h1>
+          <p className="text-muted text-sm font-semibold mt-1">Organize and segment contacts into distribution lists.</p>
+        </div>
         <div className="flex space-x-3">
           {selectedIds.size > 0 && (
             <button 
               onClick={handleDeleteSelected}
-              className="flex items-center px-4 py-2 border border-red-200 rounded-xl shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+              className="flex items-center px-5 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete Selected ({selectedIds.size})
+              Delete ({selectedIds.size})
             </button>
           )}
           <button 
             onClick={() => setShowModal(true)}
-            className="flex items-center px-4 py-2 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-black transition-colors"
+            className="flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 cursor-pointer"
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Group
@@ -312,56 +314,62 @@ export default function Groups() {
         </div>
       </div>
 
+      {/* Grid view */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full text-center py-10 text-gray-500">Loading groups...</div>
+          <div className="col-span-full text-center py-20 opacity-40">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-fg mb-4" />
+            <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading groups directory...</p>
+          </div>
         ) : groups.length === 0 ? (
-          <div className="col-span-full bg-white/80 backdrop-blur-md p-10 mt-4 rounded-2xl border border-gray-200/60 shadow-sm text-center">
-            <Folder className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-            <h3 className="text-base font-semibold text-gray-900">No groups</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new group.</p>
+          <div className="col-span-full bg-glass-card border border-glass-border p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
+            <Folder className="mx-auto h-12 w-12 text-fg/20 mb-4 animate-pulse-slow" />
+            <h3 className="text-base font-black text-fg mb-1">No Active Groups</h3>
+            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Spawn a new group to segment your contacts directory lists.</p>
           </div>
         ) : (
           groups.map(group => (
             <div 
               key={group.id} 
-              className={`bg-white/80 backdrop-blur-md p-6 rounded-2xl border relative shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all group-card ${
-                selectedIds.has(group.id) ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200/60'
+              className={`bg-glass-card border p-6 rounded-[2.5rem] relative shadow-2xl hover:border-glass-border hover:bg-glass-card transition-all duration-300 ${
+                selectedIds.has(group.id) ? 'border-white ring-1 ring-white/10 bg-glass-card' : 'border-glass-border'
               }`}
             >
-              <div className="absolute top-4 right-4 z-30">
+              <div className="absolute top-5 right-5 z-30">
                 <input
                   type="checkbox"
+
                   checked={selectedIds.has(group.id)}
                   onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => toggleSelection(group.id, e as any)}
-                  className="h-5 w-5 text-black focus:ring-black border-gray-300 rounded-lg cursor-pointer transition-transform active:scale-90"
+                  onChange={() => toggleSelection(group.id)}
+                  className="h-5 w-5 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
                 />
               </div>
-              <div className="flex items-center mb-4 pr-6">
-                <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-gray-900 group-hover:text-white transition-colors">
-                  <Folder className="w-5 h-5" />
+              <div className="flex items-center mb-6 pr-8">
+                <div className="w-12 h-12 bg-glass-input border border-glass-border text-fg rounded-2xl flex items-center justify-center mr-4">
+                  <Folder className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 tracking-tight truncate">{group.name}</h3>
+                <h3 className="text-lg font-black text-fg tracking-tight truncate">{group.name}</h3>
               </div>
-              <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100 mt-6">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-800">
+              
+              <div className="flex items-center justify-between pt-4 border-t border-glass-border">
+                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-glass-input text-fg/50 border border-glass-border">
                    {group.public_id}
                 </span>
+                
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('Add/Manage Contacts clicked for:', group.id);
                     setActiveGroupId(group.id);
                     setActiveGroup(group);
                     setShowDetailModal(true);
                     fetchGroupContacts(group.id);
                   }}
-                  className="text-xs font-black text-blue-600 hover:text-blue-700 transition-colors cursor-pointer hover:underline flex items-center py-2 px-3 -mr-3 sm:mr-0 rounded-lg hover:bg-blue-50"
+                  className="text-xs font-black text-indigo-400 hover:text-fg transition-colors cursor-pointer flex items-center py-2 px-3 rounded-xl hover:bg-glass-input"
                 >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Contacts
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Manage List
                 </button>
               </div>
             </div>
@@ -369,33 +377,44 @@ export default function Groups() {
         )}
       </div>
 
+      {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 tracking-tight">Create New Group</h3>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 relative animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowModal(false)}
+              className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h3 className="text-xl font-black text-fg mb-6 tracking-tight">Spawn Segment Group</h3>
+            
             <form onSubmit={handleCreateGroup}>
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Group Name</label>
+                <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Group Label</label>
                 <input
                   type="text"
                   required
-                  className="block w-full rounded-xl border border-gray-200 px-3 py-2.5 shadow-[0_2px_4px_rgba(0,0,0,0.02)] focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm"
+                  placeholder="e.g. VIP Customers"
+                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none placeholder:text-fg/20 transition-all"
                   value={newGroupName}
                   onChange={e => setNewGroupName(e.target.value)}
                 />
               </div>
-              <div className="flex flex-col space-y-3">
+              
+              <div className="flex flex-col space-y-4">
                 <button
                   type="submit"
                   disabled={isImporting}
-                  className="w-full px-4 py-3 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-black transition-colors flex items-center justify-center"
+                  className="w-full py-4 bg-fg text-bg hover:opacity-90 disabled:opacity-40 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl cursor-pointer transition-all flex items-center justify-center"
                 >
                   {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Empty Group'}
                 </button>
                 
                 <div className="relative py-2">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400 font-bold">Or Populate via Import</span></div>
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-glass-border"></div></div>
+                  <div className="relative flex justify-center text-[8px] font-black uppercase tracking-widest"><span className="bg-[#0a0a0a] text-white/50 dark:bg-white dark:text-black/50 px-3">Or Populate Asset Import</span></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -403,29 +422,22 @@ export default function Groups() {
                     type="button"
                     disabled={isImporting}
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center justify-center px-4 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-center px-4 py-3 bg-glass-input hover:bg-white/10 border border-glass-border rounded-2xl font-black text-[10px] uppercase tracking-widest text-fg cursor-pointer transition-all"
                   >
-                    <Upload className="w-4 h-4 mr-2 text-green-500" />
-                    File
+                    <Upload className="w-4 h-4 mr-2 text-emerald-400" />
+                    Upload File
                   </button>
+                  
                   <button
                     type="button"
                     disabled={isImporting}
                     onClick={() => handleGoogleImport()}
-                    className="flex items-center justify-center px-4 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-center px-4 py-3 bg-glass-input hover:bg-white/10 border border-glass-border rounded-2xl font-black text-[10px] uppercase tracking-widest text-fg cursor-pointer transition-all"
                   >
-                    <Globe className="w-4 h-4 mr-2 text-blue-500" />
-                    Google
+                    <Globe className="w-4 h-4 mr-2 text-indigo-400" />
+                    Google Contacts
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="w-full px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors pt-2"
-                >
-                  Cancel
-                </button>
               </div>
             </form>
           </div>
@@ -443,12 +455,12 @@ export default function Groups() {
 
       {/* Group Detail Modal */}
       {showDetailModal && activeGroup && (
-         <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 z-50">
-            <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden border border-gray-100">
-               <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-t-3xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full flex flex-col h-full sm:h-auto sm:max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300">
+               <div className="p-6 sm:p-8 border-b border-glass-border flex items-center justify-between bg-glass-card/10">
                   <div>
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">{activeGroup.name}</h2>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Group Details & Contacts</p>
+                    <h2 className="text-2xl font-black text-fg tracking-tight">{activeGroup.name}</h2>
+                    <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Group Directory Management</p>
                   </div>
                   <button 
                     onClick={() => {
@@ -457,53 +469,47 @@ export default function Groups() {
                       setActiveGroupId(null);
                       setSelectedMemberIds(new Set());
                     }}
-                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                    className="p-2 hover:bg-glass-input rounded-xl transition-colors cursor-pointer text-muted hover:text-fg"
                   >
-                     <X className="w-5 h-5 text-gray-400" />
+                     <X className="w-5 h-5" />
                   </button>
                </div>
                
-               <div className="flex-1 overflow-y-auto p-6">
-                  <div className="flex items-center justify-between mb-6">
-                     <h3 className="font-bold text-gray-900">Members ({groupContacts.length})</h3>
-                          <div className="flex space-x-2">
-                             {selectedMemberIds.size > 0 && (
-                               <button 
-                                 onClick={() => handleRemoveContact(Array.from(selectedMemberIds))}
-                                 className="flex items-center px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-black border border-red-100 hover:bg-red-100 transition-all"
-                               >
-                                 <Trash2 className="w-3 h-3 mr-1.5" />
-                                 Remove ({selectedMemberIds.size})
-                               </button>
-                             )}
-                             <button 
-                               onClick={() => {
-                                 setShowSelector(true);
-                                 fetchAvailableContacts();
-                               }}
-                               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black shadow-lg hover:bg-blue-700 transition-all"
-                             >
-                               <Plus className="w-3 h-3 mr-1.5" />
-                               Add Contacts
-                             </button>
-                          </div>
+               <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar bg-black/10">
+                  <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+                     <h3 className="text-sm font-black text-fg/30 uppercase tracking-widest">Active Members ({groupContacts.length})</h3>
+                     <div className="flex space-x-2">
+                        {selectedMemberIds.size > 0 && (
+                          <button 
+                            onClick={() => handleRemoveContact(Array.from(selectedMemberIds))}
+                            className="flex items-center px-4 py-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                            Remove selected
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => {
+                            setShowSelector(true);
+                            fetchAvailableContacts();
+                          }}
+                          className="flex items-center px-5 py-2.5 bg-fg text-bg hover:opacity-90 rounded-xl text-xs font-black shadow-lg transition-all cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1.5" />
+                          Add Contacts
+                        </button>
+                     </div>
                   </div>
 
                   {loadingContacts ? (
-                    <div className="flex flex-col items-center justify-center py-20 grayscale opacity-50">
-                       <Loader2 className="w-8 h-8 animate-spin mb-4" />
-                       <p className="text-xs font-bold">Syncing contacts...</p>
+                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                       <Loader2 className="w-8 h-8 animate-spin mb-4 text-fg" />
+                       <p className="text-xs font-black uppercase tracking-widest">Syncing members...</p>
                     </div>
                   ) : groupContacts.length === 0 ? (
-                    <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                       <Folder className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                       <p className="text-sm text-gray-400 font-bold">This group is empty</p>
-                       <button 
-                         onClick={() => setShowImportModal(true)}
-                         className="mt-4 text-xs font-black text-blue-600 underline"
-                       >
-                         Import Contacts Now
-                       </button>
+                    <div className="text-center py-20 border-2 border-dashed border-glass-border rounded-3xl bg-glass-card">
+                       <Folder className="w-12 h-12 text-fg/10 mx-auto mb-4" />
+                       <p className="text-sm font-black text-muted uppercase tracking-widest">Group contains no contacts</p>
                     </div>
                   ) : (
                      <div className="space-y-2">
@@ -516,29 +522,28 @@ export default function Groups() {
                                else next.add(contact.id);
                                setSelectedMemberIds(next);
                              }}
-                             className={`flex items-center justify-between p-4 bg-white border rounded-2xl cursor-pointer transition-all group ${
-                               selectedMemberIds.has(contact.id) ? 'border-red-500 ring-1 ring-red-500 bg-red-50/10' : 'border-gray-100 hover:border-gray-200'
+                             className={`flex items-center justify-between p-4 bg-glass-input border rounded-2xl cursor-pointer transition-all ${
+                               selectedMemberIds.has(contact.id) ? 'border-red-500 ring-1 ring-red-500 bg-red-500/5' : 'border-glass-border hover:border-glass-border'
                              }`}
                            >
                               <div className="flex items-center">
                                  <div className={`w-4 h-4 rounded border flex items-center justify-center mr-3 transition-colors ${
-                                   selectedMemberIds.has(contact.id) ? 'bg-red-500 border-red-500' : 'border-gray-300 bg-white'
+                                   selectedMemberIds.has(contact.id) ? 'bg-red-500 border-red-500' : 'border-glass-border bg-glass-input'
                                  }`}>
-                                    {selectedMemberIds.has(contact.id) && <Plus className="w-2.5 h-2.5 text-white rotate-45" />}
+                                    {selectedMemberIds.has(contact.id) && <Check className="w-2.5 h-2.5 text-fg" />}
                                  </div>
                                  <div>
-                                   <p className="font-bold text-gray-900 leading-none mb-1">{contact.name || 'No Name'}</p>
-                                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{contact.phone_number}</p>
+                                   <p className="font-bold text-fg leading-none mb-1.5">{contact.name || 'Anonymous'}</p>
+                                   <p className="text-[10px] text-muted font-semibold font-mono">{contact.phone_number}</p>
                                  </div>
                               </div>
+                              
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleRemoveContact(contact.id);
                                 }}
-                                className={`p-2 transition-all rounded-lg ${
-                                  selectedMemberIds.has(contact.id) ? 'text-red-500 bg-white' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
-                                }`}
+                                className={`p-2 transition-all rounded-lg text-fg/20 hover:text-red-400 hover:bg-red-500/10 cursor-pointer`}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -547,159 +552,120 @@ export default function Groups() {
                      </div>
                   )}
                </div>
-                              <div className="p-4 sm:p-6 border-t border-gray-100 flex justify-end">
-                      <button 
-                        onClick={() => {
-                          setShowDetailModal(false);
-                          setActiveGroup(null);
-                          setActiveGroupId(null);
-                          setSearchTerm('');
-                        }}
-                        className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-xs hover:bg-black transition-all"
-                      >
-                         Done
-                      </button>
-                   </div>
-                </div>
-             </div>
-          )}
-
-          {/* Contact Selector Modal */}
-          {showSelector && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-[55]">
-              <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full flex flex-col max-h-[85vh] overflow-hidden border border-white/20">
-                <div className="p-6 border-b border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Add Existing Contacts</h3>
-                    <button 
-                      onClick={() => {
-                        setShowSelector(false);
-                        setSelectorIds(new Set());
-                        setSearchTerm('');
-                      }}
-                      className="text-gray-400 hover:text-gray-900 font-bold text-xs"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      placeholder="Search by name or number..."
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 border-gray-100 rounded-2xl text-sm focus:ring-1 focus:ring-blue-500 transition-all"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
-                  {loadingAvailable ? (
-                    <div className="flex flex-col items-center justify-center py-20 opacity-50">
-                      <Loader2 className="w-8 h-8 animate-spin mb-3" />
-                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Loading your contacts...</p>
-                    </div>
-                  ) : availableContacts.length === 0 ? (
-                    <div className="text-center py-20">
-                      <p className="text-sm text-gray-400 font-bold mb-4">No more contacts found to add</p>
-                      <button 
-                        onClick={() => setShowImportModal(true)}
-                        className="text-blue-600 font-black text-xs underline"
-                      >
-                        Import New Contacts Instead
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                       {availableContacts
-                         .filter(c => 
-                           (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           (c.phone_number || '').includes(searchTerm)
-                         )
-                         .map(contact => (
-                           <div 
-                             key={contact.id} 
-                             onClick={() => {
-                               const next = new Set(selectorIds);
-                               if (next.has(contact.id)) next.delete(contact.id);
-                               else next.add(contact.id);
-                               setSelectorIds(next);
-                             }}
-                             className={`flex items-center justify-between p-4 bg-white border rounded-2xl cursor-pointer transition-all hover:shadow-md ${
-                               selectorIds.has(contact.id) ? 'border-blue-500 ring-1 ring-blue-500 shadow-blue-50/50 bg-blue-50/30' : 'border-gray-100'
-                             }`}
-                           >
-                              <div className="flex items-center">
-                                 <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-3 transition-colors ${
-                                   selectorIds.has(contact.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-200 bg-white'
-                                 }`}>
-                                    {selectorIds.has(contact.id) && <Plus className="w-3 h-3 text-white" />}
-                                 </div>
-                                 <div className="pr-4">
-                                   <p className="font-bold text-gray-900 text-sm">{contact.name || 'No Name'}</p>
-                                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{contact.phone_number}</p>
-                                 </div>
-                              </div>
-                           </div>
-                         ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-6 border-t border-gray-100 flex items-center justify-between bg-white">
+               
+               <div className="p-6 border-t border-glass-border bg-glass-card/10 flex justify-end">
                   <button 
-                    onClick={() => setShowImportModal(true)}
-                    className="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest"
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      setActiveGroup(null);
+                      setActiveGroupId(null);
+                      setSearchTerm('');
+                    }}
+                    className="w-full sm:w-auto px-8 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer transition-all shadow-lg"
                   >
-                    Import From File/Google
+                     Done
                   </button>
-                  <button 
-                    disabled={selectorIds.size === 0 || isImporting}
-                    onClick={handleAddSelectedToGroup}
-                    className="px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-sm hover:bg-black transition-all disabled:opacity-30 disabled:grayscale"
-                  >
-                    {isImporting ? 'Adding...' : `Add Selected (${selectorIds.size})`}
-                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Available Selector Modal */}
+      {showSelector && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[55] animate-in fade-in duration-200">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-glass-border bg-glass-card/10">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-black text-fg tracking-tight">Add Group Members</h3>
+                  <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1">Select from main contacts registry</p>
                 </div>
+                <button 
+                  onClick={() => {
+                    setShowSelector(false);
+                    setSelectorIds(new Set());
+                    setSearchTerm('');
+                  }}
+                  className="text-muted hover:text-fg font-black text-[9px] uppercase tracking-widest cursor-pointer border border-glass-border px-3 py-1 rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="relative">
+                <input 
+                  type="text"
+                  placeholder="Search contact pool..."
+                  className="w-full pl-4 pr-10 py-3 bg-glass-input border border-glass-border rounded-2xl text-xs font-semibold focus:outline-none transition-all text-fg placeholder:text-fg/20"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
-          )}
 
-      {/* Import Selection Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 border border-white/20">
-            <h3 className="text-xl font-black text-gray-900 mb-6 tracking-tight text-center">Import Contacts</h3>
-            <div className="grid grid-cols-1 gap-4">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-100 rounded-3xl hover:border-blue-200 hover:bg-blue-50/50 transition-all group"
-              >
-                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <Upload className="w-6 h-6" />
+            <div className="flex-1 overflow-y-auto p-6 bg-black/10 custom-scrollbar">
+              {loadingAvailable ? (
+                <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                  <Loader2 className="w-8 h-8 animate-spin mb-3 text-fg" />
+                  <p className="text-xs font-black uppercase tracking-widest text-muted">Loading directory pool...</p>
                 </div>
-                <span className="text-sm font-black text-gray-900">Upload File</span>
-                <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">CSV or Excel</span>
+              ) : availableContacts.length === 0 ? (
+                <div className="text-center py-20 opacity-40">
+                  <p className="text-xs font-black uppercase tracking-widest text-fg/50">All contacts are inside this list</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                   {availableContacts
+                     .filter(c => 
+                       (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                       (c.phone_number || '').includes(searchTerm)
+                     )
+                     .map(contact => (
+                       <div 
+                         key={contact.id} 
+                         onClick={() => {
+                            const next = new Set(selectorIds);
+                            if (next.has(contact.id)) next.delete(contact.id);
+                            else next.add(contact.id);
+                            setSelectorIds(next);
+                         }}
+                         className={`flex items-center justify-between p-4 bg-glass-input border rounded-2xl cursor-pointer transition-all ${
+                            selectorIds.has(contact.id) ? 'border-white bg-glass-card' : 'border-glass-border'
+                         }`}
+                       >
+                          <div className="flex items-center">
+                             <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-3 transition-colors ${
+                               selectorIds.has(contact.id) ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+                             }`}>
+                                {selectorIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-black" />}
+                             </div>
+                             <div>
+                               <p className="font-bold text-fg text-sm">{contact.name || 'Anonymous'}</p>
+                               <p className="text-[10px] text-muted font-semibold tracking-wide font-mono mt-0.5">{contact.phone_number}</p>
+                             </div>
+                          </div>
+                       </div>
+                     ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-glass-border flex items-center justify-between bg-glass-card/10">
+              <button 
+                onClick={() => {
+                  setShowImportModal(true);
+                  setShowSelector(false);
+                }}
+                className="text-xs font-black text-indigo-400 hover:text-fg transition-colors uppercase tracking-widest cursor-pointer"
+              >
+                Import Pool
               </button>
               
-              <button
-                onClick={() => handleGoogleImport()}
-                disabled={isImporting}
-                className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-100 rounded-3xl hover:border-blue-200 hover:bg-blue-50/50 transition-all group"
+              <button 
+                disabled={selectorIds.size === 0 || isImporting}
+                onClick={handleAddSelectedToGroup}
+                className="px-6 py-3.5 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl disabled:opacity-40 flex items-center justify-center cursor-pointer"
               >
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <Globe className="w-6 h-6" />
-                </div>
-                <span className="text-sm font-black text-gray-900">Google Contacts</span>
-                <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">Sync via OAuth</span>
-              </button>
-              
-              <button
-                onClick={() => setShowImportModal(false)}
-                className="w-full px-4 py-2 text-xs font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest mt-2"
-              >
-                Back
+                {isImporting ? 'Adding...' : `Add Selected (${selectorIds.size})`}
               </button>
             </div>
           </div>

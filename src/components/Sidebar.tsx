@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, ChevronRight } from 'lucide-react';
 import { LogoIcon } from './Logo';
+import { ThemeToggle } from './ThemeToggle';
 import { setSupabaseSession } from '@/lib/db';
 
 const navItems = [
@@ -34,25 +35,39 @@ export function Sidebar({
   };
 
   return (
-    <div className={`transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} border-r border-gray-200/60 bg-white/80 backdrop-blur-md h-screen flex flex-col pt-6 pb-4 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30 relative shrink-0`}>
-      <div className={`px-6 mb-8 flex items-center justify-between ${isCollapsed ? 'px-4 flex-col' : ''}`}>
-        <div className="flex items-center space-x-2">
-           <LogoIcon />
+    <div className={`group/sidebar transition-all duration-300 ease-in-out ${
+      isCollapsed ? 'w-20' : 'w-64'
+    } border-r border-glass-border bg-glass-card/50 backdrop-blur-2xl h-screen flex flex-col pt-6 pb-4 shadow-sm z-30 relative shrink-0`}>
+      
+      {/* Collapse/Expand Floating Button */}
+      <button 
+        onClick={onToggleCollapse}
+        className="absolute top-[38px] -right-3 hidden md:flex w-6 h-6 bg-bg border border-glass-border rounded-full items-center justify-center text-muted hover:text-fg hover:border-fg/30 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md transition-all duration-300 z-50 cursor-pointer opacity-0 group-hover/sidebar:opacity-100"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-500 ease-out ${
+          isCollapsed ? 'rotate-0' : 'rotate-180'
+        }`} />
+      </button>
+
+      {/* Header Info */}
+      <div className={`px-6 mb-8 flex items-center justify-between ${isCollapsed ? 'px-4 flex-col gap-4' : ''}`}>
+        <div className="flex items-center space-x-3">
+           <LogoIcon bgClass="bg-fg" iconClass="text-bg" />
            {!isCollapsed && (
-             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 tracking-tight whitespace-nowrap">
+             <span className="text-xl font-black text-fg tracking-tighter whitespace-nowrap">
                PingStack
              </span>
            )}
         </div>
         
-        <button 
-          onClick={onToggleCollapse}
-          className={`hidden md:flex p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors ${isCollapsed ? 'mt-4' : ''}`}
-        >
-          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center space-x-2">
+          {!isCollapsed && <ThemeToggle />}
+        </div>
+        {isCollapsed && <ThemeToggle />}
       </div>
 
+      {/* Navigation list */}
       <nav className={`flex-1 px-4 space-y-1.5 ${isCollapsed ? 'px-2' : ''}`}>
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
@@ -61,37 +76,44 @@ export function Sidebar({
               key={item.name}
               href={item.href}
               title={isCollapsed ? item.name : ''}
-              className={`flex items-center py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group ${
+              className={`flex items-center py-2.5 text-sm font-bold rounded-xl transition-all duration-300 group ${
                 isActive 
-                  ? 'bg-gray-900 text-white shadow-sm' 
-                  : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
+                  ? 'bg-fg text-bg shadow-md scale-[1.02]' 
+                  : 'text-muted hover:bg-glass-card hover:text-fg'
               } ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}
             >
-              <item.icon className={`flex-shrink-0 h-4 w-4 transition-colors ${isActive ? 'text-gray-300' : 'text-gray-400 group-hover:text-gray-600'} ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
-              {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+              <item.icon className={`flex-shrink-0 h-4 w-4 transition-colors ${
+                isActive ? 'text-bg' : 'text-muted group-hover:text-fg'
+              } ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
+              {!isCollapsed && <span className="whitespace-nowrap tracking-wide">{item.name}</span>}
             </Link>
           );
         })}
       </nav>
 
+      {/* Footer Items */}
       <div className={`px-4 mt-auto mb-2 ${isCollapsed ? 'px-2' : ''}`}>
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Logout' : ''}
-          className={`flex items-center w-full py-2.5 text-sm font-medium text-gray-600 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors group ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}
+          className={`flex items-center w-full py-2.5 text-sm font-bold text-muted rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer group ${
+            isCollapsed ? 'justify-center px-0' : 'px-3'
+          }`}
         >
-          <LogOut className={`flex-shrink-0 h-4 w-4 text-gray-400 group-hover:text-red-500 transition-colors ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
-          {!isCollapsed && <span className="whitespace-nowrap">Logout</span>}
+          <LogOut className={`flex-shrink-0 h-4 w-4 text-muted group-hover:text-red-400 transition-colors ${
+            isCollapsed ? 'mx-auto' : 'mr-3'
+          }`} />
+          {!isCollapsed && <span className="whitespace-nowrap tracking-wide">Logout</span>}
         </button>
         
         {!isCollapsed && (
           <div className="mt-4 px-3 mb-4">
             <Link 
               href="/privacy" 
-              className={`flex items-center text-[10px] font-bold transition-all duration-200 uppercase tracking-widest px-3 py-2 rounded-xl ${
+              className={`flex items-center text-[9px] font-black transition-all duration-300 uppercase tracking-widest px-3 py-2 rounded-xl ${
                 pathname === '/privacy' 
-                  ? 'bg-gray-900 text-white shadow-md' 
-                  : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-fg text-bg shadow-md' 
+                  : 'text-muted hover:text-fg hover:bg-glass-card'
               }`}
             >
               Privacy Policy

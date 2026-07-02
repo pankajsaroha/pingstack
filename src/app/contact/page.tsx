@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Send, Clock, CheckCircle2 } from 'lucide-react';
+import { Mail, Clock, CheckCircle2 } from 'lucide-react';
 import { LandingNav } from '@/components/LandingNav';
 import { LandingFooter } from '@/components/LandingFooter';
 import { AuthModal } from '@/components/AuthModal';
@@ -27,35 +27,95 @@ export default function PublicContact() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen bg-bg text-fg selection:bg-fg selection:text-bg transition-colors duration-300">
       <LandingNav onOpenAuth={setModalType} />
 
-      <section className="pt-48 pb-20 px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20">
+      <section className="pt-48 pb-32 px-6">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
           <div>
-            <h2 className="text-sm font-black text-blue-400 uppercase tracking-widest mb-4">Support</h2>
-            <h1 className="text-5xl font-black mb-8">How can we help?</h1>
-            <p className="text-white/40 font-medium mb-12">Our team is available 24/7 for enterprise support and API implementation guidance.</p>
+            <h2 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.25em] mb-4">Support & Care</h2>
+            <h1 className="text-5xl md:text-6xl font-black mb-8 tracking-tight text-fg">How can we help?</h1>
+            <p className="text-muted font-medium mb-12 leading-relaxed text-base">
+              Our integration and engineering teams are available to guide you through onboarding Meta accounts or setting up production queues.
+            </p>
             <div className="space-y-6">
-              <div className="flex items-center space-x-4"><Mail className="text-blue-400" /> <span>info@pingstack.in</span></div>
-              <div className="flex items-center space-x-4"><Clock className="text-indigo-400" /> <span>Within 24 hours</span></div>
+              <div className="flex items-center space-x-4 bg-glass-card border border-glass-border p-4 rounded-2xl">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <Mail className="text-blue-600 dark:text-blue-400 w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-muted uppercase tracking-wider">Email Support</p>
+                  <p className="text-sm font-bold mt-0.5 text-fg">info@pingstack.in</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4 bg-glass-card border border-glass-border p-4 rounded-2xl">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                  <Clock className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-muted uppercase tracking-wider">SLA Response Time</p>
+                  <p className="text-sm font-bold mt-0.5 text-fg">Within 24 Hours</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10">
+          <div className="bg-glass-card border border-glass-border rounded-[2.5rem] p-8 sm:p-10 shadow-2xl relative overflow-hidden">
             {submitted ? (
-              <div className="text-center py-10">
-                <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-6" />
-                <h3 className="text-2xl font-black mb-4">Email Sent!</h3>
-                <button onClick={() => setSubmitted(false)} className="text-blue-400 font-black uppercase text-[10px] tracking-widest">Send another</button>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/25 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h3 className="text-2xl font-black mb-3 text-fg">Message Dispatched</h3>
+                <p className="text-muted text-sm mb-8">Our support team will get in touch with you shortly.</p>
+                <button 
+                  onClick={() => setSubmitted(false)} 
+                  className="text-indigo-600 dark:text-indigo-400 hover:opacity-85 font-black uppercase text-[10px] tracking-[0.2em] cursor-pointer"
+                >
+                  Send Another Inquiry
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
-                <input type="text" placeholder="Name" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                <input type="email" placeholder="Email" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                <textarea placeholder="Your message..." rows={4} required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm resize-none" value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} />
-                <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-200 transition-all">
-                  {isSubmitting ? 'Sending...' : 'Send Message'}
+                <div>
+                  <label className="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 px-1">Full Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. John Doe" 
+                    required 
+                    className="w-full bg-glass-input border border-glass-input-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:bg-glass-card focus:border-indigo-500 focus:outline-none transition-all placeholder:text-muted/50" 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 px-1">Email Address</label>
+                  <input 
+                    type="email" 
+                    placeholder="e.g. john@company.com" 
+                    required 
+                    className="w-full bg-glass-input border border-glass-input-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:bg-glass-card focus:border-indigo-500 focus:outline-none transition-all placeholder:text-muted/50" 
+                    value={formData.email} 
+                    onChange={e => setFormData({...formData, email: e.target.value})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 px-1">Message Content</label>
+                  <textarea 
+                    placeholder="How can our engineering team help you?" 
+                    rows={5} 
+                    required 
+                    className="w-full bg-glass-input border border-glass-input-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:bg-glass-card focus:border-indigo-500 focus:outline-none transition-all resize-none placeholder:text-muted/50 leading-relaxed" 
+                    value={formData.message} 
+                    onChange={e => setFormData({...formData, message: e.target.value})} 
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting} 
+                  className="w-full py-4.5 bg-fg text-bg rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-fg/95 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md cursor-pointer"
+                >
+                  {isSubmitting ? 'Sending Message...' : 'Send Inquiry'}
                 </button>
               </form>
             )}

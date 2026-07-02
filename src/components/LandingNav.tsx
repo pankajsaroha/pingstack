@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LogoIcon } from './Logo';
+import { ThemeToggle } from './ThemeToggle';
 
 export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'register' | 'forgot') => void }) {
   const [scrolled, setScrolled] = useState(false);
+  const [tenant, setTenant] = useState<any>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -13,34 +15,65 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    async function checkUser() {
+      try {
+        const res = await fetch('/api/tenant/me');
+        if (res.ok) {
+          const data = await res.json();
+          setTenant(data);
+        }
+      } catch (err) {
+        // Ignore unauthenticated errors
+      }
+    }
+    checkUser();
+  }, []);
+
   return (
-    <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 border-b ${scrolled ? 'bg-black/80 backdrop-blur-xl border-white/5 py-4' : 'bg-transparent border-transparent py-6'}`}>
+    <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 border-b ${
+      scrolled 
+        ? 'bg-bg/60 backdrop-blur-xl border-glass-border py-4 shadow-md' 
+        : 'bg-transparent border-transparent py-6'
+    }`}>
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         <Link href="/" className="flex items-center space-x-3 group">
-          <LogoIcon bgClass="bg-white" iconClass="text-black" />
-          <span className="text-lg font-black tracking-tighter text-white">PingStack</span>
+          <LogoIcon bgClass="bg-fg" iconClass="text-bg" />
+          <span className="text-lg font-black tracking-tighter text-fg transition-all group-hover:opacity-80">PingStack</span>
         </Link>
         
-        <div className="flex items-center space-x-Main">
-          <div className="hidden md:flex items-center space-x-8 mr-10">
-            <Link href="/docs" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Docs</Link>
-            <Link href="/pricing" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Pricing</Link>
-            <Link href="/contact" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">Support</Link>
+        <div className="flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-8 mr-4">
+            <Link href="/docs" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted hover:text-fg transition-all hover:scale-105">Docs</Link>
+            <Link href="/pricing" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted hover:text-fg transition-all hover:scale-105">Pricing</Link>
+            <Link href="/contact" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted hover:text-fg transition-all hover:scale-105">Support</Link>
           </div>
 
           <div className="flex items-center space-x-4">
-            <button 
-              onClick={() => onOpenAuth('login')}
-              className="text-xs font-black uppercase tracking-[0.2em] text-white/60 hover:text-white transition-colors px-4"
-            >
-              Sign In
-            </button>
-            <button 
-              onClick={() => onOpenAuth('register')}
-              className="px-6 py-2.5 bg-white text-black text-xs font-black uppercase tracking-[0.2em] rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10"
-            >
-              Get Started
-            </button>
+            {tenant ? (
+              <Link 
+                href="/dashboard"
+                className="px-6 py-2.5 bg-fg text-bg text-xs font-black uppercase tracking-[0.2em] rounded-full hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all shadow-md"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <button 
+                  onClick={() => onOpenAuth('login')}
+                  className="text-xs font-black uppercase tracking-[0.2em] text-fg/60 hover:text-fg transition-colors px-4 cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <button 
+                  onClick={() => onOpenAuth('register')}
+                  className="px-6 py-2.5 bg-fg text-bg text-xs font-black uppercase tracking-[0.2em] rounded-full hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all shadow-md cursor-pointer"
+                >
+                  Get Started
+                </button>
+              </>
+            )}
+            <ThemeToggle />
           </div>
         </div>
       </div>
