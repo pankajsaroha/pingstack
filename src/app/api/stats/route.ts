@@ -58,29 +58,60 @@ export async function GET(req: Request) {
       MARKETING: 0.8631
     };
 
+    // Pre-compile regexes for templates
+    const compiledTemplates = templatesList.map(t => {
+      if (!t.content) return null;
+      try {
+        const escaped = t.content.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regexStr = '^' + escaped.replace(/\\\{\\\{\d+\\\}\\\}/g, '.*') + '$';
+        return {
+          category: t.category || 'MARKETING',
+          regex: new RegExp(regexStr)
+        };
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean) as { category: string; regex: RegExp }[];
+
+    // Cache content strings categories
+    const categoryCache = new Map<string, string>();
+
     const findTemplateCategory = (content: string | null) => {
       if (!content) return 'MARKETING';
       
+      // Check cache first
+      if (categoryCache.has(content)) {
+        return categoryCache.get(content)!;
+      }
+
+      // Check simple matches
       const matchByContent = templatesList.find(t => t.content === content);
-      if (matchByContent) return matchByContent.category || 'MARKETING';
+      if (matchByContent) {
+        const cat = matchByContent.category || 'MARKETING';
+        categoryCache.set(content, cat);
+        return cat;
+      }
 
       const tokenMatch = content.match(/\[Template:\s*([^\]]+)\]/);
       if (tokenMatch) {
         const tName = tokenMatch[1].trim();
         const matchByName = templatesList.find(t => t.name === tName);
-        if (matchByName) return matchByName.category || 'MARKETING';
-      }
-
-      for (const t of templatesList) {
-        if (t.content) {
-          const escaped = t.content.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-          const regexStr = '^' + escaped.replace(/\\\{\\\{\d+\\\}\\\}/g, '.*') + '$';
-          try {
-            const regex = new RegExp(regexStr);
-            if (regex.test(content)) return t.category || 'MARKETING';
-          } catch (e) {}
+        if (matchByName) {
+          const cat = matchByName.category || 'MARKETING';
+          categoryCache.set(content, cat);
+          return cat;
         }
       }
+
+      // Check pre-compiled regexes
+      for (const ct of compiledTemplates) {
+        if (ct.regex.test(content)) {
+          categoryCache.set(content, ct.category);
+          return ct.category;
+        }
+      }
+
+      categoryCache.set(content, 'MARKETING');
       return 'MARKETING';
     };
 
