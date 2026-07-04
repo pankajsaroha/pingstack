@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Sidebar } from '@/components/Sidebar';
 import { Menu, X, AlertTriangle, LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -137,14 +138,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 z-10 relative">
         {/* Mobile Header */}
         <header className="md:hidden h-16 border-b border-glass-border bg-bg/60 backdrop-blur-xl px-6 flex items-center justify-between shrink-0 z-50">
-           <div className="flex items-center space-x-2">
-             <div className="bg-fg p-1.5 rounded-lg">
-                <svg className="w-5 h-5 text-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-             </div>
-             <span className="font-black text-lg tracking-tight text-fg">PingStack</span>
-           </div>
+            <Link href="/" className="flex items-center space-x-2 cursor-pointer group/logo">
+              <div className="bg-fg p-1.5 rounded-lg group-hover/logo:scale-105 transition-transform duration-200">
+                 <svg className="w-5 h-5 text-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                 </svg>
+              </div>
+              <span className="font-black text-lg tracking-tight text-fg group-hover/logo:opacity-80 transition-opacity duration-200">PingStack</span>
+            </Link>
            <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 hover:bg-glass-card rounded-lg cursor-pointer">
               <Menu className="w-6 h-6 text-muted hover:text-fg" />
            </button>
