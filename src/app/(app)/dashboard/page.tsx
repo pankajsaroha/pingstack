@@ -915,6 +915,26 @@ export default function Dashboard() {
                     <p className="text-sm text-muted mt-1 font-semibold">Configure or reset your WhatsApp Cloud API link.</p>
                   </div>
                 </div>
+
+                {/* Connection status details */}
+                <div className="my-6 grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-glass-border">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black text-fg/30 uppercase tracking-widest">Connection State</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse" />
+                      <span className="text-xs font-black text-fg">Active & Synced</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black text-fg/30 uppercase tracking-widest">WhatsApp WABA ID</span>
+                    <p className="text-xs font-mono font-bold text-fg/75 truncate select-all">{whatsappAccount?.business_id || 'Not Associated'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black text-fg/30 uppercase tracking-widest">Phone Asset ID</span>
+                    <p className="text-xs font-mono font-bold text-fg/75 truncate select-all">{whatsappAccount?.phone_number_id || 'Not Associated'}</p>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-3 mt-6 sm:mt-0 sm:self-end">
                   <button 
                     onClick={handleStartSwitching}
