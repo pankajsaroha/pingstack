@@ -4,6 +4,7 @@ import { ensureFreshLimits } from '@/lib/limits';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) {
     console.error('[tenant/me] Missing x-tenant-id header');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -23,6 +24,26 @@ export async function GET(req: Request) {
 
     const tenant = await ensureFreshLimits(tenantId, tenantData);
 
+    const planType = tenant?.plan_type || 'starter';
+    const pendingPlanType = tenant?.pending_plan_type || null;
+
+    const subStatus = tenant?.subscription_status;
+    const createdAt = tenant?.created_at ? new Date(tenant.created_at) : new Date();
+    
+    const isTrial = planType === 'starter' && subStatus !== 'active';
+    const trialExpiresAt = new Date(createdAt.getTime() + 15 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const trialDaysLeft = Math.max(0, Math.ceil((trialExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    const trialExpired = isTrial && now > trialExpiresAt;
+
+    let userName = 'User';
+    if (userId) {
+      const { data: userData } = await db.from('users').select('name').eq('id', userId).maybeSingle();
+      if (userData?.name) {
+        userName = userData.name;
+      }
+    }
+
     const { data: whatsappAccount, error: wError } = await db.from('whatsapp_accounts')
       .select('id, provider, status, phone_number_id, business_id')
       .eq('tenant_id', tenantId)
@@ -34,6 +55,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ...tenant,
+      plan_type: planType,
+      pending_plan_type: pendingPlanType,
+      user_name: userName,
+      is_trial: isTrial,
+      trial_expires_at: trialExpiresAt.toISOString(),
+      trial_days_left: trialDaysLeft,
+      trial_expired: trialExpired,
       whatsapp_account: whatsappAccount || null
     });
   } catch (err) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import { Send, User, Clock, Check, CheckCheck, MessageCircle, Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Zap, X, Paperclip, Image, FileText, ArrowRight, Search } from 'lucide-react';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
-import { PLANS, PlanType } from '@/lib/plans';
+import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
 import { dbPublic } from '@/lib/db';
 
 const formatSeparatorDate = (dateString: string) => {
@@ -64,7 +64,7 @@ export default function Inbox() {
     const file = e.target.files?.[0];
     if (!file || !tenant) return;
 
-    const planType = (tenant.plan_type || 'starter') as PlanType;
+    const planType = getActivePlanType(tenant.plan_type);
     const limits = PLANS[planType];
     
     if (file.size > limits.maxFileSizeMb * 1024 * 1024) {

@@ -1,7 +1,42 @@
 import { db } from './db';
 import { PLANS, PlanType } from './plans';
 
+export async function checkAndApplyPendingPlan(tenantId: string, tenant: any) {
+  if (!db || !tenant) return tenant;
+
+  const pendingPlan = tenant.pending_plan_type;
+  const periodEnd = tenant.current_period_end;
+
+  if (pendingPlan) {
+    const now = new Date();
+    const periodEndDate = periodEnd ? new Date(periodEnd) : new Date(0);
+
+    if (now > periodEndDate) {
+      try {
+        const { data: updated, error } = await db
+          .from('tenants')
+          .update({ 
+            plan_type: pendingPlan,
+            pending_plan_type: null,
+            subscription_status: 'expired'
+          })
+          .eq('id', tenantId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return updated;
+      } catch (e) {
+        console.warn('Could not auto-apply pending plan transition:', e);
+      }
+    }
+  }
+
+  return tenant;
+}
+
 export async function ensureFreshLimits(tenantId: string, tenant: any) {
+  tenant = await checkAndApplyPendingPlan(tenantId, tenant);
   const lastReset = (tenant as any)?.last_usage_reset;
   const tTimezone = (tenant as any)?.timezone || 'UTC';
 
@@ -47,21 +82,28 @@ export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts
     console.warn('Limit check encountered a non-fatal structural error:', error?.message);
   }
 
-  // Ensure limits are fresh (Timezone Aware Reset)
+  // Ensure limits are fresh (Timezone Aware Reset & Pending Plan Transition)
   tenant = await ensureFreshLimits(tenantId, tenant);
 
   // Defensively extract fields with defaults if columns are missing
   const planType = (tenant as any)?.plan_type || 'starter';
-  const subStatus = (tenant as any)?.subscription_status || 'active';
+  const subStatus = (tenant as any)?.subscription_status;
   const periodEnd = (tenant as any)?.current_period_end;
   const campaignsSentToday = (tenant as any)?.campaigns_sent_today || 0;
 
   // Basic plan check
   if (planType === 'starter') {
-     // Starter is always allowed within its own limits
+    // Starter trial check: 15 days trial from created_at if subscription is not active
+    if (subStatus !== 'active') {
+      const createdAt = (tenant as any)?.created_at ? new Date((tenant as any).created_at) : new Date();
+      const trialExpiry = new Date(createdAt.getTime() + 15 * 24 * 60 * 60 * 1000);
+      if (new Date() > trialExpiry) {
+        return false; // Trial has ended
+      }
+    }
   } else {
     // For paid plans, check subscription status
-    const isValidStatus = ['active', 'authenticated', 'cancelled'].includes(subStatus);
+    const isValidStatus = ['active', 'authenticated', 'cancelled'].includes(subStatus || 'active');
     if (!isValidStatus) return false;
 
     // If cancelled, check if we are past the current_period_end

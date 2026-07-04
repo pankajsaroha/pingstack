@@ -519,6 +519,7 @@ export default function Templates() {
                     >
                       <option value="UTILITY" className="bg-bg text-fg">Utility</option>
                       <option value="MARKETING" className="bg-bg text-fg">Marketing</option>
+                      <option value="AUTHENTICATION" className="bg-bg text-fg">Authentication</option>
                     </select>
                   </div>
                   <div>

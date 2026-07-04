@@ -482,7 +482,7 @@ const retryFailedJobs = async () => {
 console.log('🚀 PingStack Engine (Worker + Scheduler) is live.');
 console.log(`[Config] Redis: ${redisUrl.split('@')[1] || redisUrl}`);
 
-import { PLANS, PlanType } from './src/lib/plans';
+import { PLANS, PlanType, getActivePlanType } from './src/lib/plans';
 
 // ---------------------------------------------------------
 // 3. Storage TTL Cleanup (Runs Daily)
@@ -496,7 +496,7 @@ cron.schedule('0 3 * * *', async () => {
     if (!tenants) return;
 
     for (const tenant of tenants) {
-      const plan = PLANS[(tenant.plan_type || 'starter') as PlanType];
+      const plan = PLANS[getActivePlanType(tenant.plan_type)];
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() - plan.mediaRetentionDays);
 

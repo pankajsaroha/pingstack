@@ -12,6 +12,7 @@ type RazorpayError = {
 };
 
 const PLAN_IDS: Record<string, string> = {
+  Starter: process.env.RAZORPAY_PLAN_ID_STARTER || '',
   Growth: process.env.RAZORPAY_PLAN_ID_GROWTH || '',
   Pro: process.env.RAZORPAY_PLAN_ID_PRO || ''
 };

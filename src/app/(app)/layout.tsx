@@ -2,17 +2,37 @@
 
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, AlertTriangle, LogOut, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { setSupabaseSession } from '@/lib/db';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [tenant, setTenant] = useState<any>(null);
+  const [loadingTenant, setLoadingTenant] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
     if (saved !== null) setIsCollapsed(saved === 'true');
     setMounted(true);
+
+    async function fetchTenant() {
+      try {
+        const res = await fetch('/api/tenant/me');
+        if (res.ok) {
+          const data = await res.json();
+          setTenant(data);
+        }
+      } catch (err) {
+        console.error('Error fetching tenant details in layout:', err);
+      } finally {
+        setLoadingTenant(false);
+      }
+    }
+    fetchTenant();
   }, []);
 
   const toggleCollapse = () => {
@@ -21,7 +41,62 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     localStorage.setItem('sidebar-collapsed', String(newState));
   };
 
-  if (!mounted) return null;
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
+    document.cookie = 'token=; Max-Age=0; path=/;';
+    document.cookie = 'supabase_refresh_token=; Max-Age=0; path=/;';
+    await setSupabaseSession(null);
+    router.push('/');
+  };
+
+  if (!mounted || loadingTenant) {
+    return (
+      <div className="flex h-screen w-screen bg-bg text-fg justify-center items-center">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (tenant?.trial_expired) {
+    return (
+      <div className="flex h-screen w-screen bg-bg text-fg overflow-hidden relative justify-center items-center">
+        {/* Ambient background glows */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-1/4 left-1/4 w-[60%] h-[60%] rounded-full bg-red-500/[0.02] dark:bg-red-600/[0.03] blur-[150px]" />
+          <div className="absolute bottom-1/4 right-1/4 w-[60%] h-[60%] rounded-full bg-indigo-500/[0.02] dark:bg-indigo-600/[0.03] blur-[150px]" />
+        </div>
+
+        <div className="relative max-w-md w-full mx-4 p-8 sm:p-10 rounded-[2.5rem] border border-glass-border bg-glass-card/60 backdrop-blur-2xl shadow-2xl text-center z-10 flex flex-col items-center">
+          <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-6">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+
+          <h2 className="text-2xl font-black tracking-tight text-fg mb-4">Trial Period Expired</h2>
+          
+          <p className="text-muted text-sm font-semibold leading-relaxed mb-8">
+            Your 15-day free trial of PingStack's Starter plan has ended. Upgrade to a paid plan now to continue sending WhatsApp campaigns, managing contacts, and using inbox features.
+          </p>
+
+          <div className="w-full flex flex-col gap-3">
+            <a 
+              href="/pricing"
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest text-center transition-all shadow-lg shadow-indigo-600/25 active:scale-98"
+            >
+              Upgrade Subscription
+            </a>
+            
+            <button 
+              onClick={handleLogout}
+              className="w-full py-4 bg-glass-input text-fg/70 hover:text-fg border border-glass-input-border hover:border-fg/20 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-bg text-fg overflow-hidden relative selection:bg-fg selection:text-bg transition-colors duration-300">
@@ -74,6 +149,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Menu className="w-6 h-6 text-muted hover:text-fg" />
            </button>
         </header>
+
+        {/* Trial Countdown Notice Bar */}
+        {tenant && tenant.is_trial && !tenant.trial_expired && (
+          <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 border-b border-indigo-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-indigo-400 z-40 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+              </span>
+              <span>Your 15-day free trial has <strong>{tenant.trial_days_left} {tenant.trial_days_left === 1 ? 'day' : 'days'}</strong> left.</span>
+            </div>
+            <a href="/pricing" className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/25">
+              Upgrade Now
+            </a>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto relative scroll-smooth">
           <div className="max-w-6xl mx-auto p-4 sm:p-6 md:p-8 mt-2 relative z-10">

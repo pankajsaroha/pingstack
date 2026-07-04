@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, CheckCircle2, AlertCircle, Copy, CheckSquare, Loader2, Settings, Zap, Rocket, BarChart3, Users, Book, Facebook, ArrowRight, ShieldCheck, Paperclip } from 'lucide-react';
+import { MessageCircle, CheckCircle2, AlertCircle, Copy, CheckSquare, Loader2, Settings, Zap, Rocket, BarChart3, Users, Book, Facebook, ArrowRight, ShieldCheck, Paperclip, X } from 'lucide-react';
 import { db } from '@/lib/db';
-import { PLANS, PlanType } from '@/lib/plans';
+import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
 import Toast from '@/components/Toast';
 
 declare global {
@@ -24,9 +24,61 @@ export default function Dashboard() {
     delivered: 0,
     read: 0,
     failed: 0,
-    totalContacts: 0
+    totalContacts: 0,
+    estimatedCostThisMonth: 0,
+    estimatedCostSinceLastPayment: 0,
+    lastMetaPaymentAt: null as string | null,
+    metaBudgetLimit: 1000
   });
   const [connecting, setConnecting] = useState(false);
+  
+  // Meta Spending Cost States
+  const [costMode, setCostMode] = useState<'month' | 'last_payment'>('month');
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [inputLastPaid, setInputLastPaid] = useState('');
+  const [inputBudget, setInputBudget] = useState(1000);
+  const [updatingBilling, setUpdatingBilling] = useState(false);
+
+  // Meta Switch Account States
+  const [isSwitching, setIsSwitching] = useState(false);
+  
+  const handleStartSwitching = async () => {
+    setIsSwitching(true);
+    setError(null);
+    await handleDiscovery(undefined, tenant?.id);
+  };
+
+  const handleSaveBillingConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdatingBilling(true);
+    try {
+      const res = await fetch('/api/tenant/me', {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id
+        },
+        body: JSON.stringify({
+          last_meta_payment_at: inputLastPaid ? new Date(inputLastPaid).toISOString() : null,
+          meta_budget_limit: inputBudget
+        })
+      });
+      if (res.ok) {
+        setToast({ message: 'Meta billing configurations updated successfully!', type: 'success' });
+        setShowBillingModal(false);
+        // Refresh tenant & stats
+        await fetchTenant();
+        await fetchStats();
+      } else {
+        setToast({ message: 'Failed to update billing details', type: 'error' });
+      }
+    } catch (err) {
+      setToast({ message: 'Connection error', type: 'error' });
+    } finally {
+      setUpdatingBilling(false);
+    }
+  };
+
   const [healthCheck, setHealthCheck] = useState<{ status: 'loading' | 'ok' | 'limited' | 'error', message?: string } | null>(null);
 
   const handleHealthCheck = async () => {
@@ -180,7 +232,10 @@ export default function Dashboard() {
         setDiscovery(data.wabas || []);
         setTempToken(data.accessToken);
         setPortfolioId(data.portfolioId);
-        setOnboardingStep(2);
+        const isCurrentlyConnected = tenant?.whatsapp_account?.status === 'ACTIVE';
+        if (!isCurrentlyConnected) {
+          setOnboardingStep(2);
+        }
         if (data.wabas.length > 0) {
           const firstWaba = data.wabas[0];
           setSelectedWaba(firstWaba.id);
@@ -296,6 +351,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (res.ok) {
         setToast({ message: 'Setup completed successfully!', type: 'success' });
+        setIsSwitching(false);
         await fetchTenant();
       } else {
         setError(data.message || 'Finalization failed');
@@ -347,9 +403,11 @@ export default function Dashboard() {
       {/* Header Panel */}
       <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-fg sm:text-4xl">WhatsApp API Grid</h1>
-          <p className="text-muted mt-2 text-base">
-            {isConnected ? 'Your official Meta Cloud API infrastructure is online.' : 'Link your Meta Business profile to launch notifications.'}
+          <h1 className="text-3xl font-black tracking-tight text-fg sm:text-4xl">
+            Welcome back, {tenant?.user_name || 'User'}!
+          </h1>
+          <p className="text-muted mt-2 text-base font-semibold">
+            {tenant?.name || 'Workspace'} &bull; {isConnected ? 'Your official Meta Cloud API infrastructure is online.' : 'Link your Meta Business profile to launch notifications.'}
           </p>
         </div>
         {isConnected && (
@@ -767,32 +825,200 @@ export default function Dashboard() {
       )}
 
       {isConnected && (
-        <div className="mb-12 bg-glass-card border border-glass-border rounded-[2.5rem] p-8 shadow-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div className="flex items-center gap-6">
-              <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center">
-                <Settings className="w-6 h-6 text-fg/60" />
+        <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-top-4 duration-700">
+          
+          {/* Connection management card */}
+          <div className="lg:col-span-2 bg-glass-card border border-glass-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col justify-between">
+            {isSwitching ? (
+              <div className="w-full space-y-6">
+                <div>
+                  <h3 className="text-xl font-black text-fg tracking-tight">Switch Selected Account</h3>
+                  <p className="text-sm text-muted mt-1 font-semibold">Select a different WhatsApp Business Profile or Phone ID.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-fg/30 uppercase tracking-widest ml-1">WABA Account</label>
+                    {discovery && discovery.length > 0 ? (
+                      <select 
+                        value={selectedWaba}
+                        onChange={(e) => {
+                          setSelectedWaba(e.target.value);
+                          const waba = discovery.find((w: any) => w.id === e.target.value);
+                          if (waba?.phones?.length > 0) setSelectedPhone(waba.phones[0].id);
+                        }}
+                        className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
+                      >
+                        {discovery.map((waba: any) => (
+                          <option key={waba.id} value={waba.id} className="bg-bg text-fg">{waba.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="text-xs text-muted py-4 ml-1">No WABAs found</div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-fg/30 uppercase tracking-widest ml-1">Phone Asset</label>
+                    {selectedWaba && discovery?.find((w: any) => w.id === selectedWaba)?.phones?.length > 0 ? (
+                      <select 
+                        value={selectedPhone}
+                        onChange={(e) => setSelectedPhone(e.target.value)}
+                        className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
+                      >
+                        {discovery.find((w: any) => w.id === selectedWaba).phones.map((phone: any) => (
+                          <option key={phone.id} value={phone.id} className="bg-bg text-fg">
+                            {phone.verified_name} ({phone.display_phone_number})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="text-xs text-muted py-4 ml-1">No phone assets available</div>
+                    )}
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-end mt-4">
+                  <button 
+                    onClick={() => {
+                      setIsSwitching(false);
+                      setError(null);
+                    }}
+                    className="px-6 h-12 border border-glass-border text-muted hover:text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleFinishOnboarding}
+                    disabled={connecting || !selectedWaba || !selectedPhone}
+                    className="px-8 h-12 bg-fg text-bg hover:opacity-90 disabled:opacity-40 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg flex items-center justify-center"
+                  >
+                    {connecting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Save Selection'}
+                  </button>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-black text-fg tracking-tight">Manage Connection</h3>
-                <p className="text-sm text-muted mt-1 font-semibold">Configure or reset your WhatsApp Cloud API link.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={handleEmbeddedConnect}
-                className="px-6 h-12 bg-fg text-bg hover:opacity-90 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5"
-              >
-                Change Account
-              </button>
-              <button 
-                onClick={handleResetConnection}
-                className="px-6 h-12 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
-              >
-                Reset Connection
-              </button>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center">
+                    <Settings className="w-6 h-6 text-fg/60" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-fg tracking-tight">Manage Connection</h3>
+                    <p className="text-sm text-muted mt-1 font-semibold">Configure or reset your WhatsApp Cloud API link.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mt-6 sm:mt-0 sm:self-end">
+                  <button 
+                    onClick={handleStartSwitching}
+                    className="px-6 h-12 bg-fg text-bg hover:opacity-90 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5"
+                  >
+                    Switch Account
+                  </button>
+                  <button 
+                    onClick={handleResetConnection}
+                    className="px-6 h-12 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                  >
+                    Reset Connection
+                  </button>
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Meta spending estimation card */}
+          <div className="bg-glass-card border border-glass-border rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between group">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.02] to-transparent pointer-events-none" />
+            
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-black text-fg uppercase tracking-widest">Meta API Costs</h3>
+                <button 
+                  onClick={() => {
+                    setInputLastPaid(stats.lastMetaPaymentAt ? stats.lastMetaPaymentAt.split('T')[0] : '');
+                    setInputBudget(stats.metaBudgetLimit || 1000);
+                    setShowBillingModal(true);
+                  }}
+                  className="text-[9px] font-black text-indigo-400 hover:text-fg uppercase tracking-widest transition-colors cursor-pointer"
+                >
+                  Configure
+                </button>
+              </div>
+
+              {/* Mode Select Tabs */}
+              <div className="flex gap-2 p-1 bg-glass-input rounded-xl border border-glass-border mb-6">
+                <button
+                  onClick={() => setCostMode('month')}
+                  className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    costMode === 'month' ? 'bg-fg text-bg' : 'text-fg/40 hover:text-fg'
+                  }`}
+                >
+                  Current Month
+                </button>
+                <button
+                  onClick={() => setCostMode('last_payment')}
+                  className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    costMode === 'last_payment' ? 'bg-fg text-bg' : 'text-fg/40 hover:text-fg'
+                  }`}
+                >
+                  Since Last Paid
+                </button>
+              </div>
+
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-black text-fg">
+                  ₹{(costMode === 'month' ? stats.estimatedCostThisMonth : stats.estimatedCostSinceLastPayment).toFixed(2)}
+                </span>
+                <span className="text-[10px] font-bold text-muted uppercase tracking-wider">INR</span>
+              </div>
+              <p className="text-[10px] text-muted font-semibold mt-2 leading-relaxed">
+                {costMode === 'month' ? (
+                  <span>Estimated charges for template conversations sent this calendar month.</span>
+                ) : (
+                  <span>
+                    Estimated charges since last payment: <strong>{stats.lastMetaPaymentAt ? new Date(stats.lastMetaPaymentAt).toLocaleDateString() : 'None Set'}</strong>.
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {/* Budget warnings / Pay link */}
+            <div className="mt-6 border-t border-glass-border pt-4">
+              {stats.estimatedCostSinceLastPayment > stats.metaBudgetLimit ? (
+                <div className="space-y-3">
+                  <div className="px-3.5 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-[10px] font-bold leading-relaxed">
+                    ⚠️ Budget Exceeded! Estimated cost (₹{stats.estimatedCostSinceLastPayment.toFixed(2)}) is over limit (₹{stats.metaBudgetLimit}).
+                  </div>
+                  <a 
+                    href="https://business.facebook.com/billing_hub" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest text-center block transition-all shadow-lg shadow-red-500/10"
+                  >
+                    Pay on Meta Business Hub &rarr;
+                  </a>
+                </div>
+              ) : (
+                <a 
+                  href="https://business.facebook.com/billing_hub" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="w-full py-2.5 bg-glass-input hover:bg-white/5 text-fg/60 hover:text-fg border border-glass-border rounded-xl text-[9px] font-black uppercase tracking-widest text-center block transition-all"
+                >
+                  Meta Billing Hub &rarr;
+                </a>
+              )}
+            </div>
+
+          </div>
+
         </div>
       )}
 
@@ -851,7 +1077,7 @@ export default function Dashboard() {
               <div className="h-1.5 w-full bg-glass-input rounded-full overflow-hidden border border-glass-border">
                 <div 
                   className="h-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-1000"
-                  style={{ width: `${Math.min(100, (((tenant?.storage_usage_bytes || 0) / 1024 / 1024) / (PLANS[tenant?.plan_type as PlanType || 'starter'].maxStorageMb || 1)) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (((tenant?.storage_usage_bytes || 0) / 1024 / 1024) / (PLANS[getActivePlanType(tenant?.plan_type)].maxStorageMb || 1)) * 100)}%` }}
                 />
               </div>
             </div>
@@ -861,7 +1087,7 @@ export default function Dashboard() {
             <a href="/pricing" className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-fg flex items-center uppercase tracking-widest transition-all">
               Upgrade subscription &rarr;
             </a>
-            {tenant?.plan_type && tenant.plan_type !== 'starter' && (
+            {tenant?.plan_type && getActivePlanType(tenant.plan_type) !== 'starter' && tenant.subscription_status === 'active' && (
               <button 
                 onClick={handleCancelSubscription}
                 className="text-[9px] font-black text-fg/20 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer"
@@ -954,6 +1180,65 @@ export default function Dashboard() {
           type={toast.type} 
           onClose={() => setToast(null)} 
         />
+      )}
+
+      {showBillingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-black text-fg uppercase tracking-wider">Meta Billing Config</h3>
+              <button 
+                onClick={() => setShowBillingModal(false)}
+                className="p-2 hover:bg-glass-input rounded-full transition-colors text-muted hover:text-fg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBillingConfig} className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Last Payment Date</label>
+                <input 
+                  type="date"
+                  value={inputLastPaid}
+                  onChange={e => setInputLastPaid(e.target.value)}
+                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all cursor-pointer"
+                />
+                <p className="text-[9px] text-fg/30 mt-2 px-1 font-semibold">We estimate Meta charges starting from this date.</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Alert Budget Limit (INR)</label>
+                <input 
+                  type="number"
+                  min={1}
+                  value={inputBudget}
+                  onChange={e => setInputBudget(Number(e.target.value) || 0)}
+                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all font-mono"
+                  required
+                />
+                <p className="text-[9px] text-fg/30 mt-2 px-1 font-semibold">Get notified on the dashboard when spending exceeds this limit.</p>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBillingModal(false)}
+                  className="flex-1 py-4 border border-glass-border hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer text-fg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingBilling}
+                  className="flex-1 py-4 bg-fg text-bg hover:opacity-90 disabled:opacity-40 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer"
+                >
+                  {updatingBilling ? 'Saving...' : 'Save Settings'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

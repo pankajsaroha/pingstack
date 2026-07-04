@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { dbAdmin as db } from '@/lib/db';
 import { messageQueue } from '@/lib/queue';
-import { PLANS, PlanType } from '@/lib/plans';
+import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
 
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -32,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
 
     if (tError || !tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
-    const planLimits = PLANS[(tenant.plan_type || 'starter') as PlanType];
+    const planLimits = PLANS[getActivePlanType(tenant.plan_type)];
     const currentUsageBytes = Number(tenant.storage_usage_bytes || 0);
     const maxSizeBytes = planLimits.maxStorageMb * 1024 * 1024;
 
