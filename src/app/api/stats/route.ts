@@ -120,36 +120,26 @@ export async function GET(req: Request) {
     const estimatedCostThisMonth = calculateCost(messages || [], startOfMonth);
     const estimatedCostSinceLastPayment = calculateCost(messages || [], lastPaidDate || new Date(0));
 
-    // 7. Get total (all time) message counts using fast count queries
-    const { count: totalSent } = await db
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .in('status', ['sent', 'delivered', 'read']);
+    // 7. Get total (all time) message counts in parallel
+    const [
+      sentRes,
+      deliveredRes,
+      readRes,
+      failedRes,
+      inboundRes
+    ] = await Promise.all([
+      db.from('messages').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['sent', 'delivered', 'read']),
+      db.from('messages').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['delivered', 'read']),
+      db.from('messages').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'read'),
+      db.from('messages').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'failed'),
+      db.from('messages').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('direction', 'inbound')
+    ]);
 
-    const { count: totalDelivered } = await db
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .in('status', ['delivered', 'read']);
-
-    const { count: totalRead } = await db
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('status', 'read');
-
-    const { count: totalFailed } = await db
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('status', 'failed');
-
-    const { count: totalInbound } = await db
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('direction', 'inbound');
+    const totalSent = sentRes.count;
+    const totalDelivered = deliveredRes.count;
+    const totalRead = readRes.count;
+    const totalFailed = failedRes.count;
+    const totalInbound = inboundRes.count;
 
     const stats = {
       totalContacts: totalContacts || 0,

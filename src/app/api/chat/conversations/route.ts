@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   const { data: messages } = await db.from('messages')
     .select('id, contact_id, content, direction, status, created_at')
     .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(2000);
 
   const conversations = (contacts || []).map((contact: any) => {
     const contactMsgs = (messages || []).filter((m: any) => m.contact_id === contact.id);
