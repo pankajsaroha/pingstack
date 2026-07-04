@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, CheckCircle2, AlertCircle, Copy, CheckSquare, Loader2, Settings, Zap, Rocket, BarChart3, Users, Book, Facebook, ArrowRight, ShieldCheck, Paperclip, X } from 'lucide-react';
+import { MessageCircle, CheckCircle2, AlertCircle, Copy, CheckSquare, Loader2, Settings, Zap, Rocket, BarChart3, Users, Book, Facebook, ArrowRight, ShieldCheck, Paperclip, X, Code, Key, Check, Trash2 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
 import Toast from '@/components/Toast';
@@ -41,6 +41,16 @@ export default function Dashboard() {
 
   // Meta Switch Account States
   const [isSwitching, setIsSwitching] = useState(false);
+
+  // Developer Portal States
+  const [activeTab, setActiveTab] = useState<'overview' | 'developer'>('overview');
+  const [apps, setApps] = useState<any[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [showCreateAppModal, setShowCreateAppModal] = useState(false);
+  const [newAppName, setNewAppName] = useState('');
+  const [newAppDesc, setNewAppDesc] = useState('');
+  const [newAppKey, setNewAppKey] = useState<string | null>(null);
+  const [copiedAppId, setCopiedAppId] = useState<string | null>(null);
   
   const handleStartSwitching = async () => {
     setIsSwitching(true);
@@ -253,6 +263,83 @@ export default function Dashboard() {
     }
   }, [tenant]);
 
+  const fetchApps = useCallback(async () => {
+    if (!tenant?.id) return;
+    setLoadingApps(true);
+    try {
+      const res = await fetch('/api/developer/apps', {
+        headers: { 'x-tenant-id': tenant.id }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setApps(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch developer apps:', e);
+    } finally {
+      setLoadingApps(false);
+    }
+  }, [tenant?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'developer') {
+      fetchApps();
+    }
+  }, [activeTab, fetchApps]);
+
+  const handleCreateApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAppName.trim() || !tenant?.id) return;
+    setConnecting(true);
+    try {
+      const res = await fetch('/api/developer/apps', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant.id
+        },
+        body: JSON.stringify({
+          name: newAppName,
+          description: newAppDesc
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewAppKey(data.apiKey);
+        setNewAppName('');
+        setNewAppDesc('');
+        fetchApps();
+        setToast({ message: 'Developer App created successfully!', type: 'success' });
+      } else {
+        const err = await res.json();
+        setToast({ message: err.error || 'Failed to create app', type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: 'Network error', type: 'error' });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleRevokeApp = async (appId: string) => {
+    if (!confirm('Are you sure you want to revoke this application? All API integrations utilizing this key will instantly fail.')) return;
+    if (!tenant?.id) return;
+    try {
+      const res = await fetch(`/api/developer/apps?id=${appId}`, {
+        method: 'DELETE',
+        headers: { 'x-tenant-id': tenant.id }
+      });
+      if (res.ok) {
+        setToast({ message: 'API key revoked successfully.', type: 'success' });
+        fetchApps();
+      } else {
+        setToast({ message: 'Failed to revoke key', type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: 'Network error', type: 'error' });
+    }
+  };
+
   const fetchTenant = async () => {
     try {
       const res = await fetch('/api/tenant/me');
@@ -418,7 +505,35 @@ export default function Dashboard() {
         )}
       </div>
 
-      {!isConnected && (
+      {/* Tab selector for Dashboard: Overview vs Developer Portal */}
+      <div className="flex border-b border-glass-border mb-8">
+        <button
+          type="button"
+          onClick={() => setActiveTab('overview')}
+          className={`pb-4 px-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all cursor-pointer ${
+            activeTab === 'overview'
+              ? 'border-fg text-fg'
+              : 'border-transparent text-muted hover:text-fg'
+          }`}
+        >
+          Workspace Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('developer')}
+          className={`pb-4 px-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all cursor-pointer ${
+            activeTab === 'developer'
+              ? 'border-fg text-fg'
+              : 'border-transparent text-muted hover:text-fg'
+          }`}
+        >
+          Developer Portal & API Keys
+        </button>
+      </div>
+
+      {activeTab === 'overview' && (
+        <>
+          {!isConnected && (
         <div className="mb-12">
           {/* Wizard Type Selector */}
           <div className="flex justify-center mb-10">
@@ -1193,6 +1308,242 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
+        </>
+      )}
+
+      {activeTab === 'developer' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8 max-w-5xl mx-auto">
+          {/* Header Card */}
+          <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.02] to-transparent pointer-events-none" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div>
+                <h3 className="text-xl font-black text-fg tracking-tight flex items-center gap-2">
+                  <Code className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+                  Developer Console
+                </h3>
+                <p className="text-sm text-muted mt-1 font-semibold">
+                  Register applications and create secure API credentials to send notifications programmatically.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setNewAppName('');
+                  setNewAppDesc('');
+                  setNewAppKey(null);
+                  setShowCreateAppModal(true);
+                }}
+                className="px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all cursor-pointer select-none"
+              >
+                Register App
+              </button>
+            </div>
+          </div>
+
+          {/* Warning / Plaintext API Key Display block */}
+          {newAppKey && (
+            <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-[2rem] space-y-4 animate-in zoom-in-95 duration-300">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-black text-amber-400 uppercase tracking-wider">Secret API Key Generated</h4>
+                  <p className="text-xs font-semibold text-fg/60 mt-1 leading-relaxed">
+                    Make sure to copy this key now! For security reasons, we cannot display it again after you close this notice or reload.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-bg/60 border border-glass-border rounded-xl p-4 flex items-center justify-between gap-4">
+                <code className="text-xs font-mono font-bold text-fg select-all break-all">{newAppKey}</code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(newAppKey);
+                    setToast({ message: 'API key copied to clipboard!', type: 'success' });
+                  }}
+                  className="p-2 bg-glass-input hover:bg-glass-card rounded-lg transition-colors shrink-0 text-muted hover:text-fg cursor-pointer"
+                  title="Copy Key"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setNewAppKey(null)}
+                  className="px-5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                >
+                  Close Notice
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Registered Apps List */}
+          <div className="bg-glass-card border border-glass-border rounded-[2.5rem] shadow-2xl p-8">
+            <h4 className="text-xs font-black text-fg/30 uppercase tracking-widest mb-6 px-1">Registered Apps & Keys</h4>
+
+            {loadingApps ? (
+              <div className="text-center py-12 opacity-40">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-fg mb-3" />
+                <p className="text-[10px] font-black uppercase tracking-wider">Retrieving applications credentials...</p>
+              </div>
+            ) : apps.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-glass-border rounded-[2rem] bg-glass-input/20">
+                <Key className="mx-auto h-8 w-8 text-fg/20 mb-3" />
+                <h4 className="text-sm font-black text-fg/60">No Developer Apps</h4>
+                <p className="text-xs text-muted max-w-xs mx-auto mt-1 leading-relaxed">
+                  Generate your first app key to start building WhatsApp notification scripts.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-glass-border space-y-6">
+                {apps.map((app) => (
+                  <div key={app.id} className="pt-6 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                      <h4 className="text-base font-black text-fg tracking-tight">{app.name}</h4>
+                      {app.description && <p className="text-xs font-semibold text-muted leading-relaxed">{app.description}</p>}
+                      <div className="flex items-center gap-4 text-[10px] font-bold text-fg/30 pt-1">
+                        <span className="flex items-center gap-1">
+                          <Key className="w-3.5 h-3.5" />
+                          Prefix: <code className="font-mono text-fg/50">{app.api_key_prefix}</code>
+                        </span>
+                        <span>&bull;</span>
+                        <span>Created: {new Date(app.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRevokeApp(app.id)}
+                      className="self-start sm:self-center px-4 py-2 border border-red-500/20 bg-red-500/[0.03] text-red-500 hover:bg-red-500/10 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Revoke App
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Curl API Quickstart Guide */}
+          <div className="bg-glass-card border border-glass-border rounded-[2.5rem] shadow-2xl p-8 space-y-6">
+            <div>
+              <h4 className="text-xs font-black text-fg/30 uppercase tracking-widest px-1">API Quickstart Guide</h4>
+              <p className="text-sm font-semibold text-muted mt-2 leading-relaxed">
+                Connect your backend tools using a standard HTTP request. Wrap your key in the standard Bearer header block:
+              </p>
+            </div>
+
+            <div className="bg-bg/40 border border-glass-border rounded-[2rem] p-6 relative overflow-hidden font-mono text-xs text-fg/80 leading-relaxed shadow-inner">
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const curl = `curl -X POST https://pingstack.in/api/v1/messages/send \\\n  -H "Authorization: Bearer YOUR_API_SECRET_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "to": "919999999999",\n    "template": "welcome_alert",\n    "language": "en_US",\n    "parameters": ["John Doe", "Order #1002"]\n  }'`;
+                    navigator.clipboard.writeText(curl);
+                    setToast({ message: 'Curl request example copied!', type: 'success' });
+                  }}
+                  className="p-2 bg-glass-input hover:bg-glass-card rounded-lg transition-colors text-muted hover:text-fg cursor-pointer"
+                  title="Copy Curl Command"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              <pre className="overflow-x-auto whitespace-pre-wrap select-all">
+{`curl -X POST https://pingstack.in/api/v1/messages/send \\
+  -H "Authorization: Bearer ps_secret_live_your_key_here" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "919999999999",
+    "template": "welcome_alert",
+    "language": "en_US",
+    "parameters": ["John Doe", "Order #1002"]
+  }'`}
+              </pre>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-glass-border">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider block">1. Set Header</span>
+                <p className="text-xs text-muted leading-relaxed font-semibold">
+                  Send requests with header <code className="font-mono text-fg/60">Authorization: Bearer YOUR_API_KEY</code>.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider block">2. Auto-Register Contacts</span>
+                <p className="text-xs text-muted leading-relaxed font-semibold">
+                  If the target phone number isn't in your contacts database, PingStack auto-creates them on the fly!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Developer App Modal */}
+      {showCreateAppModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 relative">
+            <button 
+              type="button"
+              onClick={() => setShowCreateAppModal(false)}
+              className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h3 className="text-xl font-black text-fg mb-6 tracking-tight flex items-center gap-2">
+              <Code className="w-5 h-5 text-indigo-500" />
+              Register Developer App
+            </h3>
+            
+            <form onSubmit={handleCreateApp} className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">App Name</label>
+                <input 
+                  type="text"
+                  placeholder="e.g. Google Contact Sync, Stripe Webhooks"
+                  value={newAppName}
+                  onChange={e => setNewAppName(e.target.value)}
+                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/20"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Description (Optional)</label>
+                <textarea 
+                  placeholder="Describe what this API integration is used for..."
+                  value={newAppDesc}
+                  onChange={e => setNewAppDesc(e.target.value)}
+                  rows={3}
+                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/20 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateAppModal(false)}
+                  className="flex-1 py-4 border border-glass-border hover:bg-white/5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer text-fg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={connecting}
+                  className="flex-1 py-4 bg-fg text-bg hover:opacity-90 disabled:opacity-40 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center"
+                >
+                  {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Register App'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       
       {toast && (
         <Toast 
