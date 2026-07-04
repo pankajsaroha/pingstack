@@ -86,6 +86,47 @@ export default function Templates() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // AI Assist State
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showModal) {
+      setAiPrompt('');
+      setAiError(null);
+    }
+  }, [showModal]);
+
+  const handleGenerateAI = async () => {
+    if (!aiPrompt.trim()) return;
+    setGeneratingAI(true);
+    setAiError(null);
+    try {
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (tenant?.id) {
+        headers['x-tenant-id'] = tenant.id;
+      }
+      const res = await fetch('/api/templates/generate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ prompt: aiPrompt })
+      });
+      const data = await res.json();
+      if (res.ok && data.text) {
+        setFormData(prev => ({ ...prev, bodyText: data.text }));
+        setAiPrompt('');
+        setToast({ message: 'Template draft generated successfully!', type: 'success' });
+      } else {
+        setAiError(data.error || 'AI generation failed');
+      }
+    } catch (e: any) {
+      setAiError(e.message || 'AI request failed');
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
   useEffect(() => {
     fetchTenant();
   }, []);
@@ -534,6 +575,43 @@ export default function Templates() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* AI Copilot Segment */}
+                <div className="p-5 bg-indigo-500/[0.03] border border-glass-border/60 rounded-[2rem] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center">
+                      <Sparkles className="w-3.5 h-3.5 mr-2 animate-pulse text-indigo-400" />
+                      AI Copilot Assist
+                    </span>
+                    {tenant?.plan_type === 'starter' && (
+                      <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                        Upgrade Required
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      placeholder={tenant?.plan_type === 'starter' ? "AI generation is locked on Starter plan" : "Describe the message you want to generate (e.g. order tracking alert)..."}
+                      disabled={tenant?.plan_type === 'starter' || generatingAI}
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      className="flex-1 bg-glass-input border border-glass-border rounded-xl px-4 py-3 text-xs font-semibold text-fg placeholder:text-fg/20 focus:border-indigo-500 focus:outline-none disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      disabled={tenant?.plan_type === 'starter' || generatingAI || !aiPrompt.trim()}
+                      onClick={handleGenerateAI}
+                      className="px-5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/30 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                    >
+                      {generatingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Generate'}
+                    </button>
+                  </div>
+                  {aiError && (
+                    <p className="text-[10px] text-red-400 font-bold ml-1">{aiError}</p>
+                  )}
                 </div>
 
                 <div>
