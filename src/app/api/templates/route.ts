@@ -66,11 +66,66 @@ export async function DELETE(req: Request) {
     const { ids } = await req.json();
     if (!ids || !Array.isArray(ids)) return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
 
-    const { error } = await db.from('templates').delete().in('id', ids).eq('tenant_id', tenantId);
-    if (error) throw error;
+    // 1. Fetch template names and details before deleting them
+    const { data: templatesToDelete, error: fetchError } = await db
+      .from('templates')
+      .select('name')
+      .in('id', ids)
+      .eq('tenant_id', tenantId);
+
+    if (fetchError) {
+      console.error('Failed to query templates for deletion:', fetchError);
+    }
+
+    // 2. Fetch Meta credentials and WABA ID to delete templates from Meta
+    const { data: whatsappAccount } = await db
+      .from('whatsapp_accounts')
+      .select('access_token, business_id')
+      .eq('tenant_id', tenantId)
+      .eq('provider', 'META')
+      .maybeSingle();
+
+    if (whatsappAccount?.access_token && whatsappAccount?.business_id) {
+      const { decrypt } = await import('@/lib/encryption');
+      const accessToken = decrypt(whatsappAccount.access_token);
+      const wabaId = whatsappAccount.business_id;
+
+      for (const t of templatesToDelete || []) {
+        if (t.name) {
+          // DELETE https://graph.facebook.com/v19.0/{waba-id}/message_templates?name={name}
+          const metaUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates?name=${encodeURIComponent(t.name)}`;
+          try {
+            const metaRes = await fetch(metaUrl, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              }
+            });
+            const metaResult = await metaRes.json();
+            if (metaResult.error) {
+              console.error(`Failed to delete template '${t.name}' on Meta:`, metaResult.error);
+            } else {
+              console.log(`Successfully deleted template '${t.name}' on Meta:`, metaResult);
+            }
+          } catch (metaErr) {
+            console.error(`Network error deleting template '${t.name}' on Meta:`, metaErr);
+          }
+        }
+      }
+    }
+
+    // 3. Delete records locally
+    const { error: deleteError } = await db
+      .from('templates')
+      .delete()
+      .in('id', ids)
+      .eq('tenant_id', tenantId);
+
+    if (deleteError) throw deleteError;
     
     return NextResponse.json({ success: true });
   } catch (err: any) {
+    console.error('Template deletion route error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
