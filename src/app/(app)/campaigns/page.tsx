@@ -221,7 +221,7 @@ export default function Campaigns() {
           <div className="bg-glass-card border border-glass-border p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
             <Send className="mx-auto h-12 w-12 text-fg/20 mb-4 animate-pulse-slow" />
             <h3 className="text-base font-black text-fg mb-1">No Active Campaigns</h3>
-            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Spawn a new outreach workflow to send bulk WhatsApp messages.</p>
+            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Create a new outreach workflow to send bulk WhatsApp messages.</p>
           </div>
         ) : (
           campaigns.map(campaign => (
@@ -307,7 +307,7 @@ export default function Campaigns() {
               <X className="w-5 h-5" />
             </button>
             
-            <h3 className="text-2xl font-black text-fg mb-6 tracking-tight">Spawn Campaign</h3>
+            <h3 className="text-2xl font-black text-fg mb-6 tracking-tight">Create Campaign</h3>
             
             <form onSubmit={handleCreateCampaign}>
               <div className="space-y-6 mb-8">

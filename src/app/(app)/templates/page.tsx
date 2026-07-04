@@ -90,11 +90,13 @@ export default function Templates() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [showPresets, setShowPresets] = useState(false);
 
   useEffect(() => {
     if (!showModal) {
       setAiPrompt('');
       setAiError(null);
+      setShowPresets(false);
     }
   }, [showModal]);
 
@@ -561,32 +563,52 @@ export default function Templates() {
 
                 {/* Right Column: Presets & Copilot */}
                 <div className="space-y-6">
-                  <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                    <label className="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3 px-1">
-                      <Sparkles className="w-3.5 h-3.5 mr-2" />
-                      Speed Build Samples
-                    </label>
-                    <select
-                      className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all cursor-pointer"
-                      onChange={(e) => {
-                        const sample = SAMPLES.find(s => s.id === e.target.value);
-                        if (sample) {
-                          setFormData({
-                            name: sample.name,
-                            category: sample.category,
-                            language: sample.language,
-                            bodyText: sample.bodyText
-                          });
-                        }
-                      }}
-                      defaultValue=""
-                    >
-                      <option value="" disabled className="text-fg/20">Select a pre-configured template...</option>
-                      {SAMPLES.map(sample => (
-                        <option key={sample.id} value={sample.id} className="bg-bg text-fg">{sample.label}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {showPresets ? (
+                    <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 relative animate-in slide-in-from-top duration-300">
+                      <button
+                        type="button"
+                        onClick={() => setShowPresets(false)}
+                        className="absolute top-4 right-4 text-[9px] font-black text-muted hover:text-fg uppercase tracking-widest cursor-pointer"
+                      >
+                        Hide
+                      </button>
+                      <label className="flex items-center text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3 px-1">
+                        <Sparkles className="w-3.5 h-3.5 mr-2" />
+                        Speed Build Samples
+                      </label>
+                      <select
+                        className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all cursor-pointer"
+                        onChange={(e) => {
+                          const sample = SAMPLES.find(s => s.id === e.target.value);
+                          if (sample) {
+                            setFormData({
+                              name: sample.name,
+                              category: sample.category,
+                              language: sample.language,
+                              bodyText: sample.bodyText
+                            });
+                          }
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled className="text-fg/20">Select a pre-configured template...</option>
+                        {SAMPLES.map(sample => (
+                          <option key={sample.id} value={sample.id} className="bg-bg text-fg">{sample.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end px-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowPresets(true)}
+                        className="text-[9px] font-black text-indigo-500 dark:text-indigo-400 hover:underline uppercase tracking-widest cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Use a template preset example
+                      </button>
+                    </div>
+                  )}
 
                   {/* AI Copilot Segment */}
                   <div className="p-5 bg-indigo-500/[0.03] border border-glass-border/60 rounded-[2rem] space-y-4">
