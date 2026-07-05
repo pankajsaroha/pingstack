@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/Sidebar';
 import { Menu, X, AlertTriangle, LogOut, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { setSupabaseSession } from '@/lib/db';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -14,6 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<any>(null);
   const [loadingTenant, setLoadingTenant] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
@@ -167,8 +168,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto relative scroll-smooth">
-          <div className="max-w-6xl mx-auto p-4 sm:p-6 md:p-8 mt-2 relative z-10">
+        <main className={`flex-1 relative ${pathname === '/inbox' ? 'flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
+          <div className={`${pathname === '/inbox' ? 'flex-1 flex flex-col min-h-0 w-full p-2 sm:p-6 md:p-8' : 'p-4 sm:p-6 md:p-8 mt-2'} max-w-6xl w-full mx-auto relative z-10`}>
             {children}
           </div>
         </main>

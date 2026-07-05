@@ -61,16 +61,7 @@ export default function Campaigns() {
       const [cData, tData, gData] = await Promise.all([cRes.json(), tRes.json(), gRes.json()]);
       
       if (Array.isArray(cData)) {
-        const campaignsWithStats = await Promise.all(cData.map(async (c) => {
-          try {
-            const sRes = await fetch(`/api/campaigns/${c.id}/status`);
-            const sData = await sRes.json();
-            return { ...c, stats: sData };
-          } catch (e) {
-            return { ...c, stats: { sent: 0, delivered: 0, read: 0, failed: 0 } };
-          }
-        }));
-        setCampaigns(campaignsWithStats);
+        setCampaigns(cData);
       }
       if (Array.isArray(tData)) setTemplates(tData);
       if (Array.isArray(gData)) setGroups(gData);

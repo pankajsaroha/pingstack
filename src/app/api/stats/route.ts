@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { connection } from '@/lib/queue';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -9,6 +10,18 @@ export async function GET(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
+    // Check Redis Cache first (30 seconds TTL)
+    if (connection) {
+      try {
+        const cacheKey = `stats:${tenantId}`;
+        const cached = await connection.get(cacheKey);
+        if (cached) {
+          return NextResponse.json(JSON.parse(cached));
+        }
+      } catch (cacheErr) {
+        console.error('[Stats Cache] Failed to read from Redis:', cacheErr);
+      }
+    }
     // 1. Get Tenant details for payment info
     const { data: tenant } = await db
       .from('tenants')
@@ -186,6 +199,16 @@ export async function GET(req: Request) {
       lastMetaPaymentAt: tenant?.last_meta_payment_at || null,
       metaBudgetLimit: tenant?.meta_budget_limit || 1000,
     };
+
+    // Cache computed stats in Redis for 30 seconds
+    if (connection) {
+      try {
+        const cacheKey = `stats:${tenantId}`;
+        await connection.set(cacheKey, JSON.stringify(stats), 'EX', 30);
+      } catch (cacheErr) {
+        console.error('[Stats Cache] Failed to write to Redis:', cacheErr);
+      }
+    }
 
     return NextResponse.json(stats);
   } catch (err: any) {

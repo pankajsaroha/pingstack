@@ -493,7 +493,7 @@ export default function Inbox() {
 
   if (status === 'NOT_CONNECTED') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-glass-card border border-glass-border rounded-[2.5rem] shadow-2xl text-center p-12 max-w-2xl mx-auto my-12">
+      <div className="flex-grow flex-1 min-h-[450px] flex flex-col items-center justify-center bg-glass-card border border-glass-border rounded-[2.5rem] shadow-2xl text-center p-12 max-w-2xl mx-auto my-12">
         <div className="w-16 h-16 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mb-6">
           <MessageCircle className="w-8 h-8 text-fg/30" />
         </div>
@@ -508,7 +508,7 @@ export default function Inbox() {
 
   if (status === 'PENDING') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-[#050505] text-center p-10">
+      <div className="flex-grow flex-1 min-h-[450px] flex flex-col items-center justify-center bg-[#050505] text-center p-10">
         <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mb-6" />
         <h2 className="text-xl font-black text-fg uppercase tracking-widest">Configuring Channel...</h2>
         <p className="text-muted text-xs mt-3 max-w-xs font-semibold leading-relaxed">Resolving partner authentication mappings on Meta developers dashboard.</p>
@@ -518,7 +518,7 @@ export default function Inbox() {
 
   if (status === 'FAILED') {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center bg-glass-card border border-red-500/10 rounded-[2.5rem] text-center p-12 max-w-2xl mx-auto my-12 shadow-2xl">
+      <div className="flex-grow flex-1 min-h-[450px] flex flex-col items-center justify-center bg-glass-card border border-red-500/10 rounded-[2.5rem] text-center p-12 max-w-2xl mx-auto my-12 shadow-2xl">
         <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-6">
           <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
@@ -564,7 +564,7 @@ export default function Inbox() {
   let lastDateString = '';
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex bg-glass-card border border-glass-border rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden -mx-2 sm:mx-0">
+    <div className="flex-1 min-h-0 h-full flex bg-glass-card border border-glass-border rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden -mx-2 sm:mx-0">
       
       {/* Conversations Master List */}
       <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-glass-border bg-glass-card/30`}>

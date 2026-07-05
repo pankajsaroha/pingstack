@@ -1,7 +1,4 @@
-import dotenv from 'dotenv';
-import path from 'path';
-// Explicitly load .env.local for tsx/node environment
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+import './src/lib/load-env';
 
 console.log(`
 #########################################

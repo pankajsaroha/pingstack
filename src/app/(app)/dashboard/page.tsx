@@ -1160,16 +1160,15 @@ export default function Dashboard() {
       {/* Plan & Resources Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-6">
-            <span className="px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/20">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <h3 className="text-lg font-black text-fg flex items-center">
+              <Zap className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
+              Plan Limits & Retainers
+            </h3>
+            <span className="self-start sm:self-auto px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/20">
               {tenant?.plan_type || 'Starter'} Profile
             </span>
           </div>
-          
-          <h3 className="text-lg font-black text-fg mb-8 flex items-center">
-            <Zap className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
-            Plan Limits & Retainers
-          </h3>
 
           <div className="space-y-6">
             <div>
