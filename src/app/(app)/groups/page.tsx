@@ -325,7 +325,7 @@ export default function Groups() {
           <div className="col-span-full bg-glass-card border border-glass-border p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
             <Folder className="mx-auto h-12 w-12 text-fg/20 mb-4 animate-pulse-slow" />
             <h3 className="text-base font-black text-fg mb-1">No Active Groups</h3>
-            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Spawn a new group to segment your contacts directory lists.</p>
+            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Create a new group to segment your contacts directory lists.</p>
           </div>
         ) : (
           groups.map(group => (
@@ -388,7 +388,7 @@ export default function Groups() {
               <X className="w-5 h-5" />
             </button>
             
-            <h3 className="text-xl font-black text-fg mb-6 tracking-tight">Spawn Segment Group</h3>
+            <h3 className="text-xl font-black text-fg mb-6 tracking-tight">Create Group</h3>
             
             <form onSubmit={handleCreateGroup}>
               <div className="mb-6">

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   Loader2, X, ArrowLeft, Mail, Lock, 
   Building, User, ShieldCheck, CheckCircle2, 
-  ArrowRight
+  ArrowRight, Globe
 } from 'lucide-react';
 import { LogoIcon } from './Logo';
 
@@ -22,6 +22,7 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
   const [password, setPassword] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [userName, setUserName] = useState('');
+  const [country, setCountry] = useState('IN');
   const [otp, setOtp] = useState('');
   // Forgot password states
   const [forgotStep, setForgotStep] = useState(0); // 0: Email, 1: OTP, 2: Reset, 3: Success
@@ -65,7 +66,7 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
       const res = await fetch('/api/auth/register-tenant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 'INITIATE', tenantName, userName, email, password })
+        body: JSON.stringify({ step: 'INITIATE', tenantName, userName, email, password, country })
       });
       if (res.ok) setRegStep(1);
       else {
@@ -303,6 +304,24 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
                     <div className="relative group">
                       <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-blue-400 transition-colors" />
                       <input type="password" required placeholder="Secure Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-2xl pl-14 pr-5 py-4.5 text-sm font-bold text-white focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all placeholder:text-white/20" />
+                    </div>
+                    
+                    <div className="relative group">
+                      <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-blue-400 transition-colors" />
+                      <select 
+                        value={country} 
+                        onChange={e => setCountry(e.target.value)}
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl pl-14 pr-10 py-4.5 text-sm font-bold text-white focus:bg-white/10 focus:border-blue-500 focus:outline-none transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="IN" className="bg-neutral-900 text-white font-bold">India (IN)</option>
+                        <option value="US" className="bg-neutral-900 text-white font-bold">United States (US)</option>
+                        <option value="GB" className="bg-neutral-900 text-white font-bold">United Kingdom (GB)</option>
+                        <option value="AE" className="bg-neutral-900 text-white font-bold">United Arab Emirates (AE)</option>
+                        <option value="OTHER" className="bg-neutral-900 text-white font-bold">Other Country</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/40">
+                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                      </div>
                     </div>
 
                     <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest text-center px-4">By joining, you agree to our <Link href="/privacy" className="text-white hover:underline">Privacy Terms</Link></p>

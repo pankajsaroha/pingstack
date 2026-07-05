@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkLimit } from '@/lib/limits';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -12,6 +13,11 @@ export async function GET(req: Request) {
   if (!db) {
     console.error('API GET contacts: Supabase DB not initialized');
     return NextResponse.json({ error: 'Server error: database not initialized' }, { status: 500 });
+  }
+
+  const limitCheck = await enforceRateLimit(tenantId, 'read_list');
+  if (limitCheck.limited && limitCheck.response) {
+    return limitCheck.response;
   }
 
   const { data, error } = await db.from('contacts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });

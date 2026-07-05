@@ -1,101 +1,48 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { messageQueue } from '@/lib/queue';
+import { campaignQueue } from '@/lib/queue';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
-  const { campaignId, groupIds, contactIds, directData } = await req.json();
-  if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 });
+  try {
+    const { campaignId, groupIds, contactIds, directData } = await req.json();
+    if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 });
 
-  // 1. Get Campaign and Template
-  const { data: campaign, error: cErr } = await db.from('campaigns')
-    .select('*, templates(name, language, content)')
-    .eq('id', campaignId)
-    .eq('tenant_id', tenantId)
-    .single();
+    // 1. Fetch and verify campaign exists
+    const { data: campaign, error: cErr } = await db
+      .from('campaigns')
+      .select('id, name')
+      .eq('id', campaignId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
 
-  if (cErr || !campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
-
-  let messagesToInsert: any[] = [];
-
-  if (directData && Array.isArray(directData)) {
-    // A. Direct Excel/CSV Data mode
-    messagesToInsert = directData.map((row: any) => ({
-      tenant_id: tenantId,
-      campaign_id: campaignId,
-      phone_number: row.phone,
-      variables: row.variables || [],
-      status: 'pending',
-      direction: 'outbound',
-      content: (campaign.templates as any).content || '[Template Message]',
-      message_type: 'template'
-    }));
-  } else {
-    // B. Group/Contact mode
-    let targetContactIds = new Set<string>(contactIds || []);
-    if (groupIds && groupIds.length > 0) {
-      const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
-      gcData?.forEach((gc: any) => targetContactIds.add(gc.contact_id));
+    if (cErr || !campaign) {
+      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
-    const uniqueContactIds = Array.from(targetContactIds);
-    if (uniqueContactIds.length === 0) return NextResponse.json({ error: 'No contacts selected' }, { status: 400 });
+    // 2. Instantly update campaign status to 'running'
+    await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
 
-    const { data: contacts } = await db.from('contacts').select('*').in('id', uniqueContactIds).eq('tenant_id', tenantId);
-    
-    messagesToInsert = (contacts || []).map((c: any) => ({
-      tenant_id: tenantId,
-      campaign_id: campaignId,
-      contact_id: c.id,
-      phone_number: c.phone_number,
-      variables: [],
-      status: 'pending',
-      direction: 'outbound',
-      content: (campaign.templates as any).content || '[Template Message]',
-      message_type: 'template'
-    }));
+    // 3. Queue the campaign processing job in Redis campaign-queue
+    console.log(`[Queue] Triggering background worker to process campaign ${campaignId}...`);
+    await campaignQueue.add('process-campaign', {
+      tenantId,
+      campaignId,
+      groupIds,
+      contactIds,
+      directData
+    });
+
+    return NextResponse.json({
+      success: true,
+      status: 'queued',
+      message: 'Campaign processing has been scheduled in the background.'
+    });
+  } catch (err: any) {
+    console.error('[Campaign Send Route Error]:', err);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
-
-  let { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');
-
-  if (mErr && mErr.message.includes('message_type')) {
-    const fallback = messagesToInsert.map(({ message_type, ...rest }: any) => rest);
-    const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select('id, phone_number');
-    insertedMsgs = retryData;
-    mErr = retryErr;
-  }
-
-  if (mErr || !insertedMsgs) return NextResponse.json({ error: 'Failed to create messages' }, { status: 500 });
-
-  await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
-
-  // Push to BullMQ
-  const jobs = (insertedMsgs || []).map((m: any) => {
-    const rawMsg = messagesToInsert.find(rti => rti.phone_number === m.phone_number);
-    const variables = rawMsg?.variables || [];
-    
-    return {
-      name: 'send-whatsapp',
-      data: {
-        messageId: m.id,
-        phone: m.phone_number,
-        templateId: (campaign.templates as any).name,
-        templateLanguage: (campaign.templates as any).language || 'en_US',
-        params: variables.map((v: any) => ({ type: 'text', text: String(v) }))
-      }
-    };
-  });
-  
-  console.log(`[Queue] Adding ${jobs.length} message jobs to Redis for campaign ${campaignId}...`);
-  await messageQueue.addBulk(jobs);
-  
-  // 5. Mark campaign as completed once triggered
-  await db.from('campaigns').update({ status: 'completed' }).eq('id', campaignId);
-  
-  console.log(`✅ [Queue] Successfully pushed ${jobs.length} jobs to Redis.`);
-
-  return NextResponse.json({ success: true, queued: jobs.length });
 }

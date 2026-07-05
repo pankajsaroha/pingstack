@@ -1,7 +1,4 @@
-import dotenv from 'dotenv';
-import path from 'path';
-// Explicitly load .env.local for tsx/node environment
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+import './src/lib/load-env';
 
 console.log(`
 #########################################
@@ -365,6 +362,133 @@ cron.schedule('* * * * *', async () => {
 });
 
 // ---------------------------------------------------------
+// 2.5. Campaign Processing Worker (Processes bulk campaign pipelines)
+// ---------------------------------------------------------
+const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
+  const { tenantId, campaignId, groupIds, contactIds, directData } = job.data;
+  console.log(`[Campaign Worker] Processing campaign ${campaignId} for tenant ${tenantId}...`);
+
+  // 1. Get Campaign and Template
+  const { data: campaign, error: cErr } = await db.from('campaigns')
+    .select('*, templates(name, language, content)')
+    .eq('id', campaignId)
+    .eq('tenant_id', tenantId)
+    .single();
+
+  if (cErr || !campaign) {
+    console.error(`[Campaign Worker] Campaign ${campaignId} not found in DB:`, cErr);
+    return;
+  }
+
+  let messagesToInsert: any[] = [];
+
+  if (directData && Array.isArray(directData)) {
+    // A. Direct Excel/CSV Data mode
+    messagesToInsert = directData.map((row: any) => ({
+      tenant_id: tenantId,
+      campaign_id: campaignId,
+      phone_number: String(row.phone || '').replace(/\D/g, ''),
+      variables: row.variables || [],
+      status: 'pending',
+      direction: 'outbound',
+      content: (campaign.templates as any).content || '[Template Message]',
+      message_type: 'template'
+    }));
+  } else {
+    // B. Group/Contact mode
+    let targetContactIds = new Set<string>(contactIds || []);
+    if (groupIds && groupIds.length > 0) {
+      const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
+      gcData?.forEach((gc: any) => targetContactIds.add(gc.contact_id));
+    }
+
+    const uniqueContactIds = Array.from(targetContactIds);
+    if (uniqueContactIds.length > 0) {
+      const { data: contacts } = await db.from('contacts').select('*').in('id', uniqueContactIds).eq('tenant_id', tenantId);
+      
+      messagesToInsert = (contacts || []).map((c: any) => ({
+        tenant_id: tenantId,
+        campaign_id: campaignId,
+        contact_id: c.id,
+        phone_number: c.phone_number,
+        variables: [],
+        status: 'pending',
+        direction: 'outbound',
+        content: (campaign.templates as any).content || '[Template Message]',
+        message_type: 'template'
+      }));
+    }
+  }
+
+  if (messagesToInsert.length === 0) {
+    console.warn(`[Campaign Worker] Campaign ${campaignId} has no target contacts.`);
+    await db.from('campaigns').update({ status: 'completed', error: 'No contacts selected' }).eq('id', campaignId);
+    return;
+  }
+
+  console.log(`[Campaign Worker] Batch inserting ${messagesToInsert.length} messages into database...`);
+
+  // Insert in batches to avoid Supabase query payload limits
+  const batchSize = 1000;
+  const insertedMsgs: any[] = [];
+
+  for (let i = 0; i < messagesToInsert.length; i += batchSize) {
+    const batch = messagesToInsert.slice(i, i + batchSize);
+    let { data, error: mErr } = await db.from('messages').insert(batch).select('id, phone_number');
+    
+    if (mErr && mErr.message.includes('message_type')) {
+      const fallback = batch.map(({ message_type, ...rest }: any) => {
+        const copy = { ...rest };
+        return copy;
+      });
+      const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select('id, phone_number');
+      data = retryData;
+      mErr = retryErr;
+    }
+
+    if (mErr) {
+      console.error(`[Campaign Worker] Batch insert failed:`, mErr);
+      await db.from('campaigns').update({ status: 'failed', error: mErr.message }).eq('id', campaignId);
+      throw mErr;
+    }
+    if (data) {
+      insertedMsgs.push(...data);
+    }
+  }
+
+  // Push individual message sending jobs to BullMQ message-queue in bulk
+  const jobs = insertedMsgs.map((m: any) => {
+    const rawMsg = messagesToInsert.find(rti => rti.phone_number === m.phone_number);
+    const variables = rawMsg?.variables || [];
+    
+    return {
+      name: 'send-whatsapp',
+      data: {
+        messageId: m.id,
+        phone: m.phone_number,
+        templateId: (campaign.templates as any).name,
+        templateLanguage: (campaign.templates as any).language || 'en_US',
+        params: variables.map((v: any) => ({ type: 'text', text: String(v) })),
+        isDirectText: false
+      }
+    };
+  });
+
+  console.log(`[Campaign Worker] Queuing ${jobs.length} sending jobs into BullMQ...`);
+  await messageQueue.addBulk(jobs);
+
+  // Update campaign status to 'completed'
+  await db.from('campaigns').update({ status: 'completed' }).eq('id', campaignId);
+  console.log(`[Campaign Worker] Campaign ${campaignId} processed successfully!`);
+
+}, {
+  connection: connection as any,
+  lockDuration: 120000,
+  stalledInterval: 60000,
+  maxStalledCount: 3
+});
+
+// ---------------------------------------------------------
 // 3. Startup Routines (Self-Healing & Backfill)
 // ---------------------------------------------------------
 
@@ -482,7 +606,7 @@ const retryFailedJobs = async () => {
 console.log('🚀 PingStack Engine (Worker + Scheduler) is live.');
 console.log(`[Config] Redis: ${redisUrl.split('@')[1] || redisUrl}`);
 
-import { PLANS, PlanType } from './src/lib/plans';
+import { PLANS, PlanType, getActivePlanType } from './src/lib/plans';
 
 // ---------------------------------------------------------
 // 3. Storage TTL Cleanup (Runs Daily)
@@ -496,7 +620,7 @@ cron.schedule('0 3 * * *', async () => {
     if (!tenants) return;
 
     for (const tenant of tenants) {
-      const plan = PLANS[(tenant.plan_type || 'starter') as PlanType];
+      const plan = PLANS[getActivePlanType(tenant.plan_type)];
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() - plan.mediaRetentionDays);
 

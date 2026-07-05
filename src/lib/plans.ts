@@ -35,3 +35,8 @@ export const PLANS: Record<PlanType, PlanLimits> = {
     features: ['Unlimited Campaigns', 'Unlimited Contacts', '5GB Storage', '1-Year Retention']
   }
 };
+
+export function getActivePlanType(planTypeRaw: string | null | undefined): PlanType {
+  if (!planTypeRaw) return 'starter';
+  return (planTypeRaw as PlanType) || 'starter';
+}

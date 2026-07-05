@@ -14,12 +14,42 @@ import { useRouter } from 'next/navigation';
 export default function Home() {
   const router = useRouter();
   const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
+  const [tenant, setTenant] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const auth = params.get('auth');
     if (auth === 'login' || auth === 'register' || auth === 'forgot') setModalType(auth);
+
+    const tokenExists = document.cookie.split(';').some(item => item.trim().startsWith('token='));
+    if (!tokenExists) {
+      setLoading(false);
+      return;
+    }
+
+    const cached = sessionStorage.getItem('tenant_session');
+    if (cached) {
+      try {
+        setTenant(JSON.parse(cached));
+      } catch (e) {}
+    }
+
+    async function checkUser() {
+      try {
+        const res = await fetch('/api/tenant/me');
+        if (res.ok) {
+          const data = await res.json();
+          setTenant(data);
+          sessionStorage.setItem('tenant_session', JSON.stringify(data));
+        }
+      } catch (err) {
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkUser();
   }, []);
 
   return (
@@ -50,14 +80,26 @@ export default function Home() {
             Automate notifications, alerts, and customer engagement directly through the official Meta Cloud API — simplified for modern teams.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <button 
-              onClick={() => setModalType('register')}
-              className="w-full sm:w-auto px-10 py-5 bg-fg text-bg rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-md hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center group cursor-pointer"
-            >
-              Start Building Now
-              <ArrowRight className="w-4 h-4 ml-3 group-hover:translate-x-1 transition-transform" />
-            </button>
+           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 min-h-[60px]">
+            {loading ? (
+              <div className="h-16 w-60 bg-fg/5 border border-glass-border rounded-2xl animate-pulse" />
+            ) : tenant ? (
+              <button 
+                onClick={() => router.push('/dashboard')}
+                className="w-full sm:w-auto px-10 py-5 bg-fg text-bg rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-md hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center group cursor-pointer"
+              >
+                Go to Dashboard
+                <ArrowRight className="w-4 h-4 ml-3 group-hover:translate-x-1 transition-transform" />
+              </button>
+            ) : (
+              <button 
+                onClick={() => setModalType('register')}
+                className="w-full sm:w-auto px-10 py-5 bg-fg text-bg rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-md hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center group cursor-pointer"
+              >
+                Start Building Now
+                <ArrowRight className="w-4 h-4 ml-3 group-hover:translate-x-1 transition-transform" />
+              </button>
+            )}
           </div>
         </div>
       </section>

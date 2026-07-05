@@ -52,14 +52,14 @@ export function Sidebar({
 
       {/* Header Info */}
       <div className={`px-6 mb-8 flex items-center justify-between ${isCollapsed ? 'px-4 flex-col gap-4' : ''}`}>
-        <div className="flex items-center space-x-3">
-           <LogoIcon bgClass="bg-fg" iconClass="text-bg" />
+        <Link href="/" className="flex items-center space-x-3 cursor-pointer group/logo">
+           <LogoIcon bgClass="bg-fg group-hover/logo:scale-105 transition-transform duration-200" iconClass="text-bg" />
            {!isCollapsed && (
-             <span className="text-xl font-black text-fg tracking-tighter whitespace-nowrap">
+             <span className="text-xl font-black text-fg tracking-tighter whitespace-nowrap group-hover/logo:opacity-80 transition-opacity duration-200">
                PingStack
              </span>
            )}
-        </div>
+        </Link>
         
         <div className="flex items-center space-x-2">
           {!isCollapsed && <ThemeToggle />}

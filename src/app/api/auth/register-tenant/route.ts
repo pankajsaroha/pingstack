@@ -11,6 +11,7 @@ type VerificationPayload = {
   tenantName?: unknown;
   userName?: unknown;
   passwordHash?: unknown;
+  country?: unknown;
 };
 
 type VerificationCode = {
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
     if (step === 'INITIATE') {
-      const { tenantName, userName, password } = body;
+      const { tenantName, userName, password, country } = body;
 
       if (!tenantName || !userName || !normalizedEmail || !password) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
         email: normalizedEmail,
         code: otp,
         expires_at: expiresAt.toISOString(),
-        payload: { tenantName, userName, passwordHash }
+        payload: { tenantName, userName, passwordHash, country: country || 'IN' }
       });
 
       if (otpErr) {
@@ -108,6 +109,7 @@ export async function POST(req: Request) {
       const tenantName = typeof payload?.tenantName === 'string' ? payload.tenantName : '';
       const userName = typeof payload?.userName === 'string' ? payload.userName : '';
       const passwordHash = typeof payload?.passwordHash === 'string' ? payload.passwordHash : '';
+      const country = typeof payload?.country === 'string' ? payload.country : 'IN';
 
       if (!tenantName || !userName || !passwordHash) {
         return NextResponse.json({ error: 'Invalid verification payload. Please restart registration.' }, { status: 400 });
@@ -116,7 +118,7 @@ export async function POST(req: Request) {
       // START ACTUAL REGISTRATION
       const publicId = generatePublicId('t');
       const { data: tenant, error: tenantErr } = await db.from('tenants')
-        .insert({ name: tenantName, public_id: publicId })
+        .insert({ name: tenantName, public_id: publicId, plan_type: 'starter', country })
         .select('id').single();
 
       if (tenantErr || !tenant) {

@@ -29,36 +29,125 @@ export default function PublicPricing() {
   const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
   const [tenant, setTenant] = useState<any>(null);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
+    const tokenExists = typeof document !== 'undefined' && document.cookie.split(';').some(item => item.trim().startsWith('token='));
+    setHasToken(tokenExists);
+
+    if (tokenExists) {
+      const cached = sessionStorage.getItem('tenant_session');
+      if (cached) {
+        try {
+          setTenant(JSON.parse(cached));
+          setLoading(false);
+        } catch (e) {}
+      }
+    }
+
     async function checkUser() {
       try {
         const res = await fetch('/api/tenant/me');
         if (res.ok) {
           const data = await res.json();
           setTenant(data);
+          sessionStorage.setItem('tenant_session', JSON.stringify(data));
         }
       } catch (err) {
         // Ignore unauthenticated errors
+      } finally {
+        setLoading(false);
       }
     }
     checkUser();
   }, []);
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleUpgrade = async (planName: string) => {
+    const isDowngradeOrScheduled = tenant?.subscription_status === 'active';
+    
+    if (isDowngradeOrScheduled) {
+      const confirmChange = confirm(
+        `You have an active subscription. Changing to the ${planName} plan will cancel your current subscription and schedule the new plan to take effect at the end of your current billing cycle.\n\nAre you sure you want to proceed?`
+      );
+      if (!confirmChange) return;
+
+      setLoadingPlan(planName);
+      try {
+        const res = await fetch('/api/billing/razorpay/schedule-plan-change', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planName })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.message || 'Plan change scheduled successfully.');
+          sessionStorage.removeItem('tenant_session');
+          window.location.reload();
+        } else {
+          alert(data.error || 'Failed to schedule plan change');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error scheduling plan change');
+      } finally {
+        setLoadingPlan(null);
+      }
+      return;
+    }
+
     setLoadingPlan(planName);
     try {
-      const res = await fetch('/api/billing/checkout', {
+      const res = await fetch('/api/billing/razorpay/create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planName })
       });
       const data = await res.json();
-      if (res.ok && data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || 'Failed to initiate upgrade session');
+      if (!res.ok) {
+        alert(data.error || 'Failed to initiate subscription creation');
+        return;
       }
+
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert('Failed to load Razorpay payment SDK.');
+        return;
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_S5OkR1bVeJBNpl',
+        subscription_id: data.subscription_id,
+        name: 'PingStack',
+        description: `${planName} Plan Subscription`,
+        handler: function (response: any) {
+          window.location.href = '/dashboard?checkout=success';
+        },
+        prefill: {
+          name: tenant?.name || '',
+          email: `tenant_${tenant?.public_id || 'default'}@pingstack.com`,
+        },
+        theme: {
+          color: '#4F46E5',
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
     } catch (err) {
       console.error(err);
       alert('Error initiating upgrade');
@@ -84,14 +173,25 @@ export default function PublicPricing() {
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto text-center mb-24 relative">
+        <div className="max-w-7xl mx-auto text-center mb-16 relative">
           <h2 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] mb-4">Transparent Pricing</h2>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 text-fg">Simple scaling for <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-fg dark:from-blue-400 dark:via-indigo-400 dark:to-white">every business.</span></h1>
         </div>
 
+        {tenant?.pending_plan_type && (
+          <div className="max-w-md mx-auto mb-12 p-6 rounded-[2rem] border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-md text-center flex flex-col items-center">
+            <span className="inline-block px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-wider mb-3">Scheduled Change</span>
+            <p className="text-sm font-semibold text-fg/80 leading-relaxed">
+              Your plan will transition to <strong>{tenant.pending_plan_type.toUpperCase()}</strong> at the end of the current billing cycle on: <br />
+              <span className="text-indigo-400 font-bold">{tenant.current_period_end ? new Date(tenant.current_period_end).toLocaleDateString() : 'N/A'}</span>.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
           {plans.map((plan) => {
             const isCurrentPlan = tenant?.plan_type === plan.name.toLowerCase();
+            const isPendingPlan = tenant?.pending_plan_type === plan.name.toLowerCase();
             const isStarter = plan.name === 'Starter';
             
             return (
@@ -125,21 +225,78 @@ export default function PublicPricing() {
                   </ul>
                 </div>
 
-                {tenant ? (
+                {loading ? (
+                  hasToken ? (
+                    <div className="w-full py-4 bg-fg/10 rounded-2xl animate-pulse flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-fg/30">
+                      Loading Plan...
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setModalType('register')}
+                      className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center ${
+                        plan.popular 
+                          ? 'bg-fg text-bg hover:bg-fg/90 shadow-md' 
+                          : 'bg-glass-input text-fg border border-glass-input-border hover:bg-glass-input/80'
+                      }`}
+                    >
+                      Get Started
+                    </button>
+                  )
+                ) : tenant ? (
                   isCurrentPlan ? (
+                    tenant.subscription_status === 'active' ? (
+                      <button 
+                        disabled
+                        className="w-full py-4 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10 text-green-700 dark:text-green-400 border border-green-200/80 dark:border-green-800/40 rounded-2xl font-black text-xs uppercase tracking-widest cursor-default transition-all text-center flex items-center justify-center shadow-sm shadow-green-500/[0.02]"
+                      >
+                        Current Plan
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleUpgrade(plan.name)}
+                        disabled={loadingPlan !== null}
+                        className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center bg-fg text-bg hover:bg-fg/90 shadow-md"
+                      >
+                        {loadingPlan === plan.name ? (
+                          <span className="flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</span>
+                        ) : (
+                          <span>Activate Starter Plan</span>
+                        )}
+                      </button>
+                    )
+                  ) : isPendingPlan ? (
                     <button 
                       disabled
-                      className="w-full py-4 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10 text-green-700 dark:text-green-400 border border-green-200/80 dark:border-green-800/40 rounded-2xl font-black text-xs uppercase tracking-widest cursor-default transition-all text-center flex items-center justify-center shadow-sm shadow-green-500/[0.02]"
+                      className="w-full py-4 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/20 dark:to-amber-900/10 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/40 rounded-2xl font-black text-xs uppercase tracking-widest cursor-default transition-all text-center flex items-center justify-center shadow-sm"
                     >
-                      Current Plan
+                      Pending Activation
                     </button>
                   ) : isStarter ? (
-                    <Link 
-                      href="/dashboard"
-                      className="w-full py-4 bg-glass-input text-fg/50 hover:text-fg border border-glass-input-border hover:border-fg/20 rounded-2xl font-black text-xs uppercase tracking-widest transition-all text-center flex items-center justify-center cursor-pointer"
-                    >
-                      Downgrade to Starter
-                    </Link>
+                    tenant.subscription_status === 'active' ? (
+                      <button 
+                        onClick={() => handleUpgrade(plan.name)}
+                        disabled={loadingPlan !== null}
+                        className="w-full py-4 bg-glass-input text-fg hover:text-fg border border-glass-input-border hover:border-fg/20 rounded-2xl font-black text-xs uppercase tracking-widest transition-all text-center flex items-center justify-center cursor-pointer"
+                      >
+                        {loadingPlan === plan.name ? (
+                          <span className="flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</span>
+                        ) : (
+                          <span>Downgrade to Starter</span>
+                        )}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleUpgrade(plan.name)}
+                        disabled={loadingPlan !== null}
+                        className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center bg-glass-input text-fg border border-glass-input-border hover:bg-glass-input/80"
+                      >
+                        {loadingPlan === plan.name ? (
+                          <span className="flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</span>
+                        ) : (
+                          <span>Activate Starter Plan</span>
+                        )}
+                      </button>
+                    )
                   ) : (
                     <button 
                       onClick={() => handleUpgrade(plan.name)}

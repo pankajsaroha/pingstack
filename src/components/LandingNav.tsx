@@ -8,6 +8,8 @@ import { ThemeToggle } from './ThemeToggle';
 export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'register' | 'forgot') => void }) {
   const [scrolled, setScrolled] = useState(false);
   const [tenant, setTenant] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -16,15 +18,31 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
   }, []);
 
   useEffect(() => {
+    const tokenExists = typeof document !== 'undefined' && document.cookie.split(';').some(item => item.trim().startsWith('token='));
+    setHasToken(tokenExists);
+
+    if (tokenExists) {
+      const cached = sessionStorage.getItem('tenant_session');
+      if (cached) {
+        try {
+          setTenant(JSON.parse(cached));
+          setLoading(false);
+        } catch (e) {}
+      }
+    }
+
     async function checkUser() {
       try {
         const res = await fetch('/api/tenant/me');
         if (res.ok) {
           const data = await res.json();
           setTenant(data);
+          sessionStorage.setItem('tenant_session', JSON.stringify(data));
         }
       } catch (err) {
         // Ignore unauthenticated errors
+      } finally {
+        setLoading(false);
       }
     }
     checkUser();
@@ -50,7 +68,16 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
           </div>
 
           <div className="flex items-center space-x-4">
-            {tenant ? (
+            {loading ? (
+              hasToken ? (
+                <div className="h-9 w-28 bg-fg/10 rounded-full animate-pulse" />
+              ) : (
+                <div className="flex items-center space-x-4">
+                  <div className="h-4 w-12 bg-fg/10 rounded animate-pulse" />
+                  <div className="h-9 w-24 bg-fg/10 rounded-full animate-pulse" />
+                </div>
+              )
+            ) : tenant ? (
               <Link 
                 href="/dashboard"
                 className="px-6 py-2.5 bg-fg text-bg text-xs font-black uppercase tracking-[0.2em] rounded-full hover:bg-fg/90 hover:scale-[1.03] active:scale-[0.97] transition-all shadow-md"
