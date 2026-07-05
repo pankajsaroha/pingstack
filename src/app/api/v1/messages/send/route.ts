@@ -27,6 +27,15 @@ export async function POST(req: Request) {
     const body = (await req.json()) as SendRequestBody;
     const { to, template: templateName, language = 'en_US', parameters = [] } = body;
 
+    // Check if the Meta connection is active
+    const { data: whatsappAccount } = await db
+      .from('whatsapp_accounts')
+      .select('status')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    const isSandbox = !whatsappAccount || whatsappAccount.status !== 'ACTIVE';
+
     // Validate inputs
     if (!to || !templateName) {
       return NextResponse.json({ error: 'Missing parameters. "to" (phone number) and "template" (template name) are required.' }, { status: 400 });
@@ -56,7 +65,9 @@ export async function POST(req: Request) {
     if (!template) {
       return NextResponse.json({ error: `Template '${templateName}' not found in your account.` }, { status: 404 });
     }
-    if (template.status !== 'APPROVED') {
+    
+    // In live mode, we only allow APPROVED templates. In sandbox, we allow testing with pending/drafts as well
+    if (!isSandbox && template.status !== 'APPROVED') {
       return NextResponse.json({ error: `Template '${templateName}' is currently '${template.status}'. Messages can only be sent using APPROVED templates.` }, { status: 400 });
     }
 
@@ -94,7 +105,7 @@ export async function POST(req: Request) {
       tenant_id: tenantId,
       contact_id: contactId,
       phone_number: normalizedPhone,
-      status: 'pending',
+      status: isSandbox ? 'sandbox' : 'pending',
       content: template.content,
       direction: 'outbound',
       message_type: 'template',
@@ -123,7 +134,18 @@ export async function POST(req: Request) {
       throw new Error(`Failed to create outbound message: ${mErr?.message}`);
     }
 
-    // Queue sending job to Redis via BullMQ queue
+    await incrementUsage(tenantId, 'campaigns');
+
+    if (isSandbox) {
+      return NextResponse.json({
+        success: true,
+        message_id: msg.id,
+        status: 'sandbox_delivered',
+        note: 'Sandbox Mode: This message was mock-delivered because your Meta WhatsApp Account setup is pending.'
+      });
+    }
+
+    // Queue sending job to Redis via BullMQ queue (Live Mode only)
     await messageQueue.add('send-whatsapp', {
       messageId: msg.id,
       phone: normalizedPhone,
@@ -132,8 +154,6 @@ export async function POST(req: Request) {
       params: parameters.map(p => ({ type: 'text', text: String(p) })),
       isDirectText: false
     });
-
-    await incrementUsage(tenantId, 'campaigns');
 
     return NextResponse.json({
       success: true,
