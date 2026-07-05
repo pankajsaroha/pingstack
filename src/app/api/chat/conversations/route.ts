@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -7,6 +8,11 @@ export async function GET(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
+    const limitCheck = await enforceRateLimit(tenantId, 'read_list');
+    if (limitCheck.limited && limitCheck.response) {
+      return limitCheck.response;
+    }
+
     const [
       contactsRes,
       latestMessagesRes,

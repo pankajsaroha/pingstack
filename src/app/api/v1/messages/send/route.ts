@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { authenticateApiKey } from '@/lib/api-auth';
 import { messageQueue } from '@/lib/queue';
 import { checkLimit, incrementUsage } from '@/lib/limits';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 type SendRequestBody = {
   to?: string;
@@ -24,6 +25,12 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Enforce API Rate limit
+    const limitCheck = await enforceRateLimit(tenantId, 'send_message');
+    if (limitCheck.limited && limitCheck.response) {
+      return limitCheck.response;
+    }
+
     const body = (await req.json()) as SendRequestBody;
     const { to, template: templateName, language = 'en_US', parameters = [] } = body;
 

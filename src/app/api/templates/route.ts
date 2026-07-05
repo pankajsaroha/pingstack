@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -31,6 +32,11 @@ export async function POST(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
+    const limitCheck = await enforceRateLimit(tenantId, 'template_ops');
+    if (limitCheck.limited && limitCheck.response) {
+      return limitCheck.response;
+    }
+
     const { name, template_id, content } = await req.json();
     if (!name || !template_id || !content) {
       return NextResponse.json({ error: 'Missing required fields (name, template_id, content)' }, { status: 400 });
@@ -63,6 +69,11 @@ export async function DELETE(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
+    const limitCheck = await enforceRateLimit(tenantId, 'template_ops');
+    if (limitCheck.limited && limitCheck.response) {
+      return limitCheck.response;
+    }
+
     const { ids } = await req.json();
     if (!ids || !Array.isArray(ids)) return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
 

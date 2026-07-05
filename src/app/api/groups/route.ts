@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePublicId } from '@/lib/utils';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  const limitCheck = await enforceRateLimit(tenantId, 'read_list');
+  if (limitCheck.limited && limitCheck.response) {
+    return limitCheck.response;
+  }
 
   const { data, error } = await db.from('groups').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { dbAdmin as db } from '@/lib/db';
 import { messageQueue } from '@/lib/queue';
 import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -12,6 +13,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   const contactId = rawId?.trim();
   
   try {
+    const limitCheck = await enforceRateLimit(tenantId, 'file_upload');
+    if (limitCheck.limited && limitCheck.response) {
+      return limitCheck.response;
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const mediaType = formData.get('mediaType') as string;

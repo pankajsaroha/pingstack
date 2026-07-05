@@ -9,3 +9,4 @@ export const connection = new IORedis(redisUrl, {
 });
 
 export const messageQueue = new Queue('message-queue', { connection: connection as any });
+export const campaignQueue = new Queue('campaign-queue', { connection: connection as any });

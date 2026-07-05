@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { messageQueue } from '@/lib/queue';
 import { checkLimit, incrementUsage } from '@/lib/limits';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 type SendMessagesBody = {
   contactIds?: unknown;
@@ -44,6 +45,12 @@ export async function POST(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
+    // Enforce API Rate limit
+    const limitCheck = await enforceRateLimit(tenantId, 'send_message');
+    if (limitCheck.limited && limitCheck.response) {
+      return limitCheck.response;
+    }
+
     const { contactIds, template_id, contactVars = {} } = await req.json() as SendMessagesBody;
     if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0 || !template_id) {
       return NextResponse.json({ error: 'Invalid payload. contactIds (array) and template_id are required.' }, { status: 400 });
