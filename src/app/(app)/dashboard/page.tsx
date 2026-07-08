@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { getTenantServer } from '@/lib/server/tenant';
 import { getStatsServer } from '@/lib/server/stats';
 import DashboardClient from './_components/DashboardClient';
@@ -19,18 +20,29 @@ const INITIAL_STATS = {
 };
 
 export default async function DashboardPage() {
-  const tenant = await getTenantServer();
+  const reqHeaders = await headers();
+  const tenantId = reqHeaders.get('x-tenant-id');
+
+  if (!tenantId) {
+    redirect('/login');
+  }
+
+  // Fetch tenant and stats in parallel to eliminate server-side database query waterfall
+  const [tenant, stats] = await Promise.all([
+    getTenantServer(),
+    getStatsServer(tenantId)
+  ]);
 
   if (!tenant) {
     redirect('/login');
   }
 
-  const stats = (await getStatsServer(tenant.id)) || INITIAL_STATS;
+  const initialStats = stats || INITIAL_STATS;
 
   return (
     <DashboardClient
       initialTenant={tenant}
-      initialStats={stats}
+      initialStats={initialStats}
     />
   );
 }

@@ -50,9 +50,11 @@ export default function Inbox() {
 
   // ── Initial load ─────────────────────────────────────────────────
   useEffect(() => {
-    fetchStatusAndData();
-    fetchTemplates();
-    fetchContacts();
+    Promise.all([
+      fetchStatusAndData(),
+      fetchTemplates(),
+      fetchContacts()
+    ]);
     const interval = setInterval(fetchStatusAndData, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -157,19 +159,20 @@ export default function Inbox() {
   // ── Data fetchers ─────────────────────────────────────────────────
   const fetchStatusAndData = async () => {
     try {
-      const statusRes = await fetch('/api/tenant/me', { credentials: 'include' });
+      const [statusRes, convsRes] = await Promise.all([
+        fetch('/api/tenant/me', { credentials: 'include' }),
+        fetch('/api/chat/conversations', { credentials: 'include' })
+      ]);
+
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setTenant(statusData);
-        if (statusData.whatsapp_account?.status === 'ACTIVE') {
-          const res = await fetch('/api/chat/conversations', { credentials: 'include' });
-          if (res.ok) {
-            const data = await res.json();
-            setConversations(data);
-            if (!activeContactId && data.length > 0 && !initialSelectionMade.current) {
-              setActiveContactId(data[0].contact.id);
-              initialSelectionMade.current = true;
-            }
+        if (statusData.whatsapp_account?.status === 'ACTIVE' && convsRes.ok) {
+          const data = await convsRes.json();
+          setConversations(data);
+          if (!activeContactId && data.length > 0 && !initialSelectionMade.current) {
+            setActiveContactId(data[0].contact.id);
+            initialSelectionMade.current = true;
           }
         }
       }

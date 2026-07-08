@@ -88,17 +88,25 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
     }
   }, [tenant?.id]);
 
-  const fetchTenant = useCallback(async () => {
+  const refreshTenantAndStats = useCallback(async () => {
+    if (!tenant?.id) return;
     try {
-      const res = await fetch('/api/tenant/me');
-      if (res.ok) {
-        const data = await res.json();
-        setTenant(data);
+      const [tenantRes, statsRes] = await Promise.all([
+        fetch('/api/tenant/me'),
+        fetch('/api/stats', { headers: { 'x-tenant-id': tenant.id } })
+      ]);
+      if (tenantRes.ok) {
+        const tenantData = await tenantRes.json();
+        setTenant(tenantData);
+      }
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to refresh tenant and stats:', e);
     }
-  }, []);
+  }, [tenant?.id]);
 
   // URL param handling + FB SDK init
   useEffect(() => {
@@ -189,7 +197,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       });
       const data = await res.json();
       if (res.ok) {
-        await fetchTenant();
+        await refreshTenantAndStats();
       } else {
         setError(data.error || data.message || 'Failed to connect manually.');
       }
@@ -218,7 +226,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       if (res.ok) {
         setToast({ message: 'Setup completed successfully!', type: 'success' });
         setIsSwitching(false);
-        await fetchTenant();
+        await refreshTenantAndStats();
       } else {
         setError(data.message || 'Finalization failed');
       }
@@ -241,7 +249,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
         setDiscovery(null);
         setTempToken('');
         setIsSwitching(false);
-        await fetchTenant();
+        await refreshTenantAndStats();
         setToast({ message: 'Connection reset successfully', type: 'success' });
       }
     } catch (err: any) {
@@ -264,7 +272,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       const data = await res.json();
       if (data.success) {
         setToast({ message: data.message, type: 'success' });
-        fetchTenant();
+        refreshTenantAndStats();
       } else {
         setToast({ message: data.error || 'Failed to cancel subscription', type: 'error' });
       }
@@ -435,8 +443,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
           onClose={() => setShowBillingModal(false)}
           onSaved={async () => {
             setToast({ message: 'Meta billing configurations updated successfully!', type: 'success' });
-            await fetchTenant();
-            if (tenant?.id) await fetchStats(tenant.id);
+            await refreshTenantAndStats();
           }}
         />
       )}
