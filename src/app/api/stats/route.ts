@@ -11,7 +11,7 @@ export async function GET(req: Request) {
 
   try {
     // Check Redis Cache first (90 seconds TTL)
-    if (connection) {
+    if (connection && connection.status === 'ready') {
       try {
         const cacheKey = `stats:${tenantId}`;
         const cached = await connection.get(cacheKey);
@@ -38,11 +38,21 @@ export async function GET(req: Request) {
       db.from('tenants')
         .select('last_meta_payment_at, meta_budget_limit, created_at')
         .eq('id', tenantId)
-        .single(),
+        .single()
+        .then(async (res) => {
+          if (res.error) {
+            const fallback = await db!.from('tenants')
+              .select('created_at')
+              .eq('id', tenantId)
+              .single();
+            return { data: fallback.data || { created_at: new Date().toISOString() }, error: null };
+          }
+          return res;
+        }),
 
-      // Templates — only need category, status, name for cost matching
+      // Templates — need category, status, name, and content for cost matching
       db.from('templates')
-        .select('status, name, category')
+        .select('status, name, category, content')
         .eq('tenant_id', tenantId),
 
       // Contact count (head-only)
@@ -63,7 +73,7 @@ export async function GET(req: Request) {
         .eq('tenant_id', tenantId).eq('direction', 'inbound'),
     ]);
 
-    const tenant = tenantRes.data;
+    const tenant = tenantRes.data as any;
     const templates = templatesRes.data || [];
     const totalContacts = contactsRes.count || 0;
     const approvedTemplates = templates.filter((t: any) => t.status === 'APPROVED').length;
@@ -80,14 +90,16 @@ export async function GET(req: Request) {
       : startOfMonth;
 
     // ── Phase 3: Fetch only minimal message columns for cost+conv calc ─
-    // Omit `content` — we use message_type='template' flag + template name token
-    // instead of regex-matching raw content strings to determine category.
-    const { data: messages } = await db
+    const { data: messages, error: mErr } = await db
       .from('messages')
-      .select('contact_id, direction, message_type, template_name, created_at')
+      .select('contact_id, direction, message_type, content, created_at')
       .eq('tenant_id', tenantId)
       .gte('created_at', queryStartDate.toISOString())
       .order('created_at', { ascending: true });
+
+    if (mErr) {
+      console.error('[Stats API] messages query failed:', mErr);
+    }
 
     // ── Phase 4: Cost Estimation ──────────────────────────────────────
     const categoryCost: Record<string, number> = {
@@ -96,14 +108,58 @@ export async function GET(req: Request) {
       MARKETING: 0.8631
     };
 
-    // Build a fast name→category lookup map instead of per-message linear scans
-    const templateCategoryMap = new Map<string, string>(
-      templates.map((t: any) => [t.name?.toLowerCase(), t.category || 'MARKETING'])
-    );
+    // Pre-compile regexes for templates
+    const compiledTemplates = templates.map((t: any) => {
+      if (!t.content) return null;
+      try {
+        const escaped = t.content.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regexStr = '^' + escaped.replace(/\\\{\\\{\d+\\\}\\\}/g, '.*') + '$';
+        return {
+          category: t.category || 'MARKETING',
+          regex: new RegExp(regexStr)
+        };
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean) as { category: string; regex: RegExp }[];
 
-    const findTemplateCategory = (templateName: string | null | undefined): string => {
-      if (!templateName) return 'MARKETING';
-      return templateCategoryMap.get(templateName.toLowerCase()) || 'MARKETING';
+    const categoryCache = new Map<string, string>();
+
+    const findTemplateCategory = (content: string | null): string => {
+      if (!content) return 'MARKETING';
+      if (categoryCache.has(content)) {
+        return categoryCache.get(content)!;
+      }
+
+      // Check simple matches
+      const matchByContent = templates.find((t: any) => t.content === content);
+      if (matchByContent) {
+        const cat = matchByContent.category || 'MARKETING';
+        categoryCache.set(content, cat);
+        return cat;
+      }
+
+      const tokenMatch = content.match(/\[Template:\s*([^\]]+)\]/);
+      if (tokenMatch) {
+        const tName = tokenMatch[1].trim();
+        const matchByName = templates.find((t: any) => t.name === tName);
+        if (matchByName) {
+          const cat = matchByName.category || 'MARKETING';
+          categoryCache.set(content, cat);
+          return cat;
+        }
+      }
+
+      // Check pre-compiled regexes
+      for (const ct of compiledTemplates) {
+        if (ct.regex.test(content)) {
+          categoryCache.set(content, ct.category);
+          return ct.category;
+        }
+      }
+
+      categoryCache.set(content, 'MARKETING');
+      return 'MARKETING';
     };
 
     const calculateCost = (msgList: any[], startDate: Date) => {
@@ -116,17 +172,22 @@ export async function GET(req: Request) {
 
         if (msg.direction === 'inbound') {
           contactLastInbound[contactId] = msgTime;
-        } else if (msg.direction === 'outbound' && msg.message_type === 'template') {
-          const lastInbound = contactLastInbound[contactId];
-          const isWindowOpen = lastInbound && (msgTime - lastInbound <= 24 * 60 * 60 * 1000);
+        } else if (msg.direction === 'outbound') {
+          const isTemplate = msg.message_type === 'template' || 
+                             (msg.content && (msg.content.includes('[Template:') || templates.some((t: any) => t.content === msg.content)));
 
-          if (!isWindowOpen) {
-            const category = findTemplateCategory(msg.template_name);
-            const cost = categoryCost[category.toUpperCase()] || 0.8631;
-            if (msgTime >= startDate.getTime()) {
-              total += cost;
+          if (isTemplate) {
+            const lastInbound = contactLastInbound[contactId];
+            const isWindowOpen = lastInbound && (msgTime - lastInbound <= 24 * 60 * 60 * 1000);
+
+            if (!isWindowOpen) {
+              const category = findTemplateCategory(msg.content);
+              const cost = categoryCost[category.toUpperCase()] || 0.8631;
+              if (msgTime >= startDate.getTime()) {
+                total += cost;
+              }
+              contactLastInbound[contactId] = msgTime;
             }
-            contactLastInbound[contactId] = msgTime;
           }
         }
       }
@@ -138,7 +199,7 @@ export async function GET(req: Request) {
 
     const stats = {
       totalContacts,
-      conversations: new Set((messages || []).map((m: any) => m.contact_id)).size,
+      conversations: new Set((messages || []).map((m: any) => m.contact_id).filter(Boolean)).size,
       templatesApproved: approvedTemplates,
       inboundMessages: inboundRes.count || 0,
       sent: sentRes.count || 0,
@@ -152,7 +213,7 @@ export async function GET(req: Request) {
     };
 
     // Cache computed stats in Redis for 90 seconds
-    if (connection) {
+    if (connection && connection.status === 'ready') {
       try {
         const cacheKey = `stats:${tenantId}`;
         await connection.set(cacheKey, JSON.stringify(stats), 'EX', 90);

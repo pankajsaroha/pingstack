@@ -11,7 +11,7 @@ export async function getCampaignsServer(tenantId: string, page = 1, pageSize = 
   const cacheKey = `campaigns:${tenantId}:p${page}:ps${pageSize}`;
 
   // Check Redis cache
-  if (connection) {
+  if (connection && connection.status === 'ready') {
     try {
       const cached = await connection.get(cacheKey);
       if (cached) {
@@ -68,7 +68,7 @@ export async function getCampaignsServer(tenantId: string, page = 1, pageSize = 
     }));
 
     // Cache for 60 seconds
-    if (connection) {
+    if (connection && connection.status === 'ready') {
       try {
         await connection.set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL);
       } catch (e) {

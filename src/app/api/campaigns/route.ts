@@ -25,7 +25,7 @@ export async function GET(req: Request) {
 
     // Check Redis cache
     const cacheKey = `campaigns:${tenantId}:p${page}:ps${pageSize}`;
-    if (connection) {
+    if (connection && connection.status === 'ready') {
       try {
         const cached = await connection.get(cacheKey);
         if (cached) return NextResponse.json(JSON.parse(cached));
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
     const payload = { data: result, page, pageSize, hasMore: list.length === pageSize };
 
     // Cache for 60 seconds
-    if (connection) {
+    if (connection && connection.status === 'ready') {
       try {
         await connection.set(cacheKey, JSON.stringify(payload), 'EX', CACHE_TTL);
       } catch (e) {
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   // Invalidate all campaign list cache pages for this tenant
-  if (connection) {
+  if (connection && connection.status === 'ready') {
     try {
       const keys = await connection.keys(`campaigns:${tenantId}:*`);
       if (keys.length > 0) await connection.del(...keys);

@@ -27,7 +27,7 @@ export default function PerformanceChart({ stats }: PerformanceChartProps) {
         <div className="p-6 bg-blue-50/50 dark:bg-blue-500/5 rounded-2xl border border-blue-100 dark:border-blue-500/10 text-center">
           <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block mb-2">Delivered</span>
           <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats.delivered}</span>
-          <span className="text-[9px] font-bold text-fg/40 block mt-1.5">{Math.round((stats.delivered / stats.sent) * 100)}% API hit</span>
+          <span className="text-[9px] font-bold text-fg/40 block mt-1.5">{stats.sent ? Math.round((stats.delivered / stats.sent) * 100) : 0}% API hit</span>
         </div>
         <div className="p-6 bg-green-50/50 dark:bg-green-950/20 rounded-2xl border border-green-100 dark:border-green-900/30 text-center">
           <span className="text-[9px] font-black text-green-700 dark:text-green-400 uppercase tracking-wider block mb-2">Read Received</span>

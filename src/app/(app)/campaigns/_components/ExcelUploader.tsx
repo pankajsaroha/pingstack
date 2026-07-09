@@ -2,7 +2,6 @@
 
 import { useRef } from 'react';
 import { Upload, CheckCircle2, FileText } from 'lucide-react';
-import * as XLSX from 'xlsx';
 
 interface ExcelUploaderProps {
   needsVariables: boolean;
@@ -21,30 +20,35 @@ export default function ExcelUploader({
 }: ExcelUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    try {
+      const XLSX = await import('xlsx');
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const wb = XLSX.read(bstr, { type: 'binary' });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-        const formatted = data.map((row: any) => ({
-          phone: String(row[0] || '').replace(/[^0-9+]/g, ''),
-          variables: row.slice(1)
-        })).filter(r => r.phone.length > 5);
+          const formatted = data.map((row: any) => ({
+            phone: String(row[0] || '').replace(/[^0-9+]/g, ''),
+            variables: row.slice(1)
+          })).filter(r => r.phone.length > 5);
 
-        onUploaded(formatted);
-      } catch (err) {
-        onToast('Failed to parse file. Check format.', 'error');
-      }
-    };
-    reader.readAsBinaryString(file);
+          onUploaded(formatted);
+        } catch (err) {
+          onToast('Failed to parse file. Check format.', 'error');
+        }
+      };
+      reader.readAsBinaryString(file);
+    } catch (err) {
+      onToast('Failed to load parser engine.', 'error');
+    }
   };
 
   return (
