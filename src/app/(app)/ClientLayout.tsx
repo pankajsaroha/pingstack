@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Menu, X, AlertTriangle, LogOut } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { setSupabaseSession } from '@/lib/db';
+import { TenantProvider } from '@/context/tenant-context';
 
 interface ClientLayoutProps {
   tenant: any;
@@ -151,7 +152,9 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
 
         <main className={`flex-1 relative ${pathname === '/inbox' ? 'flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
           <div className={`${pathname === '/inbox' ? 'flex-1 flex flex-col min-h-0 w-full p-2 sm:p-6 md:p-8' : 'p-4 sm:p-6 md:p-8 mt-2'} max-w-6xl w-full mx-auto relative z-10`}>
-            {children}
+            <TenantProvider initialTenant={tenant}>
+              {children}
+            </TenantProvider>
           </div>
         </main>
       </div>

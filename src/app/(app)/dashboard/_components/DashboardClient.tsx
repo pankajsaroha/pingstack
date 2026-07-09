@@ -10,6 +10,7 @@ declare global {
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { CheckCircle2, Loader2, MessageCircle } from 'lucide-react';
 import Toast from '@/components/Toast';
+import { useTenant } from '@/context/tenant-context';
 
 import StatsGrid from './StatsGrid';
 import MetaCostCard from './MetaCostCard';
@@ -27,7 +28,8 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ initialTenant, initialStats }: DashboardClientProps) {
-  const [tenant, setTenant] = useState<any>(initialTenant);
+  // Tenant from shared TenantContext; initialized with server-fetched value and kept in sync
+  const { tenant, setTenant, refreshTenant } = useTenant();
   const [stats, setStats] = useState<any>(initialStats);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'developer'>('overview');
@@ -91,14 +93,10 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
   const refreshTenantAndStats = useCallback(async () => {
     if (!tenant?.id) return;
     try {
-      const [tenantRes, statsRes] = await Promise.all([
-        fetch('/api/tenant/me'),
+      const [_, statsRes] = await Promise.all([
+        refreshTenant(),
         fetch('/api/stats', { headers: { 'x-tenant-id': tenant.id } })
       ]);
-      if (tenantRes.ok) {
-        const tenantData = await tenantRes.json();
-        setTenant(tenantData);
-      }
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
@@ -106,7 +104,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
     } catch (e) {
       console.error('Failed to refresh tenant and stats:', e);
     }
-  }, [tenant?.id]);
+  }, [tenant?.id, refreshTenant]);
 
   // URL param handling + FB SDK init
   useEffect(() => {

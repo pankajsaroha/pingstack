@@ -6,13 +6,16 @@ import Link from 'next/link';
 import Toast from '@/components/Toast';
 import { PLANS, getActivePlanType } from '@/lib/plans';
 import { dbPublic } from '@/lib/db';
+import { useTenant } from '@/context/tenant-context';
 
 import ConversationList from './_components/ConversationList';
 import ChatThread from './_components/ChatThread';
 
 export default function Inbox() {
+  // ── Tenant from shared context (fetched once in layout) ───────────
+  const { tenant } = useTenant();
+
   // ── Data ─────────────────────────────────────────────────────────
-  const [tenant, setTenant] = useState<any>(null);
   const [conversations, setConversations] = useState<any[]>([]);
   const [allContacts, setAllContacts] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
@@ -55,8 +58,45 @@ export default function Inbox() {
       fetchTemplates(),
       fetchContacts()
     ]);
-    const interval = setInterval(fetchStatusAndData, 10000);
-    return () => clearInterval(interval);
+
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      if (!intervalId) {
+        intervalId = setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            fetchStatusAndData();
+          }
+        }, 60000); // 60 seconds fallback polling
+      }
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchStatusAndData();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    if (document.visibilityState === 'visible') {
+      startPolling();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // ── Realtime subscription ─────────────────────────────────────────
@@ -158,22 +198,19 @@ export default function Inbox() {
 
   // ── Data fetchers ─────────────────────────────────────────────────
   const fetchStatusAndData = async () => {
+    // Tenant comes from TenantContext — no need to re-fetch /api/tenant/me here
+    if (tenant?.whatsapp_account?.status !== 'ACTIVE') {
+      setLoading(false);
+      return;
+    }
     try {
-      const [statusRes, convsRes] = await Promise.all([
-        fetch('/api/tenant/me', { credentials: 'include' }),
-        fetch('/api/chat/conversations', { credentials: 'include' })
-      ]);
-
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setTenant(statusData);
-        if (statusData.whatsapp_account?.status === 'ACTIVE' && convsRes.ok) {
-          const data = await convsRes.json();
-          setConversations(data);
-          if (!activeContactId && data.length > 0 && !initialSelectionMade.current) {
-            setActiveContactId(data[0].contact.id);
-            initialSelectionMade.current = true;
-          }
+      const convsRes = await fetch('/api/chat/conversations', { credentials: 'include' });
+      if (convsRes.ok) {
+        const data = await convsRes.json();
+        setConversations(data);
+        if (!activeContactId && data.length > 0 && !initialSelectionMade.current) {
+          setActiveContactId(data[0].contact.id);
+          initialSelectionMade.current = true;
         }
       }
     } catch (e) {

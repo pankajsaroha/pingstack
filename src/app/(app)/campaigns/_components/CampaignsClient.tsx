@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, lazy, Suspense } from 'react';
-import { Plus, Send, Loader2 } from 'lucide-react';
+import { Plus, Send, Loader2, ChevronDown } from 'lucide-react';
 import Toast from '@/components/Toast';
 import CampaignCard from './CampaignCard';
 
@@ -27,6 +27,9 @@ export default function CampaignsClient({
   const [templates] = useState<any[]>(initialTemplates);
   const [groups] = useState<any[]>(initialGroups);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(initialCampaigns.length === 50);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -37,17 +40,44 @@ export default function CampaignsClient({
   const fireToast = (message: string, type: 'success' | 'error' | 'info') =>
     setToast({ message, type });
 
+  // Reload page 1 (used after creating a new campaign)
   const fetchCampaigns = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/campaigns');
+      const res = await fetch('/api/campaigns?page=1');
       if (res.ok) {
-        setCampaigns(await res.json());
+        const json = await res.json();
+        // Handle both paginated shape { data, hasMore } and legacy flat array
+        const data = Array.isArray(json) ? json : (json.data || []);
+        setCampaigns(data);
+        setCurrentPage(1);
+        setHasMore(!Array.isArray(json) ? json.hasMore : false);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load the next page and append results
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const res = await fetch(`/api/campaigns?page=${nextPage}`);
+      if (res.ok) {
+        const json = await res.json();
+        const data = Array.isArray(json) ? json : (json.data || []);
+        setCampaigns(prev => [...prev, ...data]);
+        setCurrentPage(nextPage);
+        setHasMore(!Array.isArray(json) ? json.hasMore : false);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -132,14 +162,32 @@ export default function CampaignsClient({
             <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Create a new outreach workflow to send bulk WhatsApp messages.</p>
           </div>
         ) : (
-          campaigns.map((campaign) => (
-            <CampaignCard
-              key={campaign.id}
-              campaign={campaign}
-              planType={planType}
-              onViewReport={handleViewReport}
-            />
-          ))
+          <>
+            {campaigns.map((campaign) => (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                planType={planType}
+                onViewReport={handleViewReport}
+              />
+            ))}
+
+            {/* Load More */}
+            {hasMore && (
+              <div className="flex justify-center pt-4">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="flex items-center gap-2 px-6 py-3 bg-glass-card border border-glass-border hover:border-fg/20 rounded-2xl font-black text-xs uppercase tracking-widest text-muted hover:text-fg transition-all cursor-pointer disabled:opacity-40"
+                >
+                  {loadingMore
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading...</>
+                    : <><ChevronDown className="w-4 h-4" /> Load More</>
+                  }
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
