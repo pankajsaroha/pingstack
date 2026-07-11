@@ -145,6 +145,11 @@ export function useInboxData({
     }
   }, []);
 
+  const fetchStatusAndDataRef = useRef(fetchStatusAndData);
+  useEffect(() => {
+    fetchStatusAndDataRef.current = fetchStatusAndData;
+  }, [fetchStatusAndData]);
+
   // ── Visibility & Polling ──────────────────────────────────────────
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
@@ -153,7 +158,7 @@ export function useInboxData({
       if (!intervalId) {
         intervalId = setInterval(() => {
           if (document.visibilityState === 'visible') {
-            fetchStatusAndData();
+            fetchStatusAndDataRef.current();
           }
         }, 60000);
       }
@@ -168,7 +173,7 @@ export function useInboxData({
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchStatusAndData();
+        fetchStatusAndDataRef.current();
         startPolling();
       } else {
         stopPolling();
@@ -185,7 +190,7 @@ export function useInboxData({
       stopPolling();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchStatusAndData]);
+  }, []);
 
   // ── Realtime subscription ─────────────────────────────────────────
   useEffect(() => {
@@ -267,7 +272,7 @@ export function useInboxData({
       fetchMessages(activeContactId);
       markAsRead(activeContactId);
     }
-  }, [activeContactId, fetchMessages, markAsRead]);
+  }, [activeContactId]);
 
   // ── Window-closed check ───────────────────────────────────────────
   useEffect(() => {
