@@ -293,15 +293,15 @@ export default function ChatThread({
         {activeDateHeader && (
           <div
             style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: scrollTop - pushY,
+              position: 'sticky',
+              top: '8px',
               zIndex: 30,
               pointerEvents: 'none',
               display: 'flex',
               justifyContent: 'center',
-              paddingTop: '8px'
+              height: 0,
+              overflow: 'visible',
+              transform: `translateY(${-pushY}px)`
             }}
           >
             <span className="bg-bg/95 backdrop-blur-md border border-glass-border px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-fg/50 shadow-md">
@@ -325,8 +325,6 @@ export default function ChatThread({
             {visibleItems.map((item: any, index: number) => {
               const idx = startIndex + index;
               const topOffset = cumulativeHeights[idx] || 0;
-              const isDate = item.type === 'date';
-              const isInlineHidden = isDate && activeDateHeader?.id === item.id && pushY === 0;
 
               return (
                 <div
@@ -336,8 +334,6 @@ export default function ChatThread({
                     left: 0,
                     right: 0,
                     top: topOffset,
-                    opacity: isInlineHidden ? 0 : 1,
-                    pointerEvents: isInlineHidden ? 'none' : 'auto'
                   }}
                 >
                   <MeasuredItem id={item.id} onMeasure={onMeasure}>
