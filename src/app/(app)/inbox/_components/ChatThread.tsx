@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useRef } from 'react';
+import { Fragment, useRef, useState, useEffect, useCallback } from 'react';
 import { User, Loader2, MessageCircle, Trash2, ChevronLeft } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
@@ -40,6 +40,32 @@ interface ChatThreadProps {
   onBackMobile: () => void;
 }
 
+// Measured element component that updates height maps
+function MeasuredItem({
+  id,
+  children,
+  onMeasure,
+}: {
+  id: string;
+  children: React.ReactNode;
+  onMeasure: (id: string, height: number) => void;
+}) {
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!elementRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        onMeasure(id, entry.contentRect.height);
+      }
+    });
+    observer.observe(elementRef.current);
+    return () => observer.disconnect();
+  }, [id, onMeasure]);
+
+  return <div ref={elementRef}>{children}</div>;
+}
+
 export default function ChatThread({
   activeConversation,
   messages,
@@ -71,9 +97,44 @@ export default function ChatThread({
   onClearSelection,
   onBackMobile,
 }: ChatThreadProps) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
+  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
 
-  // Track date separators — reset each render
-  let lastDateString = '';
+  // Reset measurements when shifting conversations to avoid stale coordinates
+  useEffect(() => {
+    setMeasuredHeights({});
+    setScrollTop(0);
+    if (chatContainerRef?.current) {
+      chatContainerRef.current.scrollTop = 0;
+    }
+  }, [activeConversation?.contact?.id, chatContainerRef]);
+
+  // Track container height changes
+  useEffect(() => {
+    if (!chatContainerRef || !chatContainerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.height > 0) {
+          setContainerHeight(entry.contentRect.height);
+        }
+      }
+    });
+    observer.observe(chatContainerRef.current);
+    return () => observer.disconnect();
+  }, [chatContainerRef]);
+
+  const onMeasure = useCallback((id: string, height: number) => {
+    setMeasuredHeights((prev) => {
+      if (prev[id] === height) return prev;
+      return { ...prev, [id]: height };
+    });
+  }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+    onScroll(e);
+  };
 
   if (!activeConversation) {
     return (
@@ -85,6 +146,56 @@ export default function ChatThread({
       </div>
     );
   }
+
+  // Build flat items list: separating message bubbles and date headers
+  const listItems: { type: 'message' | 'date'; id: string; data: any }[] = [];
+  let lastDateString = '';
+  messages.forEach((msg) => {
+    const msgDateString = new Date(msg.created_at).toDateString();
+    if (msgDateString !== lastDateString) {
+      listItems.push({
+        type: 'date',
+        id: `date-${msgDateString}`,
+        data: msg.created_at,
+      });
+      lastDateString = msgDateString;
+    }
+    listItems.push({ type: 'message', id: msg.id, data: msg });
+  });
+
+  // Calculate cumulative heights and offsets
+  const cumulativeHeights: number[] = [];
+  let currentSum = 0;
+  for (let i = 0; i < listItems.length; i++) {
+    cumulativeHeights.push(currentSum);
+    const item = listItems[i];
+    const itemHeight =
+      measuredHeights[item.id] || (item.type === 'date' ? 44 : 110);
+    currentSum += itemHeight;
+  }
+  const totalHeight = currentSum;
+
+  // Determine viewport slice
+  let startIndex = 0;
+  while (
+    startIndex < cumulativeHeights.length - 1 &&
+    cumulativeHeights[startIndex + 1] < scrollTop
+  ) {
+    startIndex++;
+  }
+  startIndex = Math.max(0, startIndex - 5); // Buffer of 5 items above
+
+  let endIndex = startIndex;
+  const viewportBottom = scrollTop + containerHeight;
+  while (
+    endIndex < cumulativeHeights.length &&
+    cumulativeHeights[endIndex] < viewportBottom
+  ) {
+    endIndex++;
+  }
+  endIndex = Math.min(cumulativeHeights.length, endIndex + 5); // Buffer of 5 items below
+
+  const visibleItems = listItems.slice(startIndex, endIndex);
 
   return (
     <>
@@ -134,7 +245,7 @@ export default function ChatThread({
       {/* Messages scroll area */}
       <div
         ref={chatContainerRef}
-        onScroll={onScroll}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-6 space-y-4 relative custom-scrollbar bg-transparent"
       >
         {loadingMore && (
@@ -148,26 +259,45 @@ export default function ChatThread({
             Session initialized
           </div>
         ) : (
-          messages.map((msg) => {
-            const msgDateString = new Date(msg.created_at).toDateString();
-            const showDate = msgDateString !== lastDateString;
-            if (showDate) lastDateString = msgDateString;
-
-            return (
-              <Fragment key={msg.id}>
-                {showDate && <DateSeparator dateString={msg.created_at} />}
-                <MessageBubble
-                  msg={msg}
-                  isSelected={selectedMessageIds.has(msg.id)}
-                  selectionActive={selectedMessageIds.size > 0}
-                  onToggleSelect={onToggleMessageSelect}
-                  onDelete={onDeleteMessage}
-                />
-              </Fragment>
-            );
-          })
+          <div
+            style={{
+              height: totalHeight,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {visibleItems.map((item, index) => {
+              const idx = startIndex + index;
+              const topOffset = cumulativeHeights[idx] || 0;
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: topOffset,
+                  }}
+                >
+                  <MeasuredItem id={item.id} onMeasure={onMeasure}>
+                    {item.type === 'date' ? (
+                      <DateSeparator dateString={item.data} />
+                    ) : (
+                      <MessageBubble
+                        msg={item.data}
+                        isSelected={selectedMessageIds.has(item.id)}
+                        selectionActive={selectedMessageIds.size > 0}
+                        onToggleSelect={onToggleMessageSelect}
+                        onDelete={onDeleteMessage}
+                      />
+                    )}
+                  </MeasuredItem>
+                </div>
+              );
+            })}
+          </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} style={{ height: 1 }} />
       </div>
 
       {/* Composer */}

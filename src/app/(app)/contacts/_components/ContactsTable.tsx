@@ -17,13 +17,7 @@ export default function ContactsTable({
   onToggleSelection,
   onToggleAll,
 }: ContactsTableProps) {
-  const filteredContacts = contacts.filter((c) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      (c.name?.toLowerCase() || '').includes(query) ||
-      c.phone_number.includes(query)
-    );
-  });
+  const filteredContacts = contacts;
 
   const isAllSelected = filteredContacts.length > 0 && selectedIds.size === filteredContacts.length;
 

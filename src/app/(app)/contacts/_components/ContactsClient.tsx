@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Trash2, Send, Plus, Loader2, Globe } from 'lucide-react';
 import Toast from '@/components/Toast';
 import ContactsTable from './ContactsTable';
@@ -18,7 +18,8 @@ export default function ContactsClient({
   initialContacts,
   initialTemplates,
 }: ContactsClientProps) {
-  const [contacts, setContacts] = useState<any[]>(initialContacts);
+  const [pageSize] = useState(10);
+  const [contacts, setContacts] = useState<any[]>(initialContacts.slice(0, 10));
   const [templates] = useState<any[]>(initialTemplates);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -27,6 +28,9 @@ export default function ContactsClient({
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(initialContacts.length);
+  const [isFirstMount, setIsFirstMount] = useState(true);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
@@ -34,17 +38,48 @@ export default function ContactsClient({
   const fireToast = (message: string, type: 'success' | 'error' | 'info') =>
     setToast({ message, type });
 
-  const fetchContacts = async () => {
+  const fetchContacts = async (pageNumber: number, query: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/contacts', { credentials: 'include' });
+      const res = await fetch(
+        `/api/contacts?page=${pageNumber}&pageSize=${pageSize}&search=${encodeURIComponent(query)}`,
+        { credentials: 'include' }
+      );
       const data = await res.json();
-      if (Array.isArray(data)) setContacts(data);
+      if (data && Array.isArray(data.contacts)) {
+        setContacts(data.contacts);
+        setTotalCount(data.totalCount);
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Debounced Search triggers
+  useEffect(() => {
+    if (isFirstMount) {
+      setIsFirstMount(false);
+      return;
+    }
+    const delayDebounce = setTimeout(() => {
+      setPage(1);
+      fetchContacts(1, searchQuery);
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  // Page triggers
+  useEffect(() => {
+    if (isFirstMount) return;
+    fetchContacts(page, searchQuery);
+  }, [page]);
+
+  // Re-fetch helper helper
+  const refetchContacts = async () => {
+    await fetchContacts(page, searchQuery);
   };
 
   const handleGoogleImport = () => {
@@ -73,7 +108,7 @@ export default function ContactsClient({
           const data = await res.json();
           if (data.success) {
             fireToast(`Imported ${data.count} contacts`, 'success');
-            await fetchContacts();
+            await refetchContacts();
           } else {
             fireToast(data.error || 'Import failed', 'error');
           }
@@ -103,7 +138,7 @@ export default function ContactsClient({
       });
       if (res.ok) {
         fireToast('Contacts uploaded', 'success');
-        await fetchContacts();
+        await refetchContacts();
       } else {
         const data = await res.json();
         fireToast('Error: ' + data.error, 'error');
@@ -123,7 +158,7 @@ export default function ContactsClient({
       body: JSON.stringify({ name, phone_number: phone })
     });
     if (res.ok) {
-      await fetchContacts();
+      await refetchContacts();
     } else {
       const data = await res.json();
       throw new Error(data.error || 'Failed to add contact');
@@ -169,7 +204,7 @@ export default function ContactsClient({
       });
       if (res.ok) {
         setSelectedIds(new Set());
-        await fetchContacts();
+        await refetchContacts();
       } else {
         const data = await res.json();
         fireToast('Error: ' + data.error, 'error');
@@ -276,13 +311,40 @@ export default function ContactsClient({
             <p className="text-xs text-muted mt-2 max-w-xs mx-auto leading-relaxed">Import contacts using Excel, CSV templates or sync your Google Contacts.</p>
           </div>
         ) : (
-          <ContactsTable
-            contacts={contacts}
-            selectedIds={selectedIds}
-            searchQuery={searchQuery}
-            onToggleSelection={toggleSelection}
-            onToggleAll={toggleAll}
-          />
+          <>
+            <ContactsTable
+              contacts={contacts}
+              selectedIds={selectedIds}
+              searchQuery={searchQuery}
+              onToggleSelection={toggleSelection}
+              onToggleAll={toggleAll}
+            />
+
+            {/* Pagination Controls */}
+            {totalCount > pageSize && (
+              <div className="p-6 border-t border-glass-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-glass-card/10">
+                <p className="text-xs font-bold text-muted">
+                  Showing {Math.min(totalCount, (page - 1) * pageSize + 1)}–{Math.min(totalCount, page * pageSize)} of {totalCount} contacts
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-4 py-2 bg-glass-input hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-glass-border text-fg rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))}
+                    disabled={page >= Math.ceil(totalCount / pageSize)}
+                    className="px-4 py-2 bg-glass-input hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-glass-border text-fg rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

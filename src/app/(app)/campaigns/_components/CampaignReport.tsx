@@ -8,10 +8,13 @@ interface CampaignReportProps {
   onClose: () => void;
 }
 
+const PAGE_SIZE = 10;
+
 export default function CampaignReport({ campaign, onClose }: CampaignReportProps) {
   const [reportData, setReportData] = useState<any[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportSearch, setReportSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchReportData = async (campaignId: string) => {
     setReportLoading(true);
@@ -34,9 +37,26 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
     }
   }, [campaign?.id]);
 
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [reportSearch]);
+
+  // Filter report data client-side
+  const filteredData = reportData.filter(
+    (r) =>
+      (r.contacts?.name || '').toLowerCase().includes(reportSearch.toLowerCase()) ||
+      (r.phone_number || '').includes(reportSearch)
+  );
+
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE) || 1;
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const paginatedData = filteredData.slice(startIndex, startIndex + PAGE_SIZE);
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
       <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-4xl w-full flex flex-col max-h-[85vh] overflow-hidden relative animate-in zoom-in-95 duration-300">
+        {/* Header */}
         <div className="p-6 sm:p-8 border-b border-glass-border flex items-center justify-between bg-glass-card/10 text-left">
           <div>
             <h3 className="text-xl font-black text-fg tracking-tight">{campaign.name}</h3>
@@ -50,6 +70,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
           </button>
         </div>
 
+        {/* Search & Export Toolbar */}
         <div className="p-6 bg-glass-card/20 border-b border-glass-border text-left">
           <div className="flex items-center space-x-4">
             <div className="relative flex-1">
@@ -68,13 +89,14 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
           </div>
         </div>
 
+        {/* Report logs table */}
         <div className="flex-1 overflow-y-auto custom-scrollbar text-left">
           {reportLoading ? (
             <div className="flex flex-col items-center justify-center py-20 opacity-40">
               <Loader2 className="w-8 h-8 animate-spin mb-4" />
               <p className="text-xs font-black uppercase tracking-widest">Compiling statistics...</p>
             </div>
-          ) : reportData.length === 0 ? (
+          ) : filteredData.length === 0 ? (
             <div className="text-center py-20 opacity-40">
               <p className="text-xs font-black uppercase tracking-widest">No logs recorded yet</p>
             </div>
@@ -90,53 +112,74 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {reportData
-                  .filter(r =>
-                    (r.contacts?.name || '').toLowerCase().includes(reportSearch.toLowerCase()) ||
-                    (r.phone_number || '').includes(reportSearch)
-                  )
-                  .map((row, idx) => (
-                    <tr key={idx} className="hover:bg-glass-card transition-colors">
-                      <td className="px-6 py-4 font-bold text-fg text-sm">
-                        {row.contacts?.name || (row.variables?.length > 0 ? (row.variables[0] || 'Unknown') : 'Customer')}
-                      </td>
-                      <td className="px-6 py-4 text-xs text-fg/50 font-semibold font-mono tracking-tight">{row.phone_number}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1.5">
-                          {row.variables?.map((v: any, i: number) => (
-                            <span key={i} className="px-2 py-0.5 bg-glass-input text-fg/50 rounded-lg text-[8px] font-black uppercase border border-glass-border">
-                              v{i+1}: {v}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
-                          row.status === 'read' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
-                          row.status === 'delivered' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                          row.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
-                          'bg-glass-input border-glass-border text-fg/50'
-                        }`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right text-[10px] text-fg/30 font-semibold font-mono">
-                        {new Date(row.created_at).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
+                {paginatedData.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-glass-card transition-colors">
+                    <td className="px-6 py-4 font-bold text-fg text-sm">
+                      {row.contacts?.name || (row.variables?.length > 0 ? (row.variables[0] || 'Unknown') : 'Customer')}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-fg/50 font-semibold font-mono tracking-tight">{row.phone_number}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        {row.variables?.map((v: any, i: number) => (
+                          <span key={i} className="px-2 py-0.5 bg-glass-input text-fg/50 rounded-lg text-[8px] font-black uppercase border border-glass-border">
+                            v{i+1}: {v}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
+                        row.status === 'read' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
+                        row.status === 'delivered' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
+                        row.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+                        'bg-glass-input border-glass-border text-fg/50'
+                      }`}>
+                        {row.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-[10px] text-fg/30 font-semibold font-mono">
+                      {new Date(row.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
         </div>
 
-        <div className="p-6 border-t border-glass-border bg-glass-card/10 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg"
-          >
-            Close Logs
-          </button>
+        {/* Pagination & Footer Controls */}
+        <div className="p-6 border-t border-glass-border bg-glass-card/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+          {filteredData.length > 0 && (
+            <p className="text-xs font-bold text-muted">
+              Showing {startIndex + 1}–{Math.min(filteredData.length, startIndex + PAGE_SIZE)} of {filteredData.length} logs
+            </p>
+          )}
+          <div className="flex items-center space-x-2">
+            {filteredData.length > PAGE_SIZE && (
+              <div className="flex gap-2 mr-4">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-glass-input hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-glass-border text-fg rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="px-4 py-2 bg-glass-input hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-glass-border text-fg rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg"
+            >
+              Close Logs
+            </button>
+          </div>
         </div>
       </div>
     </div>
