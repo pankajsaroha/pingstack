@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // contact(?!s) excludes /contact but NOT /contacts
-    '/((?!_next/static|_next/image|favicon.ico|login|register|privacy|forgot-password|docs|pricing|contact(?!s)|api/auth/login|api/auth/logout|api/auth/register-tenant|api/auth/forgot-password|api/webhook/gupshup|api/webhooks/meta|api/support/contact).*)'
+    // Exclude static resources and file extensions from triggering middleware execution
+    '/((?!api/webhook/gupshup|api/webhooks/meta|_next/static|_next/image|favicon.ico|[^?]*\\.(?:html|css|js|jpe?g|png|gif|svg|ico|woff2?|map|json|txt)$|login|register|privacy|forgot-password|docs|pricing|contact(?!s)|api/auth/login|api/auth/logout|api/auth/register-tenant|api/auth/forgot-password|api/support/contact).*)'
   ],
 };
