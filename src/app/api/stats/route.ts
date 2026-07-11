@@ -103,10 +103,10 @@ export async function GET(req: Request) {
         .eq('tenant_id', tenantId)
         .gte('incurred_at', queryStartDate.toISOString()),
 
-      db.from('billing_transactions')
+      db.from('conversations_view')
         .select('*', { count: 'exact', head: true })
         .eq('tenant_id', tenantId)
-        .gte('incurred_at', queryStartDate.toISOString())
+        .not('contact_id', 'is', null)
     ]);
 
     const estimatedCostThisMonth = (txMonthRes.data || []).reduce((acc: number, t: any) => acc + Number(t.cost || 0), 0);
