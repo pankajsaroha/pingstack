@@ -2,9 +2,10 @@ import { headers } from 'next/headers';
 import { cache } from 'react';
 import { dbAdmin as db } from '@/lib/db';
 import { ensureFreshLimits } from '@/lib/limits';
+import { Tenant } from '@/types';
 
 // cache() deduplicates repeated invocations of getTenantServer during a single page request lifecycle (e.g. layout + page renders)
-export const getTenantServer = cache(async () => {
+export const getTenantServer = cache(async (): Promise<Tenant | null> => {
   const reqHeaders = await headers();
   const tenantId = reqHeaders.get('x-tenant-id');
   const userId = reqHeaders.get('x-user-id');

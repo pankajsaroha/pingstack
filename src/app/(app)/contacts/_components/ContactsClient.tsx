@@ -6,12 +6,14 @@ import Toast from '@/components/Toast';
 import ContactsTable from './ContactsTable';
 import ImportContacts from './ImportContacts';
 
+import { Contact, Template } from '@/types';
+
 const AddContactModal = lazy(() => import('./AddContactModal'));
 const SendTemplateModal = lazy(() => import('./SendTemplateModal'));
 
 interface ContactsClientProps {
-  initialContacts: { contacts: any[]; totalCount: number };
-  initialTemplates: any[];
+  initialContacts: { contacts: Contact[]; totalCount: number };
+  initialTemplates: Template[];
 }
 
 export default function ContactsClient({
@@ -19,8 +21,8 @@ export default function ContactsClient({
   initialTemplates,
 }: ContactsClientProps) {
   const [pageSize] = useState(10);
-  const [contacts, setContacts] = useState<any[]>(initialContacts.contacts);
-  const [templates] = useState<any[]>(initialTemplates);
+  const [contacts, setContacts] = useState<Contact[]>(initialContacts.contacts);
+  const [templates] = useState<Template[]>(initialTemplates);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);

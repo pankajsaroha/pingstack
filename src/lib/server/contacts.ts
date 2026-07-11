@@ -1,7 +1,8 @@
 import { dbAdmin as db } from '@/lib/db';
+import { Contact } from '@/types';
 
-export async function getContactsServer(tenantId: string): Promise<any[]>;
-export async function getContactsServer(tenantId: string, limit: number): Promise<{ contacts: any[]; totalCount: number }>;
+export async function getContactsServer(tenantId: string): Promise<Contact[]>;
+export async function getContactsServer(tenantId: string, limit: number): Promise<{ contacts: Contact[]; totalCount: number }>;
 export async function getContactsServer(tenantId: string, limit?: number): Promise<any> {
   if (!tenantId || !db) return limit ? { contacts: [], totalCount: 0 } : [];
   try {

@@ -1,6 +1,7 @@
 import { dbAdmin as db } from '@/lib/db';
+import { Conversation } from '@/types';
 
-export async function getConversationsServer(tenantId: string) {
+export async function getConversationsServer(tenantId: string): Promise<Conversation[]> {
   if (!db) return [];
 
   try {

@@ -1,6 +1,7 @@
 import { dbAdmin as db } from '@/lib/db';
+import { Group } from '@/types';
 
-export async function getGroupsServer(tenantId: string) {
+export async function getGroupsServer(tenantId: string): Promise<Group[]> {
   if (!tenantId || !db) return [];
   try {
     const { data, error } = await db

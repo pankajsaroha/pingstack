@@ -1,6 +1,7 @@
 import { dbAdmin as db } from '@/lib/db';
+import { Template } from '@/types';
 
-export async function getTemplatesServer(tenantId: string) {
+export async function getTemplatesServer(tenantId: string): Promise<Template[]> {
   if (!tenantId || !db) return [];
   try {
     const { data, error } = await db
