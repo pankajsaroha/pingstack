@@ -16,7 +16,9 @@ export async function GET(req: Request) {
         const cacheKey = `stats:${tenantId}`;
         const cached = await connection.get(cacheKey);
         if (cached) {
-          return NextResponse.json(JSON.parse(cached));
+          return NextResponse.json(JSON.parse(cached), {
+            headers: { 'Cache-Control': 'public, max-age=15, stale-while-revalidate=45' }
+          });
         }
       } catch (cacheErr) {
         console.error('[Stats Cache] Failed to read from Redis:', cacheErr);
@@ -136,7 +138,9 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json(stats);
+    return NextResponse.json(stats, {
+      headers: { 'Cache-Control': 'public, max-age=15, stale-while-revalidate=45' }
+    });
   } catch (err: any) {
     console.error('Stats Error:', err);
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });

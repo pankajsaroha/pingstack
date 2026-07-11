@@ -23,7 +23,9 @@ export async function GET(req: Request) {
     console.error('API GET templates error', { tenantId, error });
     return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   }
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: { 'Cache-Control': 'public, max-age=15, stale-while-revalidate=45' }
+  });
 }
 
 export async function POST(req: Request) {
