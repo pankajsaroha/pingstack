@@ -38,13 +38,15 @@ export default function VirtualList<T>({
   };
 
   // Compute cumulative heights and offsets
-  const cumulativeHeights: number[] = [];
-  let currentSum = 0;
-  for (let i = 0; i < itemHeights.length; i++) {
-    cumulativeHeights.push(currentSum);
-    currentSum += itemHeights[i] || 80; // fallback height
-  }
-  const totalHeight = currentSum;
+  const { cumulativeHeights, totalHeight } = React.useMemo(() => {
+    const cumulative: number[] = [];
+    let currentSum = 0;
+    for (let i = 0; i < itemHeights.length; i++) {
+      cumulative.push(currentSum);
+      currentSum += itemHeights[i] || 80; // fallback height
+    }
+    return { cumulativeHeights: cumulative, totalHeight: currentSum };
+  }, [itemHeights]);
 
   // Determine which items are visible
   let startIndex = 0;

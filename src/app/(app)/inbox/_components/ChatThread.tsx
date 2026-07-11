@@ -100,11 +100,13 @@ export default function ChatThread({
 }: ChatThreadProps) {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
-  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
+  const measuredHeightsRef = useRef<Record<string, number>>({});
+  const [renderTrigger, setRenderTrigger] = useState(0);
 
   // Reset measurements when shifting conversations to avoid stale coordinates
   useEffect(() => {
-    setMeasuredHeights({});
+    measuredHeightsRef.current = {};
+    setRenderTrigger(0);
     setScrollTop(0);
     if (chatContainerRef?.current) {
       chatContainerRef.current.scrollTop = 0;
@@ -126,10 +128,9 @@ export default function ChatThread({
   }, [chatContainerRef]);
 
   const onMeasure = useCallback((id: string, height: number) => {
-    setMeasuredHeights((prev) => {
-      if (prev[id] === height) return prev;
-      return { ...prev, [id]: height };
-    });
+    if (measuredHeightsRef.current[id] === height) return;
+    measuredHeightsRef.current[id] = height;
+    setRenderTrigger((v) => v + 1);
   }, []);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -165,7 +166,7 @@ export default function ChatThread({
       cumulativeHeights.push(currentSum);
       const item = listItems[i];
       const itemHeight =
-        measuredHeights[item.id] || (item.type === 'date' ? 44 : 110);
+        measuredHeightsRef.current[item.id] || (item.type === 'date' ? 44 : 110);
         
       if (item.type === 'date') {
         dateHeaders.push({
@@ -178,7 +179,7 @@ export default function ChatThread({
       currentSum += itemHeight;
     }
     return { listItems, cumulativeHeights, dateHeaders, totalHeight: currentSum };
-  }, [messages, measuredHeights]);
+  }, [messages, renderTrigger]);
 
   if (!activeConversation) {
     return (
