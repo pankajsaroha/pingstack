@@ -137,16 +137,7 @@ export default function ChatThread({
     onScroll(e);
   };
 
-  if (!activeConversation) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-fg/30 space-y-4 opacity-40">
-        <div className="w-20 h-20 bg-glass-input rounded-full flex items-center justify-center">
-          <MessageCircle className="w-10 h-10" />
-        </div>
-        <p className="font-black text-xs uppercase tracking-widest">Select a thread to begin chatting</p>
-      </div>
-    );
-  }
+
 
   // Build flat items list: separating message bubbles and date headers
   const { listItems, cumulativeHeights, dateHeaders, totalHeight } = useMemo(() => {
@@ -188,6 +179,17 @@ export default function ChatThread({
     }
     return { listItems, cumulativeHeights, dateHeaders, totalHeight: currentSum };
   }, [messages, measuredHeights]);
+
+  if (!activeConversation) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-fg/30 space-y-4 opacity-40">
+        <div className="w-20 h-20 bg-glass-input rounded-full flex items-center justify-center">
+          <MessageCircle className="w-10 h-10" />
+        </div>
+        <p className="font-black text-xs uppercase tracking-widest">Select a thread to begin chatting</p>
+      </div>
+    );
+  }
 
   // Determine active sticky date header based on scrollTop
   let activeDateHeader: typeof dateHeaders[0] | null = null;
