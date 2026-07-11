@@ -6,6 +6,7 @@ import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
 import ChatComposer from './ChatComposer';
 import TemplateSelector from './TemplateSelector';
+import { formatSeparatorDate } from './utils';
 
 interface ChatThreadProps {
   activeConversation: any | null;
@@ -166,14 +167,44 @@ export default function ChatThread({
   // Calculate cumulative heights and offsets
   const cumulativeHeights: number[] = [];
   let currentSum = 0;
+  const dateHeaders: { id: string; dateString: string; offset: number; height: number }[] = [];
+
   for (let i = 0; i < listItems.length; i++) {
     cumulativeHeights.push(currentSum);
     const item = listItems[i];
     const itemHeight =
       measuredHeights[item.id] || (item.type === 'date' ? 44 : 110);
+      
+    if (item.type === 'date') {
+      dateHeaders.push({
+        id: item.id,
+        dateString: item.data,
+        offset: currentSum,
+        height: itemHeight
+      });
+    }
     currentSum += itemHeight;
   }
   const totalHeight = currentSum;
+
+  // Determine active sticky date header based on scrollTop
+  let activeDateHeader: typeof dateHeaders[0] | null = null;
+  let pushY = 0;
+
+  for (let i = 0; i < dateHeaders.length; i++) {
+    const header = dateHeaders[i];
+    if (header.offset <= scrollTop + 8) {
+      activeDateHeader = header;
+      
+      const nextHeader = dateHeaders[i + 1];
+      if (nextHeader) {
+        const distance = nextHeader.offset - (scrollTop + 8);
+        if (distance < 44) {
+          pushY = 44 - distance;
+        }
+      }
+    }
+  }
 
   // Determine viewport slice
   let startIndex = 0;
@@ -254,6 +285,27 @@ export default function ChatThread({
           </div>
         )}
 
+        {/* Floating Sticky Date Separator */}
+        {activeDateHeader && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: scrollTop - pushY,
+              zIndex: 30,
+              pointerEvents: 'none',
+              display: 'flex',
+              justifyContent: 'center',
+              paddingTop: '8px'
+            }}
+          >
+            <span className="bg-bg/95 backdrop-blur-md border border-glass-border px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-fg/50 shadow-md">
+              {formatSeparatorDate(activeDateHeader.dateString)}
+            </span>
+          </div>
+        )}
+
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center text-fg/20 text-xs font-black uppercase tracking-[0.2em]">
             Session initialized
@@ -269,6 +321,9 @@ export default function ChatThread({
             {visibleItems.map((item, index) => {
               const idx = startIndex + index;
               const topOffset = cumulativeHeights[idx] || 0;
+              const isDate = item.type === 'date';
+              const isInlineHidden = isDate && activeDateHeader?.id === item.id && pushY === 0;
+
               return (
                 <div
                   key={item.id}
@@ -277,6 +332,8 @@ export default function ChatThread({
                     left: 0,
                     right: 0,
                     top: topOffset,
+                    opacity: isInlineHidden ? 0 : 1,
+                    pointerEvents: isInlineHidden ? 'none' : 'auto'
                   }}
                 >
                   <MeasuredItem id={item.id} onMeasure={onMeasure}>
