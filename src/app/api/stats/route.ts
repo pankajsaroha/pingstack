@@ -89,117 +89,31 @@ export async function GET(req: Request) {
       ? lastPaidDate
       : startOfMonth;
 
-    // ── Phase 3: Fetch only minimal message columns for cost+conv calc ─
-    const { data: messages, error: mErr } = await db
-      .from('messages')
-      .select('contact_id, direction, message_type, content, created_at')
-      .eq('tenant_id', tenantId)
-      .gte('created_at', queryStartDate.toISOString())
-      .order('created_at', { ascending: true });
+    // ── Phase 3: Fetch billing transactions for cost & conversation metrics ─
+    const [txMonthRes, txPaidRes, conversationsRes] = await Promise.all([
+      db.from('billing_transactions')
+        .select('cost')
+        .eq('tenant_id', tenantId)
+        .gte('incurred_at', startOfMonth.toISOString()),
 
-    if (mErr) {
-      console.error('[Stats API] messages query failed:', mErr);
-    }
+      db.from('billing_transactions')
+        .select('cost')
+        .eq('tenant_id', tenantId)
+        .gte('incurred_at', queryStartDate.toISOString()),
 
-    // ── Phase 4: Cost Estimation ──────────────────────────────────────
-    const categoryCost: Record<string, number> = {
-      UTILITY: 0.1150,
-      AUTHENTICATION: 0.1150,
-      MARKETING: 0.8631
-    };
+      db.from('billing_transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .gte('incurred_at', queryStartDate.toISOString())
+    ]);
 
-    // Pre-compile regexes for templates
-    const compiledTemplates = templates.map((t: any) => {
-      if (!t.content) return null;
-      try {
-        const escaped = t.content.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const regexStr = '^' + escaped.replace(/\\\{\\\{\d+\\\}\\\}/g, '.*') + '$';
-        return {
-          category: t.category || 'MARKETING',
-          regex: new RegExp(regexStr)
-        };
-      } catch (e) {
-        return null;
-      }
-    }).filter(Boolean) as { category: string; regex: RegExp }[];
-
-    const categoryCache = new Map<string, string>();
-
-    const findTemplateCategory = (content: string | null): string => {
-      if (!content) return 'MARKETING';
-      if (categoryCache.has(content)) {
-        return categoryCache.get(content)!;
-      }
-
-      // Check simple matches
-      const matchByContent = templates.find((t: any) => t.content === content);
-      if (matchByContent) {
-        const cat = matchByContent.category || 'MARKETING';
-        categoryCache.set(content, cat);
-        return cat;
-      }
-
-      const tokenMatch = content.match(/\[Template:\s*([^\]]+)\]/);
-      if (tokenMatch) {
-        const tName = tokenMatch[1].trim();
-        const matchByName = templates.find((t: any) => t.name === tName);
-        if (matchByName) {
-          const cat = matchByName.category || 'MARKETING';
-          categoryCache.set(content, cat);
-          return cat;
-        }
-      }
-
-      // Check pre-compiled regexes
-      for (const ct of compiledTemplates) {
-        if (ct.regex.test(content)) {
-          categoryCache.set(content, ct.category);
-          return ct.category;
-        }
-      }
-
-      categoryCache.set(content, 'MARKETING');
-      return 'MARKETING';
-    };
-
-    const calculateCost = (msgList: any[], startDate: Date) => {
-      const contactLastInbound: Record<string, number> = {};
-      let total = 0;
-
-      for (const msg of msgList) {
-        const msgTime = new Date(msg.created_at).getTime();
-        const contactId = msg.contact_id;
-
-        if (msg.direction === 'inbound') {
-          contactLastInbound[contactId] = msgTime;
-        } else if (msg.direction === 'outbound') {
-          const isTemplate = msg.message_type === 'template' || 
-                             (msg.content && (msg.content.includes('[Template:') || templates.some((t: any) => t.content === msg.content)));
-
-          if (isTemplate) {
-            const lastInbound = contactLastInbound[contactId];
-            const isWindowOpen = lastInbound && (msgTime - lastInbound <= 24 * 60 * 60 * 1000);
-
-            if (!isWindowOpen) {
-              const category = findTemplateCategory(msg.content);
-              const cost = categoryCost[category.toUpperCase()] || 0.8631;
-              if (msgTime >= startDate.getTime()) {
-                total += cost;
-              }
-              contactLastInbound[contactId] = msgTime;
-            }
-          }
-        }
-      }
-      return total;
-    };
-
-    const estimatedCostThisMonth = calculateCost(messages || [], startOfMonth);
-    const estimatedCostSinceLastPayment = calculateCost(messages || [], lastPaidDate || new Date(0));
+    const estimatedCostThisMonth = (txMonthRes.data || []).reduce((acc: number, t: any) => acc + Number(t.cost || 0), 0);
+    const estimatedCostSinceLastPayment = (txPaidRes.data || []).reduce((acc: number, t: any) => acc + Number(t.cost || 0), 0);
+    const conversations = conversationsRes.count || 0;
 
     const stats = {
       totalContacts,
-      conversations: new Set((messages || []).map((m: any) => m.contact_id).filter(Boolean)).size,
+      conversations,
       templatesApproved: approvedTemplates,
       inboundMessages: inboundRes.count || 0,
       sent: sentRes.count || 0,
