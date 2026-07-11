@@ -16,14 +16,16 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
   const [reportSearch, setReportSearch] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const fetchReportData = async (campaignId: string) => {
+  const fetchReportData = async (campaignId: string, page: number, search: string) => {
     setReportLoading(true);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/report`);
+      const res = await fetch(`/api/campaigns/${campaignId}/report?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`);
       if (res.ok) {
-        const data = await res.json();
-        setReportData(data);
+        const result = await res.json();
+        setReportData(result.data || []);
+        setTotalCount(result.totalCount || 0);
       }
     } catch (e) {
       console.error('Report fetch failed:', e);
@@ -34,35 +36,21 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
 
   useEffect(() => {
     if (campaign?.id) {
-      fetchReportData(campaign.id);
+      fetchReportData(campaign.id, currentPage, reportSearch);
     }
-  }, [campaign?.id]);
+  }, [campaign?.id, currentPage, reportSearch]);
 
-  // Debounce search query updates
+  // Debounce search query updates and reset page
   useEffect(() => {
     const handler = setTimeout(() => {
       setReportSearch(searchTerm);
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Reset page when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [reportSearch]);
-
-  // Filter report data client-side with useMemo
-  const filteredData = useMemo(() => {
-    return reportData.filter(
-      (r) =>
-        (r.contacts?.name || '').toLowerCase().includes(reportSearch.toLowerCase()) ||
-        (r.phone_number || '').includes(reportSearch)
-    );
-  }, [reportData, reportSearch]);
-
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE) || 1;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
   const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const paginatedData = filteredData.slice(startIndex, startIndex + PAGE_SIZE);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
@@ -107,7 +95,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
               <Loader2 className="w-8 h-8 animate-spin mb-4" />
               <p className="text-xs font-black uppercase tracking-widest">Compiling statistics...</p>
             </div>
-          ) : filteredData.length === 0 ? (
+          ) : totalCount === 0 ? (
             <div className="text-center py-20 opacity-40">
               <p className="text-xs font-black uppercase tracking-widest">No logs recorded yet</p>
             </div>
@@ -123,7 +111,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {paginatedData.map((row, idx) => (
+                {reportData.map((row, idx) => (
                   <tr key={idx} className="hover:bg-glass-card transition-colors">
                     <td className="px-6 py-4 font-bold text-fg text-sm">
                       {row.contacts?.name || (row.variables?.length > 0 ? (row.variables[0] || 'Unknown') : 'Customer')}
@@ -158,15 +146,14 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
           )}
         </div>
 
-        {/* Pagination & Footer Controls */}
         <div className="p-6 border-t border-glass-border bg-glass-card/10 flex flex-col sm:flex-row justify-between items-center gap-4">
-          {filteredData.length > 0 && (
+          {totalCount > 0 && (
             <p className="text-xs font-bold text-muted">
-              Showing {startIndex + 1}–{Math.min(filteredData.length, startIndex + PAGE_SIZE)} of {filteredData.length} logs
+              Showing {startIndex + 1}–{Math.min(totalCount, startIndex + PAGE_SIZE)} of {totalCount} logs
             </p>
           )}
           <div className="flex items-center space-x-2">
-            {filteredData.length > PAGE_SIZE && (
+            {totalCount > PAGE_SIZE && (
               <div className="flex gap-2 mr-4">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}

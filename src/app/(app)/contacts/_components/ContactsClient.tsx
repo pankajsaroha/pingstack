@@ -10,7 +10,7 @@ const AddContactModal = lazy(() => import('./AddContactModal'));
 const SendTemplateModal = lazy(() => import('./SendTemplateModal'));
 
 interface ContactsClientProps {
-  initialContacts: any[];
+  initialContacts: { contacts: any[]; totalCount: number };
   initialTemplates: any[];
 }
 
@@ -19,7 +19,7 @@ export default function ContactsClient({
   initialTemplates,
 }: ContactsClientProps) {
   const [pageSize] = useState(10);
-  const [contacts, setContacts] = useState<any[]>(initialContacts.slice(0, 10));
+  const [contacts, setContacts] = useState<any[]>(initialContacts.contacts);
   const [templates] = useState<any[]>(initialTemplates);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -30,7 +30,7 @@ export default function ContactsClient({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(initialContacts.length);
+  const [totalCount, setTotalCount] = useState(initialContacts.totalCount);
   const [isFirstMount, setIsFirstMount] = useState(true);
 
   const [showAddModal, setShowAddModal] = useState(false);

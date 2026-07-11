@@ -13,9 +13,9 @@ export default async function ContactsPage() {
     redirect('/login');
   }
 
-  const [tenant, contacts, templates] = await Promise.all([
+  const [tenant, contactsResult, templates] = await Promise.all([
     getTenantServer(),
-    getContactsServer(tenantId),
+    getContactsServer(tenantId, 10),
     getTemplatesServer(tenantId)
   ]);
 
@@ -25,7 +25,7 @@ export default async function ContactsPage() {
 
   return (
     <ContactsClient
-      initialContacts={contacts}
+      initialContacts={contactsResult}
       initialTemplates={templates}
     />
   );
