@@ -1,8 +1,10 @@
 import { headers } from 'next/headers';
+import { cache } from 'react';
 import { dbAdmin as db } from '@/lib/db';
 import { ensureFreshLimits } from '@/lib/limits';
 
-export async function getTenantServer() {
+// cache() deduplicates repeated invocations of getTenantServer during a single page request lifecycle (e.g. layout + page renders)
+export const getTenantServer = cache(async () => {
   const reqHeaders = await headers();
   const tenantId = reqHeaders.get('x-tenant-id');
   const userId = reqHeaders.get('x-user-id');
@@ -12,16 +14,26 @@ export async function getTenantServer() {
   }
 
   try {
-    const { data: tenantData, error: tError } = await db
-      .from('tenants')
-      .select('*')
-      .eq('id', tenantId)
-      .single();
+    // Single joined query for tenant + whatsapp_accounts & parallel user name query
+    const [tenantResult, userResult] = await Promise.all([
+      db.from('tenants')
+        .select('*, whatsapp_accounts(id, provider, status, phone_number_id, business_id)')
+        .eq('id', tenantId)
+        .single(),
+      userId ? db.from('users').select('name').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
+    ]);
 
-    if (tError || !tenantData) {
-      console.error('[getTenantServer] tenant query failed or empty:', tError);
+    if (tenantResult.error || !tenantResult.data) {
+      console.error('[getTenantServer] tenant query failed or empty:', tenantResult.error);
       return null;
     }
+
+    const tenantData = tenantResult.data;
+    const waArray = tenantData.whatsapp_accounts;
+    const whatsappAccount = Array.isArray(waArray) && waArray.length > 0 ? waArray[0] : null;
+
+    // Clean nested key to keep tenant shape consistent
+    delete tenantData.whatsapp_accounts;
 
     const tenant = await ensureFreshLimits(tenantId, tenantData);
 
@@ -37,18 +49,9 @@ export async function getTenantServer() {
     const trialExpired = isTrial && now > trialExpiresAt;
 
     let userName = 'User';
-    if (userId) {
-      const { data: userData } = await db.from('users').select('name').eq('id', userId).maybeSingle();
-      if (userData?.name) {
-        userName = userData.name;
-      }
+    if (userResult.data?.name) {
+      userName = userResult.data.name;
     }
-
-    const { data: whatsappAccount } = await db
-      .from('whatsapp_accounts')
-      .select('id, provider, status, phone_number_id, business_id')
-      .eq('tenant_id', tenantId)
-      .maybeSingle();
 
     return {
       ...tenant,
@@ -65,4 +68,4 @@ export async function getTenantServer() {
     console.error('[getTenantServer] unexpected error:', err);
     return null;
   }
-}
+});
