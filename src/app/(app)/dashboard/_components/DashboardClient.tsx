@@ -154,13 +154,50 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
     }
   }, []);
 
-  // Stats polling
+  // Stats polling with visibility guard
   useEffect(() => {
-    if (tenant?.id) {
-      fetchStats(tenant.id);
-      const interval = setInterval(() => fetchStats(tenant.id), 30000);
-      return () => clearInterval(interval);
+    if (!tenant?.id) return;
+
+    fetchStats(tenant.id);
+
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      if (!intervalId) {
+        intervalId = setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            fetchStats(tenant.id);
+          }
+        }, 30000);
+      }
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchStats(tenant.id);
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    if (document.visibilityState === 'visible') {
+      startPolling();
     }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [tenant?.id, fetchStats]);
 
   const handleEmbeddedConnect = useCallback(() => {
