@@ -28,6 +28,7 @@ export default function ContactsClient({
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(initialContacts.length);
   const [isFirstMount, setIsFirstMount] = useState(true);
@@ -57,7 +58,7 @@ export default function ContactsClient({
     }
   };
 
-  // Debounced Search triggers
+  // Debounce input value changes to trigger search query updates
   useEffect(() => {
     if (isFirstMount) {
       setIsFirstMount(false);
@@ -65,10 +66,16 @@ export default function ContactsClient({
     }
     const delayDebounce = setTimeout(() => {
       setPage(1);
-      fetchContacts(1, searchQuery);
+      setSearchQuery(searchInput);
     }, 300);
 
     return () => clearTimeout(delayDebounce);
+  }, [searchInput]);
+
+  // Fetch when search query updates
+  useEffect(() => {
+    if (isFirstMount) return;
+    fetchContacts(1, searchQuery);
   }, [searchQuery]);
 
   // Page triggers
@@ -293,8 +300,8 @@ export default function ContactsClient({
               type="text"
               className="focus:border-indigo-500 focus:outline-none block w-full pl-4 pr-4 py-3 text-sm font-semibold border border-glass-border rounded-2xl bg-glass-input text-fg placeholder:text-fg/20 transition-all font-sans"
               placeholder="Search contacts..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
             />
           </div>
         </div>

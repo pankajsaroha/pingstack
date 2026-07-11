@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useRef, useState, useEffect, useCallback } from 'react';
+import { Fragment, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { User, Loader2, MessageCircle, Trash2, ChevronLeft } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
@@ -149,43 +149,45 @@ export default function ChatThread({
   }
 
   // Build flat items list: separating message bubbles and date headers
-  const listItems: { type: 'message' | 'date'; id: string; data: any }[] = [];
-  let lastDateString = '';
-  messages.forEach((msg) => {
-    const msgDateString = new Date(msg.created_at).toDateString();
-    if (msgDateString !== lastDateString) {
-      listItems.push({
-        type: 'date',
-        id: `date-${msgDateString}`,
-        data: msg.created_at,
-      });
-      lastDateString = msgDateString;
-    }
-    listItems.push({ type: 'message', id: msg.id, data: msg });
-  });
+  const { listItems, cumulativeHeights, dateHeaders, totalHeight } = useMemo(() => {
+    const listItems: { type: 'message' | 'date'; id: string; data: any }[] = [];
+    let lastDateString = '';
+    messages.forEach((msg) => {
+      const msgDateString = new Date(msg.created_at).toDateString();
+      if (msgDateString !== lastDateString) {
+        listItems.push({
+          type: 'date',
+          id: `date-${msgDateString}`,
+          data: msg.created_at,
+        });
+        lastDateString = msgDateString;
+      }
+      listItems.push({ type: 'message', id: msg.id, data: msg });
+    });
 
-  // Calculate cumulative heights and offsets
-  const cumulativeHeights: number[] = [];
-  let currentSum = 0;
-  const dateHeaders: { id: string; dateString: string; offset: number; height: number }[] = [];
+    // Calculate cumulative heights and offsets
+    const cumulativeHeights: number[] = [];
+    let currentSum = 0;
+    const dateHeaders: { id: string; dateString: string; offset: number; height: number }[] = [];
 
-  for (let i = 0; i < listItems.length; i++) {
-    cumulativeHeights.push(currentSum);
-    const item = listItems[i];
-    const itemHeight =
-      measuredHeights[item.id] || (item.type === 'date' ? 44 : 110);
-      
-    if (item.type === 'date') {
-      dateHeaders.push({
-        id: item.id,
-        dateString: item.data,
-        offset: currentSum,
-        height: itemHeight
-      });
+    for (let i = 0; i < listItems.length; i++) {
+      cumulativeHeights.push(currentSum);
+      const item = listItems[i];
+      const itemHeight =
+        measuredHeights[item.id] || (item.type === 'date' ? 44 : 110);
+        
+      if (item.type === 'date') {
+        dateHeaders.push({
+          id: item.id,
+          dateString: item.data,
+          offset: currentSum,
+          height: itemHeight
+        });
+      }
+      currentSum += itemHeight;
     }
-    currentSum += itemHeight;
-  }
-  const totalHeight = currentSum;
+    return { listItems, cumulativeHeights, dateHeaders, totalHeight: currentSum };
+  }, [messages, measuredHeights]);
 
   // Determine active sticky date header based on scrollTop
   let activeDateHeader: typeof dateHeaders[0] | null = null;
@@ -318,7 +320,7 @@ export default function ChatThread({
               position: 'relative',
             }}
           >
-            {visibleItems.map((item, index) => {
+            {visibleItems.map((item: any, index: number) => {
               const idx = startIndex + index;
               const topOffset = cumulativeHeights[idx] || 0;
               const isDate = item.type === 'date';

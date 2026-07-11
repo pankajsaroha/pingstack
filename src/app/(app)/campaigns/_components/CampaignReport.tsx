@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Search, Loader2 } from 'lucide-react';
 
 interface CampaignReportProps {
@@ -14,6 +14,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
   const [reportData, setReportData] = useState<any[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportSearch, setReportSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   const fetchReportData = async (campaignId: string) => {
@@ -37,17 +38,27 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
     }
   }, [campaign?.id]);
 
+  // Debounce search query updates
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setReportSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
   // Reset page when search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [reportSearch]);
 
-  // Filter report data client-side
-  const filteredData = reportData.filter(
-    (r) =>
-      (r.contacts?.name || '').toLowerCase().includes(reportSearch.toLowerCase()) ||
-      (r.phone_number || '').includes(reportSearch)
-  );
+  // Filter report data client-side with useMemo
+  const filteredData = useMemo(() => {
+    return reportData.filter(
+      (r) =>
+        (r.contacts?.name || '').toLowerCase().includes(reportSearch.toLowerCase()) ||
+        (r.phone_number || '').includes(reportSearch)
+    );
+  }, [reportData, reportSearch]);
 
   const totalPages = Math.ceil(filteredData.length / PAGE_SIZE) || 1;
   const startIndex = (currentPage - 1) * PAGE_SIZE;
@@ -79,8 +90,8 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
                 type="text"
                 placeholder="Search recipients name or phone..."
                 className="w-full pl-12 pr-4 py-3 bg-glass-input border border-glass-border rounded-2xl text-xs font-semibold focus:bg-white/10 focus:border-indigo-500 focus:outline-none transition-all text-fg placeholder:text-fg/25"
-                value={reportSearch}
-                onChange={(e) => setReportSearch(e.target.value)}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <button className="px-6 py-3 bg-glass-input hover:bg-white/10 border border-glass-border text-fg rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer">

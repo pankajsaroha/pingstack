@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { MessageCircle, Loader2, AlertCircle, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
@@ -32,7 +32,16 @@ export default function Inbox() {
   // ── Conversation / chat state ─────────────────────────────────────
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchVal, setSearchVal] = useState('');
   const [newMessage, setNewMessage] = useState('');
+
+  // Debounce search query updates
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchVal);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchVal]);
   const [windowError, setWindowError] = useState(false);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const [showChatOnMobile, setShowChatOnMobile] = useState(false);
@@ -445,10 +454,12 @@ export default function Inbox() {
   const whatsappAccount = tenant?.whatsapp_account;
   const status = whatsappAccount?.status || 'NOT_CONNECTED';
 
-  const activeConversation = conversations.find(c => c.contact.id === activeContactId) || (() => {
+  const activeConversation = useMemo(() => {
+    const existing = conversations.find(c => c.contact.id === activeContactId);
+    if (existing) return existing;
     const contact = allContacts.find(c => c.id === activeContactId);
     return contact ? { contact, latestMessage: null, unreadCount: 0 } : null;
-  })();
+  }, [conversations, allContacts, activeContactId]);
 
   // ── Status gates ──────────────────────────────────────────────────
   if (loading && !tenant) {
@@ -522,13 +533,16 @@ export default function Inbox() {
             <input
               type="text"
               placeholder="Search chats or contacts..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              value={searchVal}
+              onChange={e => setSearchVal(e.target.value)}
               className="w-full bg-glass-input border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-indigo-500 text-fg placeholder:text-fg/20 transition-all"
             />
-            {searchQuery && (
+            {searchVal && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchVal('');
+                  setSearchQuery('');
+                }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-fg/30 hover:text-fg transition-colors"
               >
                 <X className="w-3.5 h-3.5" />

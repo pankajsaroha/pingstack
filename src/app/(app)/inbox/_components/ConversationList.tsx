@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { MessageCircle } from 'lucide-react';
 import VirtualList from '@/components/VirtualList';
 
@@ -25,60 +26,69 @@ export default function ConversationList({
   onSearchChange,
   onSelectContact,
 }: ConversationListProps) {
-  const conversationsContactIds = new Set(conversations.map((c) => c.contact.id));
+  const { listItems, itemHeights, filteredConversationsCount, matchingNewContactsCount } = useMemo(() => {
+    const conversationsContactIds = new Set(conversations.map((c) => c.contact.id));
 
-  const filteredConversations = conversations.filter((conv) => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-    const name = (conv.contact.name || '').toLowerCase();
-    const phone = (conv.contact.phone_number || '').toLowerCase();
-    return name.includes(query) || phone.includes(query);
-  });
-
-  const matchingNewContacts = searchQuery.trim()
-    ? allContacts.filter((contact) => {
-        const query = searchQuery.toLowerCase().trim();
-        const name = (contact.name || '').toLowerCase();
-        const phone = (contact.phone_number || '').toLowerCase();
-        return (
-          (name.includes(query) || phone.includes(query)) &&
-          !conversationsContactIds.has(contact.id)
-        );
-      })
-    : [];
-
-  // Build the flat items list
-  const listItems: ListElement[] = [];
-
-  filteredConversations.forEach((conv) => {
-    listItems.push({
-      type: 'conversation',
-      key: `conv-${conv.contact.id}`,
-      data: conv,
+    const filteredConversations = conversations.filter((conv) => {
+      const query = searchQuery.toLowerCase().trim();
+      if (!query) return true;
+      const name = (conv.contact.name || '').toLowerCase();
+      const phone = (conv.contact.phone_number || '').toLowerCase();
+      return name.includes(query) || phone.includes(query);
     });
-  });
 
-  if (matchingNewContacts.length > 0) {
-    listItems.push({
-      type: 'header',
-      key: 'header-new-contacts',
-      label: 'Contacts (No History)',
-    });
-    matchingNewContacts.forEach((contact) => {
+    const matchingNewContacts = searchQuery.trim()
+      ? allContacts.filter((contact) => {
+          const query = searchQuery.toLowerCase().trim();
+          const name = (contact.name || '').toLowerCase();
+          const phone = (contact.phone_number || '').toLowerCase();
+          return (
+            (name.includes(query) || phone.includes(query)) &&
+            !conversationsContactIds.has(contact.id)
+          );
+        })
+      : [];
+
+    // Build the flat items list
+    const listItems: ListElement[] = [];
+
+    filteredConversations.forEach((conv) => {
       listItems.push({
-        type: 'contact',
-        key: `contact-${contact.id}`,
-        data: contact,
+        type: 'conversation',
+        key: `conv-${conv.contact.id}`,
+        data: conv,
       });
     });
-  }
 
-  // Pre-calculate heights
-  const itemHeights = listItems.map((item) => {
-    if (item.type === 'conversation') return 82;
-    if (item.type === 'header') return 37;
-    return 72;
-  });
+    if (matchingNewContacts.length > 0) {
+      listItems.push({
+        type: 'header',
+        key: 'header-new-contacts',
+        label: 'Contacts (No History)',
+      });
+      matchingNewContacts.forEach((contact) => {
+        listItems.push({
+          type: 'contact',
+          key: `contact-${contact.id}`,
+          data: contact,
+        });
+      });
+    }
+
+    // Pre-calculate heights
+    const itemHeights = listItems.map((item) => {
+      if (item.type === 'conversation') return 82;
+      if (item.type === 'header') return 37;
+      return 72;
+    });
+
+    return {
+      listItems,
+      itemHeights,
+      filteredConversationsCount: filteredConversations.length,
+      matchingNewContactsCount: matchingNewContacts.length
+    };
+  }, [conversations, allContacts, searchQuery]);
 
   const renderListElement = (item: ListElement) => {
     if (item.type === 'conversation') {
@@ -219,8 +229,8 @@ export default function ConversationList({
           Inbox is empty
         </div>
       ) : searchQuery &&
-        filteredConversations.length === 0 &&
-        matchingNewContacts.length === 0 ? (
+        filteredConversationsCount === 0 &&
+        matchingNewContactsCount === 0 ? (
         <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-12">
           No matching chats or contacts
         </div>
