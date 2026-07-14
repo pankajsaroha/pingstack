@@ -1,6 +1,7 @@
 'use client';
 
-import { Settings, Loader2, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown } from 'lucide-react';
 
 interface ConnectionManagerProps {
   tenant: any;
@@ -9,6 +10,7 @@ interface ConnectionManagerProps {
   selectedWaba: string;
   selectedPhone: string;
   connecting: boolean;
+  refreshing: boolean;
   error: string | null;
   onSwitchAccount: () => void;
   onCancelSwitch: () => void;
@@ -16,6 +18,7 @@ interface ConnectionManagerProps {
   onSelectWaba: (wabaId: string, firstPhoneId?: string) => void;
   onSelectPhone: (phoneId: string) => void;
   onResetConnection: () => void;
+  onRefreshAccount: () => void;
 }
 
 export default function ConnectionManager({
@@ -25,6 +28,7 @@ export default function ConnectionManager({
   selectedWaba,
   selectedPhone,
   connecting,
+  refreshing,
   error,
   onSwitchAccount,
   onCancelSwitch,
@@ -32,8 +36,16 @@ export default function ConnectionManager({
   onSelectWaba,
   onSelectPhone,
   onResetConnection,
+  onRefreshAccount,
 }: ConnectionManagerProps) {
   const whatsappAccount = tenant?.whatsapp_account;
+  const [showMore, setShowMore] = useState(false);
+
+  // Build the Meta Business Manager link using stored business_id / portfolio_id
+  const businessId = whatsappAccount?.business_id || whatsappAccount?.portfolio_id || '';
+  const metaManagerUrl = businessId
+    ? `https://business.facebook.com/latest/settings/whatsapp_account?business_id=${businessId}`
+    : 'https://business.facebook.com/settings/';
 
   return (
     <div className="lg:col-span-2 bg-glass-card border border-glass-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col justify-between">
@@ -116,7 +128,7 @@ export default function ConnectionManager({
             </div>
             <div>
               <h3 className="text-xl font-black text-fg tracking-tight">Manage Connection</h3>
-              <p className="text-sm text-muted mt-1 font-semibold">Configure or reset your WhatsApp Cloud API link.</p>
+              <p className="text-sm text-muted mt-1 font-semibold">Configure your WhatsApp Business Account link.</p>
             </div>
           </div>
 
@@ -139,20 +151,59 @@ export default function ConnectionManager({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mt-6 sm:mt-0 sm:self-end">
+          {/* Primary actions row */}
+          <div className="flex flex-wrap items-center gap-3 mt-2">
+            {/* Refresh Account — primary CTA for users waiting on business approval / phone numbers */}
             <button
-              onClick={onSwitchAccount}
-              className="px-6 h-12 bg-fg text-bg hover:opacity-90 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5"
+              onClick={onRefreshAccount}
+              disabled={refreshing}
+              title="Re-fetch your Meta account status, newly approved phone numbers, and billing"
+              className="flex items-center gap-2 px-5 h-11 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50"
             >
-              Switch Account
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing…' : 'Refresh Account'}
             </button>
-            <button
-              onClick={onResetConnection}
-              className="px-6 h-12 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+
+            {/* Open Meta Business Manager to add phone / billing */}
+            <a
+              href={metaManagerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open Meta Business Manager to add a phone number or payment method"
+              className="flex items-center gap-2 px-5 h-11 bg-glass-input hover:bg-white/10 border border-glass-border text-fg/70 hover:text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
             >
-              Reset Connection
+              <ExternalLink className="w-3.5 h-3.5" />
+              Meta Manager
+            </a>
+
+            {/* More options toggle */}
+            <button
+              onClick={() => setShowMore(v => !v)}
+              className="ml-auto flex items-center gap-1.5 px-4 h-11 border border-glass-border text-muted hover:text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              More
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showMore ? 'rotate-180' : ''}`} />
             </button>
           </div>
+
+          {/* Expanded more options */}
+          {showMore && (
+            <div className="mt-3 flex flex-wrap gap-3 pt-4 border-t border-glass-border animate-in fade-in slide-in-from-top-2 duration-200">
+              <button
+                onClick={onSwitchAccount}
+                disabled={refreshing}
+                className="px-5 h-10 bg-fg text-bg hover:opacity-90 disabled:opacity-50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-sm"
+              >
+                Switch Account
+              </button>
+              <button
+                onClick={onResetConnection}
+                className="px-5 h-10 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                Reset Connection
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

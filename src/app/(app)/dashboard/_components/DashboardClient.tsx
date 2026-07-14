@@ -38,6 +38,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
   const [error, setError] = useState<string | null>(null);
 
   const [connecting, setConnecting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [fbLoaded, setFbLoaded] = useState(false);
   const [discovery, setDiscovery] = useState<any[] | null>(null);
   const [tempToken, setTempToken] = useState('');
@@ -300,6 +301,45 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
     await handleDiscovery(undefined, tenant?.id);
   };
 
+  // Re-fetch WABA/phone discovery using the stored token — used when user comes back after
+  // getting business approval, adding a phone number, or setting up billing in Meta.
+  const handleRefreshAccount = useCallback(async () => {
+    if (!tenant?.id) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/whatsapp/meta/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenant.id },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDiscovery(data.wabas || []);
+        setTempToken(data.accessToken || '');
+        setPortfolioId(data.portfolioId || '');
+        if (data.wabas?.length > 0) {
+          const firstWaba = data.wabas[0];
+          setSelectedWaba(firstWaba.id);
+          if (firstWaba.phones?.length > 0) setSelectedPhone(firstWaba.phones[0].id);
+        }
+        await refreshTenantAndStats();
+        fireToast(
+          data.wabas?.length > 0
+            ? `Found ${data.wabas.length} WABA account(s) — select a phone number to update your link.`
+            : 'Account refreshed. No new phone numbers found yet — check Meta for approval status.',
+          data.wabas?.length > 0 ? 'success' : 'info'
+        );
+      } else {
+        setError(data.message || 'Could not refresh account. Try again later.');
+      }
+    } catch (err: any) {
+      setError('Refresh failed: ' + err.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [tenant?.id, refreshTenantAndStats]);
+
   const handleCancelSubscription = async () => {
     if (!confirm('Are you sure you want to cancel your subscription? You will still have access until the end of the current billing cycle.')) return;
     try {
@@ -391,6 +431,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
                 onManualConnect={handleManualConnect}
                 onFinishOnboarding={handleFinishOnboarding}
                 onResetConnection={handleResetConnection}
+                onRefreshAccount={handleRefreshAccount}
                 onSelectWaba={handleSelectWaba}
                 onSelectPhone={setSelectedPhone}
                 onError={setError}
@@ -408,6 +449,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
                 selectedWaba={selectedWaba}
                 selectedPhone={selectedPhone}
                 connecting={connecting}
+                refreshing={refreshing}
                 error={error}
                 onSwitchAccount={handleStartSwitching}
                 onCancelSwitch={() => { setIsSwitching(false); setError(null); }}
@@ -415,6 +457,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
                 onSelectWaba={handleSelectWaba}
                 onSelectPhone={setSelectedPhone}
                 onResetConnection={handleResetConnection}
+                onRefreshAccount={handleRefreshAccount}
               />
               <MetaCostCard
                 stats={stats}

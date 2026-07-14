@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   CheckCircle2, AlertCircle, Loader2, Settings, Rocket,
-  Facebook, ArrowRight, ShieldCheck, CheckSquare
+  Facebook, ArrowRight, ShieldCheck, CheckSquare, RefreshCw
 } from 'lucide-react';
 
 interface OnboardingWizardProps {
@@ -21,6 +21,7 @@ interface OnboardingWizardProps {
   onManualConnect: (token: string, wabaId: string, phoneId: string) => Promise<void>;
   onFinishOnboarding: () => void;
   onResetConnection: () => void;
+  onRefreshAccount: () => void;
   onSelectWaba: (wabaId: string, firstPhoneId?: string) => void;
   onSelectPhone: (phoneId: string) => void;
   onError: (msg: string | null) => void;
@@ -41,6 +42,7 @@ export default function OnboardingWizard({
   onManualConnect,
   onFinishOnboarding,
   onResetConnection,
+  onRefreshAccount,
   onSelectWaba,
   onSelectPhone,
   onError,
@@ -246,16 +248,26 @@ export default function OnboardingWizard({
                                 Assets Not Shared
                               </p>
                               <p className="text-xs text-fg/50 font-bold leading-relaxed mb-4">
-                                Link complete, but WhatsApp accounts are missing. Share your assets with partner ID **1571768617266202**.
+                                Link complete, but WhatsApp accounts are missing. Share your assets with partner ID **1571768617266202**, then click Refresh.
                               </p>
-                              <a
-                                href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
-                                target="_blank"
-                                className="w-full py-2.5 bg-fg text-bg rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 transition-all flex items-center justify-center shadow-sm"
-                              >
-                                Meta Partner Settings
-                                <ArrowRight className="w-3 h-3 ml-1.5" />
-                              </a>
+                              <div className="flex flex-col gap-2">
+                                <button
+                                  onClick={onRefreshAccount}
+                                  disabled={connecting}
+                                  className="w-full py-2.5 bg-fg text-bg rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                                >
+                                  <RefreshCw className="w-3 h-3 mr-1.5" />
+                                  Refresh Account
+                                </button>
+                                <a
+                                  href={`https://business.facebook.com/latest/settings/whatsapp_account${portfolioId ? `?business_id=${portfolioId}` : ''}`}
+                                  target="_blank"
+                                  className="w-full py-2 bg-glass-input border border-glass-border text-fg/70 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-fg hover:bg-white/10 transition-all flex items-center justify-center"
+                                >
+                                  Meta Partner Settings
+                                  <ArrowRight className="w-3 h-3 ml-1.5" />
+                                </a>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -305,6 +317,16 @@ export default function OnboardingWizard({
                           className="w-full bg-fg text-bg hover:opacity-90 disabled:opacity-40 disabled:text-muted h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center"
                         >
                           {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Complete Setup'}
+                        </button>
+
+                        <button
+                          onClick={onRefreshAccount}
+                          disabled={connecting}
+                          title="Re-fetch your Meta accounts to pick up newly approved phone numbers or billing changes"
+                          className="w-full h-10 rounded-xl border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Refresh Account
                         </button>
 
                         <div className="pt-4 border-t border-glass-border flex items-center justify-between">
