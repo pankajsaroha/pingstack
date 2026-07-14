@@ -6,6 +6,7 @@ import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, Chevr
 import { LogoIcon } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
 import { setSupabaseSession } from '@/lib/db';
+import { useCallback } from 'react';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -26,13 +27,13 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
     document.cookie = 'token=; Max-Age=0; path=/;';
     document.cookie = 'supabase_refresh_token=; Max-Age=0; path=/;';
     await setSupabaseSession(null);
     router.push('/');
-  };
+  }, [router]);
 
   return (
     <div className={`group/sidebar transition-all duration-300 ease-in-out ${

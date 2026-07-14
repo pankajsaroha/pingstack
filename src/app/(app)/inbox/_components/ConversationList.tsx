@@ -1,0 +1,247 @@
+'use client';
+
+import { useMemo } from 'react';
+import { MessageCircle } from 'lucide-react';
+import VirtualList from '@/components/VirtualList';
+
+interface ConversationListProps {
+  conversations: any[];
+  allContacts: any[];
+  activeContactId: string | null;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  onSelectContact: (contactId: string) => void;
+}
+
+type ListElement =
+  | { type: 'conversation'; key: string; data: any }
+  | { type: 'header'; key: string; label: string }
+  | { type: 'contact'; key: string; data: any };
+
+export default function ConversationList({
+  conversations,
+  allContacts,
+  activeContactId,
+  searchQuery,
+  onSearchChange,
+  onSelectContact,
+}: ConversationListProps) {
+  const { listItems, itemHeights, filteredConversationsCount, matchingNewContactsCount } = useMemo(() => {
+    const conversationsContactIds = new Set(conversations.map((c) => c.contact.id));
+
+    const filteredConversations = conversations.filter((conv) => {
+      const query = searchQuery.toLowerCase().trim();
+      if (!query) return true;
+      const name = (conv.contact.name || '').toLowerCase();
+      const phone = (conv.contact.phone_number || '').toLowerCase();
+      return name.includes(query) || phone.includes(query);
+    });
+
+    const matchingNewContacts = searchQuery.trim()
+      ? allContacts.filter((contact) => {
+          const query = searchQuery.toLowerCase().trim();
+          const name = (contact.name || '').toLowerCase();
+          const phone = (contact.phone_number || '').toLowerCase();
+          return (
+            (name.includes(query) || phone.includes(query)) &&
+            !conversationsContactIds.has(contact.id)
+          );
+        })
+      : [];
+
+    // Build the flat items list
+    const listItems: ListElement[] = [];
+
+    filteredConversations.forEach((conv) => {
+      listItems.push({
+        type: 'conversation',
+        key: `conv-${conv.contact.id}`,
+        data: conv,
+      });
+    });
+
+    if (matchingNewContacts.length > 0) {
+      listItems.push({
+        type: 'header',
+        key: 'header-new-contacts',
+        label: 'Contacts (No History)',
+      });
+      matchingNewContacts.forEach((contact) => {
+        listItems.push({
+          type: 'contact',
+          key: `contact-${contact.id}`,
+          data: contact,
+        });
+      });
+    }
+
+    // Pre-calculate heights
+    const itemHeights = listItems.map((item) => {
+      if (item.type === 'conversation') return 82;
+      if (item.type === 'header') return 37;
+      return 72;
+    });
+
+    return {
+      listItems,
+      itemHeights,
+      filteredConversationsCount: filteredConversations.length,
+      matchingNewContactsCount: matchingNewContacts.length
+    };
+  }, [conversations, allContacts, searchQuery]);
+
+  const renderListElement = (item: ListElement) => {
+    if (item.type === 'conversation') {
+      const conv = item.data;
+      const isActive = conv.contact.id === activeContactId;
+      return (
+        <div
+          key={item.key}
+          onClick={() => onSelectContact(conv.contact.id)}
+          className={`p-5 cursor-pointer transition-all relative ${
+            isActive
+              ? 'bg-fg text-bg shadow-lg z-10 scale-[1.01]'
+              : 'hover:bg-glass-card'
+          }`}
+          style={{ height: 82 }}
+        >
+          {isActive && (
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
+          )}
+          <div className="flex justify-between items-start mb-1.5">
+            <h3
+              className={`font-black text-sm truncate pr-2 ${
+                isActive ? 'text-bg' : 'text-fg'
+              }`}
+            >
+              {conv.contact.name || conv.contact.phone_number}
+            </h3>
+            <span
+              className={`text-[9px] font-black uppercase font-mono ${
+                isActive ? 'text-bg/60' : 'text-fg/30'
+              }`}
+            >
+              {new Date(conv.latestMessage.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          </div>
+          <div className="flex justify-between items-end">
+            <p
+              className={`text-xs truncate w-full ${
+                conv.unreadCount > 0
+                  ? isActive
+                    ? 'text-bg font-black'
+                    : 'text-fg font-black'
+                  : isActive
+                  ? 'text-bg/70'
+                  : 'text-muted'
+              }`}
+            >
+              {conv.latestMessage.direction === 'outbound' && (
+                <span className="mr-1 font-black text-indigo-400">You:</span>
+              )}
+              {conv.latestMessage.content || 'Attachment File'}
+            </p>
+            {conv.unreadCount > 0 && (
+              <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-lg shadow-indigo-600/10">
+                <span className="text-[10px] font-black text-fg">
+                  {conv.unreadCount}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (item.type === 'header') {
+      return (
+        <div
+          key={item.key}
+          className="bg-glass-input/50 px-5 py-3 border-y border-glass-border backdrop-blur-sm sticky top-0 z-10 text-left"
+          style={{ height: 37 }}
+        >
+          <span className="text-[9px] font-black uppercase tracking-widest text-fg/30">
+            {item.label}
+          </span>
+        </div>
+      );
+    }
+
+    if (item.type === 'contact') {
+      const contact = item.data;
+      const isActive = contact.id === activeContactId;
+      return (
+        <div
+          key={item.key}
+          onClick={() => onSelectContact(contact.id)}
+          className={`p-5 cursor-pointer transition-all relative ${
+            isActive
+              ? 'bg-fg text-bg shadow-lg z-10 scale-[1.01]'
+              : 'hover:bg-glass-card'
+          }`}
+          style={{ height: 72 }}
+        >
+          {isActive && (
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
+          )}
+          <div className="flex justify-between items-center">
+            <div className="min-w-0 flex-1 pr-4">
+              <h3
+                className={`font-black text-sm truncate ${
+                  isActive ? 'text-bg' : 'text-fg'
+                }`}
+              >
+                {contact.name || contact.phone_number}
+              </h3>
+              <p
+                className={`text-[9px] font-black uppercase tracking-widest truncate mt-0.5 ${
+                  isActive ? 'text-bg/60' : 'text-fg/30'
+                }`}
+              >
+                {contact.phone_number}
+              </p>
+            </div>
+            <span
+              className={`text-[8px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-md shrink-0 ${
+                isActive
+                  ? 'bg-bg/10 border-bg/20 text-bg'
+                  : 'bg-glass-input border-glass-border text-fg/40'
+              }`}
+            >
+              Start Chat
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className="flex-1 overflow-hidden relative">
+      {conversations.length === 0 && allContacts.length === 0 ? (
+        <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-20">
+          <MessageCircle className="w-12 h-12 text-fg/10 mx-auto mb-4" />
+          Inbox is empty
+        </div>
+      ) : searchQuery &&
+        filteredConversationsCount === 0 &&
+        matchingNewContactsCount === 0 ? (
+        <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-12">
+          No matching chats or contacts
+        </div>
+      ) : (
+        <VirtualList
+          items={listItems}
+          itemHeights={itemHeights}
+          renderItem={(item) => renderListElement(item)}
+          className="custom-scrollbar"
+        />
+      )}
+    </div>
+  );
+}

@@ -16,7 +16,9 @@ export async function GET(req: Request) {
 
   const { data, error } = await db.from('groups').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: { 'Cache-Control': 'public, max-age=15, stale-while-revalidate=45' }
+  });
 }
 
 export async function POST(req: Request) {
