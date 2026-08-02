@@ -37,7 +37,7 @@ const LIMITS: Record<PlanType, Record<RateLimitCategory, RateLimitConfig>> = {
  * Resolves a tenant's active plan, caching the result in Redis for 5 minutes
  */
 export async function getTenantPlan(tenantId: string): Promise<PlanType> {
-  if (!connection) return 'starter';
+  if (!connection || connection.status !== 'ready') return 'starter';
   const cacheKey = `tenant_plan:${tenantId}`;
   
   try {
@@ -59,7 +59,9 @@ export async function getTenantPlan(tenantId: string): Promise<PlanType> {
     const plan = getActivePlanType(data?.plan_type);
     
     try {
-      await connection.set(cacheKey, plan, 'EX', 300);
+      if (connection.status === 'ready') {
+        await connection.set(cacheKey, plan, 'EX', 300);
+      }
     } catch (e) {
       console.error('[Rate Limit] Redis set plan cache error:', e);
     }
@@ -79,7 +81,7 @@ export async function checkRateLimit(
   tenantId: string,
   category: RateLimitCategory
 ): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
-  if (!connection) {
+  if (!connection || connection.status !== 'ready') {
     return { success: true, limit: 0, remaining: 0, reset: Date.now() };
   }
 

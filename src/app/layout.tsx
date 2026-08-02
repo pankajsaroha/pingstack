@@ -9,7 +9,6 @@ export const metadata: Metadata = {
   description: 'Send WhatsApp notifications reliably at scale with the PingStack API and Dashboard.',
 };
 
-import Script from 'next/script';
 import TimezoneSync from '@/components/TimezoneSync';
 
 export default function RootLayout({
@@ -36,12 +35,6 @@ export default function RootLayout({
       <body className={`${font.variable} font-sans antialiased text-fg bg-bg min-h-screen`}>
         <TimezoneSync />
         {children}
-        <Script 
-          src="https://connect.facebook.net/en_US/sdk.js"
-          strategy="afterInteractive"
-          crossOrigin="anonymous"
-          defer
-        />
       </body>
     </html>
   );

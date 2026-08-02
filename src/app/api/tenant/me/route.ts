@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { dbAdmin as db } from '@/lib/db';
 import { ensureFreshLimits } from '@/lib/limits';
+import { connection as redis } from '@/lib/queue';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -16,10 +17,63 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { data: tenantData, error: tError } = await db.from('tenants').select('*').eq('id', tenantId).single();
-    if (tError) {
-      console.error('[tenant/me] tenant query failed', { tenantId, error: tError });
-      return NextResponse.json({ error: 'Tenant lookup failed', details: tError.message }, { status: 500 });
+    const cacheKey = `tenant:me:${tenantId}`;
+    let cachedProfile: any = null;
+
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        cachedProfile = JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error('[tenant/me] Redis get error:', e);
+    }
+
+    let tenantData: any = null;
+    let whatsappAccount: any = null;
+    let userName = 'User';
+
+    if (cachedProfile) {
+      tenantData = cachedProfile.tenantData;
+      whatsappAccount = cachedProfile.whatsappAccount;
+      userName = cachedProfile.userName;
+    } else {
+      // Single joined query for tenant + whatsapp_accounts & parallel user lookup
+      const [tenantResult, userResult] = await Promise.all([
+        db.from('tenants')
+          .select('*, whatsapp_accounts(id, provider, status, phone_number_id, business_id)')
+          .eq('id', tenantId)
+          .single(),
+        userId ? db.from('users').select('name').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
+      ]);
+
+      if (tenantResult.error) {
+        console.error('[tenant/me] tenant query failed', { tenantId, error: tenantResult.error });
+        return NextResponse.json({ error: 'Tenant lookup failed', details: tenantResult.error.message }, { status: 500 });
+      }
+
+      tenantData = tenantResult.data;
+      const waArray = tenantData.whatsapp_accounts;
+      whatsappAccount = Array.isArray(waArray) && waArray.length > 0 ? waArray[0] : null;
+
+      // Clean relational key to match original tenants table shape
+      delete tenantData.whatsapp_accounts;
+
+      if (userResult.data?.name) {
+        userName = userResult.data.name;
+      }
+
+      // Cache profile values for 30 seconds
+      try {
+        await redis.set(
+          cacheKey,
+          JSON.stringify({ tenantData, whatsappAccount, userName }),
+          'EX',
+          30
+        );
+      } catch (e) {
+        console.error('[tenant/me] Redis set error:', e);
+      }
     }
 
     const tenant = await ensureFreshLimits(tenantId, tenantData);
@@ -35,23 +89,6 @@ export async function GET(req: Request) {
     const now = new Date();
     const trialDaysLeft = Math.max(0, Math.ceil((trialExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
     const trialExpired = isTrial && now > trialExpiresAt;
-
-    let userName = 'User';
-    if (userId) {
-      const { data: userData } = await db.from('users').select('name').eq('id', userId).maybeSingle();
-      if (userData?.name) {
-        userName = userData.name;
-      }
-    }
-
-    const { data: whatsappAccount, error: wError } = await db.from('whatsapp_accounts')
-      .select('id, provider, status, phone_number_id, business_id')
-      .eq('tenant_id', tenantId)
-      .maybeSingle();
-    if (wError) {
-      console.error('[tenant/me] whatsapp account query failed', { tenantId, error: wError });
-      return NextResponse.json({ error: 'WhatsApp account lookup failed', details: wError.message }, { status: 500 });
-    }
 
     return NextResponse.json({
       ...tenant,
@@ -88,6 +125,15 @@ export async function PATCH(req: Request) {
       .single();
 
     if (error) throw error;
+
+    // Invalidate Redis cache on profile updates
+    const cacheKey = `tenant:me:${tenantId}`;
+    try {
+      await redis.del(cacheKey);
+    } catch (e) {
+      console.error('[tenant/me PATCH] Redis cache invalidate error:', e);
+    }
+
     return NextResponse.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

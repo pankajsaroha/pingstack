@@ -5,11 +5,13 @@ import { Sun, Moon } from 'lucide-react';
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Initial theme check
+    // Detect actual theme after hydration to avoid SSR mismatch
     const isDark = document.documentElement.classList.contains('dark');
     setTheme(isDark ? 'dark' : 'light');
+    setMounted(true);
   }, []);
 
   const toggleTheme = () => {
@@ -32,11 +34,12 @@ export function ThemeToggle() {
       aria-label="Toggle theme mode"
     >
       <div className="relative w-4.5 h-4.5 flex items-center justify-center">
-        {theme === 'dark' ? (
+        {/* Render nothing until mounted to prevent hydration mismatch */}
+        {mounted && (theme === 'dark' ? (
           <Sun className="w-4.5 h-4.5 text-amber-400 animate-in spin-in-45 duration-300" />
         ) : (
           <Moon className="w-4.5 h-4.5 text-indigo-500 animate-in spin-in-45 duration-300" />
-        )}
+        ))}
       </div>
     </button>
   );

@@ -21,6 +21,129 @@ import { decrypt } from './src/lib/encryption';
 import { messageQueue } from './src/lib/queue';
 import { checkLimit, incrementUsage } from './src/lib/limits';
 
+// Helper to record billing transactions for outbound templates
+async function recordBillingIfNecessary(
+  tenantId: string,
+  contactId: string | null,
+  messageType: string | null,
+  content: string | null,
+  createdAt: string
+) {
+  if (!contactId) return;
+
+  try {
+    // 1. Fetch last inbound message timestamp for this contact
+    const { data: lastInbound } = await db
+      .from('messages')
+      .select('created_at')
+      .eq('tenant_id', tenantId)
+      .eq('contact_id', contactId)
+      .eq('direction', 'inbound')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 2. Fetch last billing transaction for this contact
+    const { data: lastTx } = await db
+      .from('billing_transactions')
+      .select('incurred_at')
+      .eq('tenant_id', tenantId)
+      .eq('contact_id', contactId)
+      .order('incurred_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const msgTime = new Date(createdAt).getTime();
+    const lastInboundTime = lastInbound ? new Date(lastInbound.created_at).getTime() : 0;
+    const lastTxTime = lastTx ? new Date(lastTx.incurred_at).getTime() : 0;
+
+    const isUserWindowOpen = lastInboundTime > 0 && (msgTime - lastInboundTime <= 24 * 60 * 60 * 1000);
+    const isBizWindowOpen = lastTxTime > 0 && (msgTime - lastTxTime <= 24 * 60 * 60 * 1000);
+
+    if (!isUserWindowOpen && !isBizWindowOpen) {
+      // Start a new chargeable business-initiated conversation!
+      // Resolve templates for tenant to determine category/cost
+      const { data: templates } = await db
+        .from('templates')
+        .select('name, category, content')
+        .eq('tenant_id', tenantId);
+
+      const categoryCost: Record<string, number> = {
+        UTILITY: 0.1150,
+        AUTHENTICATION: 0.1150,
+        MARKETING: 0.8631
+      };
+
+      let category = 'MARKETING';
+      if (templates && templates.length > 0 && content) {
+        const matchByContent = templates.find((t: any) => t.content === content);
+        if (matchByContent) {
+          category = matchByContent.category || 'MARKETING';
+        } else {
+          const tokenMatch = content.match(/\[Template:\s*([^\]]+)\]/);
+          if (tokenMatch) {
+            const tName = tokenMatch[1].trim();
+            const matchByName = templates.find((t: any) => t.name === tName);
+            if (matchByName) {
+              category = matchByName.category || 'MARKETING';
+            }
+          } else {
+            // Regex match
+            for (const t of templates) {
+              if (t.content) {
+                try {
+                  const escaped = t.content.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                  const regexStr = '^' + escaped.replace(/\\\{\\\{\d+\\\}\\\}/g, '.*') + '$';
+                  const regex = new RegExp(regexStr);
+                  if (regex.test(content)) {
+                    category = t.category || 'MARKETING';
+                    break;
+                  }
+                } catch (e) {}
+              }
+            }
+          }
+        }
+      }
+
+      const cost = categoryCost[category.toUpperCase()] || 0.8631;
+
+      // Log transaction
+      const { error: txErr } = await db.from('billing_transactions').insert({
+        tenant_id: tenantId,
+        contact_id: contactId,
+        category,
+        cost,
+        incurred_at: createdAt
+      });
+
+      if (txErr) {
+        console.error('[Billing] Failed to insert business-initiated transaction:', txErr);
+      } else {
+        console.log(`[Billing] Logged business-initiated conversation (cost: ${cost}): contact=${contactId}`);
+      }
+    } else if (isUserWindowOpen && !isBizWindowOpen) {
+      // User window is open, but no billing transaction has recorded this session yet.
+      // Log this as a free USER_INITIATED transaction.
+      const { error: txErr } = await db.from('billing_transactions').insert({
+        tenant_id: tenantId,
+        contact_id: contactId,
+        category: 'USER_INITIATED',
+        cost: 0.0000,
+        incurred_at: createdAt
+      });
+
+      if (txErr) {
+        console.error('[Billing] Failed to insert user-initiated transaction:', txErr);
+      } else {
+        console.log(`[Billing] Logged free user-initiated conversation: contact=${contactId}`);
+      }
+    }
+  } catch (err: any) {
+    console.error('[Billing] Error checking/logging transaction:', err.message || err);
+  }
+}
+
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const maskedUrl = redisUrl.replace(/:[^:@]+@/, ':****@'); // Mask password if present
 console.log(`[Startup] Connecting to Redis: ${maskedUrl}`);
@@ -234,6 +357,21 @@ const worker = new Worker('message-queue', async (job: Job) => {
     await db.from('messages')
       .update({ status: 'sent', provider_message_id: result.messageId })
       .eq('id', messageId);
+
+    // Record billing transaction for outbound template messages
+    if (!isDirectText && !isMedia) {
+      try {
+        await recordBillingIfNecessary(
+          message.tenant_id,
+          message.contact_id,
+          dbType,
+          message.content,
+          message.created_at
+        );
+      } catch (bErr: any) {
+        console.error('[Worker] Billing hook failed:', bErr.message || bErr);
+      }
+    }
   } else {
     await db.from('messages')
       .update({ status: 'failed', error: String(result.error) })

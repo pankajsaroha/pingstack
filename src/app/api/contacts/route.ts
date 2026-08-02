@@ -20,11 +20,40 @@ export async function GET(req: Request) {
     return limitCheck.response;
   }
 
-  const { data, error } = await db.from('contacts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { searchParams } = new URL(req.url);
+  const pageParam = searchParams.get('page');
+  const searchParam = searchParams.get('search') || '';
+
+  let query = db.from('contacts').select('*', { count: 'exact' }).eq('tenant_id', tenantId);
+
+  if (searchParam) {
+    query = query.or(`name.ilike.%${searchParam}%,phone_number.ilike.%${searchParam}%`);
+  }
+
+  query = query.order('created_at', { ascending: false });
+
+  if (pageParam) {
+    const page = parseInt(pageParam) || 1;
+    const pageSize = parseInt(searchParams.get('pageSize') || '10') || 10;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+    query = query.range(start, end);
+  }
+
+  const { data, error, count } = await query;
+
   if (error) {
     console.error('API GET contacts error', { tenantId, error });
     return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   }
+
+  if (pageParam) {
+    return NextResponse.json({
+      contacts: data || [],
+      totalCount: count || 0
+    });
+  }
+
   return NextResponse.json(data);
 }
 
