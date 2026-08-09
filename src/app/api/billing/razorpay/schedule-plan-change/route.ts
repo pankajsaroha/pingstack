@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { razorpay } from '@/lib/razorpay';
 import { db } from '@/lib/db';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 type SchedulePlanChangeBody = {
   planName?: string;
@@ -53,6 +54,8 @@ export async function POST(req: Request) {
         })
         .eq('id', tenantId);
 
+      await invalidateTenantCache(tenantId);
+
       return NextResponse.json({ 
         success: true, 
         message: `Plan change scheduled. Your plan will transition to ${planName} at the end of the current billing cycle.` 
@@ -67,6 +70,7 @@ export async function POST(req: Request) {
             subscription_status: null // Back to trial/unpaid
           })
           .eq('id', tenantId);
+        await invalidateTenantCache(tenantId);
         return NextResponse.json({ success: true, message: 'Plan downgraded to Starter successfully.' });
       }
       

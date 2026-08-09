@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { dbAdmin as db } from '@/lib/db';
 import { ensureFreshLimits } from '@/lib/limits';
 import { connection as redis } from '@/lib/queue';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -127,12 +128,7 @@ export async function PATCH(req: Request) {
     if (error) throw error;
 
     // Invalidate Redis cache on profile updates
-    const cacheKey = `tenant:me:${tenantId}`;
-    try {
-      await redis.del(cacheKey);
-    } catch (e) {
-      console.error('[tenant/me PATCH] Redis cache invalidate error:', e);
-    }
+    await invalidateTenantCache(tenantId);
 
     return NextResponse.json(data);
   } catch (err) {

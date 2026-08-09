@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { invalidateTemplatesCache } from '@/lib/server/templates';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
       console.error('Add template error:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    await invalidateTemplatesCache(tenantId);
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Template processing error:', err);
@@ -136,6 +138,8 @@ export async function DELETE(req: Request) {
 
     if (deleteError) throw deleteError;
     
+    await invalidateTemplatesCache(tenantId);
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Template deletion route error:', err);

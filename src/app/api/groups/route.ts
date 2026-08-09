@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePublicId } from '@/lib/utils';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { invalidateGroupsCache } from '@/lib/server/groups';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -36,6 +37,8 @@ export async function POST(req: Request) {
     .select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  await invalidateGroupsCache(tenantId);
   return NextResponse.json(data);
 }
 
@@ -52,6 +55,8 @@ export async function DELETE(req: Request) {
     const { error } = await db.from('groups').delete().in('id', ids).eq('tenant_id', tenantId);
     if (error) throw error;
     
+    await invalidateGroupsCache(tenantId);
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

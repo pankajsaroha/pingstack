@@ -74,6 +74,25 @@ export async function getTenantPlan(tenantId: string): Promise<PlanType> {
 }
 
 /**
+ * Invalidates cached tenant plan, profile, and stats in Redis.
+ * Should be called whenever a tenant upgrades, cancels, or alters settings.
+ */
+export async function invalidateTenantCache(tenantId: string): Promise<void> {
+  if (!connection || connection.status !== 'ready') return;
+  try {
+    const pipeline = connection.pipeline();
+    pipeline.del(`tenant_plan:${tenantId}`);
+    pipeline.del(`tenant:me:${tenantId}`);
+    pipeline.del(`stats:${tenantId}`);
+    await pipeline.exec();
+  } catch (e) {
+    console.error('[Rate Limit] Redis invalidate tenant cache error:', e);
+  }
+}
+
+export const invalidateTenantPlanCache = invalidateTenantCache;
+
+/**
  * Checks if a tenant exceeds the rate limit for a specific category.
  * Returns success, remaining tokens/requests, limit and reset timestamp.
  */

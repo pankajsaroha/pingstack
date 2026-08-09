@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/lib/db';
 import Stripe from 'stripe';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
             stripe_subscription_id: session.subscription as string,
             current_period_end: new Date().toISOString() // Should be updated by subscription.updated
           }).eq('id', tenantId);
+          await invalidateTenantCache(tenantId);
         }
         break;
       }
@@ -55,6 +57,7 @@ export async function POST(req: Request) {
           if (planName) updateData.plan_type = planName;
 
           await db.from('tenants').update(updateData).eq('id', tenant.id);
+          await invalidateTenantCache(tenant.id);
         }
         break;
       }
@@ -68,6 +71,7 @@ export async function POST(req: Request) {
             plan_type: 'starter',
             subscription_status: 'cancelled'
           }).eq('id', tenant.id);
+          await invalidateTenantCache(tenant.id);
         }
         break;
       }

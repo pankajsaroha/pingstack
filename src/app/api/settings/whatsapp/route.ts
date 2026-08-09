@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -20,5 +21,7 @@ export async function POST(req: Request) {
     .eq('id', tenantId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  await invalidateTenantCache(tenantId);
   return NextResponse.json({ success: true });
 }

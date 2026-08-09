@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkLimit } from '@/lib/limits';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { invalidateContactsCache } from '@/lib/server/contacts';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -99,6 +100,8 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    await invalidateContactsCache(tenantId);
+
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Contact processing error:', err, 'TenantID:', req.headers.get('x-tenant-id'));
@@ -117,6 +120,8 @@ export async function DELETE(req: Request) {
 
     const { error } = await db.from('contacts').delete().in('id', ids).eq('tenant_id', tenantId);
     if (error) throw error;
+
+    await invalidateContactsCache(tenantId);
     
     return NextResponse.json({ success: true });
   } catch (err: any) {
