@@ -12,13 +12,13 @@ console.log(`
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import cron from 'node-cron';
-import { sendMetaTemplateMessage, sendMetaTextMessage } from './src/lib/whatsapp';
+import { sendMetaTemplateMessage, sendMetaTextMessage, sendMetaWhatsAppMessage } from './src/lib/whatsapp';
 import { sendWhatsAppMessage, sendWhatsAppTextMessage } from './src/lib/gupshup';
 import { dbAdmin as _dbAdmin } from './src/lib/db';
 if (!_dbAdmin) throw new Error('Database client (dbAdmin) is not initialized');
 const db = _dbAdmin;
 import { decrypt } from './src/lib/encryption';
-import { messageQueue } from './src/lib/queue';
+import { messageQueue, campaignQueue, deadLetterQueue } from './src/lib/queue';
 import { checkLimit, incrementUsage } from './src/lib/limits';
 
 // Helper to record billing transactions for outbound templates
@@ -265,7 +265,6 @@ const worker = new Worker('message-queue', async (job: Job) => {
     const msgTypeDesc = isMedia ? `media:${mediaType}` : (isDirectText ? 'text' : `template:${resolvedTemplateId}`);
     console.log(`[Worker] Sending message ${messageId} to ${phone} type=${msgTypeDesc}...`);
 
-    const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
     let payload: any;
 
     const finalComponents = components || (params && params.length > 0 ? [{ type: 'body', parameters: params }] : []);
@@ -281,8 +280,6 @@ const worker = new Worker('message-queue', async (job: Job) => {
       }
 
       payload = {
-        messaging_product: 'whatsapp',
-        to: phone,
         type: mediaType,
         [mediaType]: { 
           link: data.signedUrl,
@@ -292,15 +289,11 @@ const worker = new Worker('message-queue', async (job: Job) => {
       };
     } else if (isDirectText) {
       payload = {
-        messaging_product: 'whatsapp',
-        to: phone,
         type: 'text',
         text: { body: textContent || '' },
       };
     } else {
       payload = {
-        messaging_product: 'whatsapp',
-        to: phone,
         type: 'template',
         template: {
           name: resolvedTemplateId || '',
@@ -310,36 +303,8 @@ const worker = new Worker('message-queue', async (job: Job) => {
       };
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        console.error(`❌ [Worker] Meta API error for ${messageId}:`, responseData);
-        throw new Error(`Meta API error: ${responseData.error?.message || response.statusText}`);
-      }
-
-      console.log(`✅ [Worker] Successfully sent ${messageId} to ${phone}. Provider ID: ${responseData.messages?.[0]?.id}`);
-      result = { success: true, messageId: responseData.messages?.[0]?.id };
-
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-      console.error(`❌ [Worker] Error sending message ${messageId} to Meta API:`, error.message);
-      result = { success: false, error: error.message };
-    }
+    // Call sendMetaWhatsAppMessage which incorporates fetchWithRetry & exponential backoff
+    result = await sendMetaWhatsAppMessage(phoneNumberId, accessToken, phone, payload);
 
   } else if (provider === 'GUPSHUP') {
     const decryptedApiKey = decrypt(whatsappAccount.gupshup_api_key);
@@ -384,6 +349,52 @@ const worker = new Worker('message-queue', async (job: Job) => {
   lockDuration: 60000,      // Keep lock for 60s
   stalledInterval: 30000,   // Check for stalls every 30s
   maxStalledCount: 5        // Allow 5 stalls before permanent fail
+});
+
+// Listener for failed jobs to record in DB and capture permanently failed messages in Dead Letter Queue (DLQ)
+worker.on('failed', async (job: Job | undefined, err: Error) => {
+  if (!job) return;
+  const { messageId, phone } = job.data;
+  const maxAttempts = job.opts.attempts || 3;
+  const attemptsMade = job.attemptsMade;
+
+  console.error(`❌ [Worker] Job ${job.id} (msg=${messageId}) failed (attempt ${attemptsMade}/${maxAttempts}): ${err.message}`);
+
+  if (err.name === 'CircuitBreakerOpenError' || err.message?.includes('Circuit Breaker is OPEN')) {
+    console.warn('🚨 [Circuit Breaker] Meta API is down/rate-limited. Pausing worker for 30 seconds...');
+    try {
+      await messageQueue.pause();
+      setTimeout(async () => {
+        console.log('🔄 [Circuit Breaker] Cooldown complete. Resuming message queue worker...');
+        await messageQueue.resume();
+      }, 30000);
+    } catch {
+      // Pause/resume error ignored
+    }
+  }
+
+  if (messageId) {
+    await db.from('messages')
+      .update({ status: 'failed', error: err.message })
+      .eq('id', messageId);
+  }
+
+  if (attemptsMade >= maxAttempts) {
+    console.warn(`🚨 [DLQ] Message ${messageId} permanently failed after ${attemptsMade} attempts. Routing to Dead Letter Queue...`);
+    try {
+      await deadLetterQueue.add('dead-letter-message', {
+        messageId,
+        phone,
+        failedAt: new Date().toISOString(),
+        error: err.message,
+        originalData: job.data,
+        attemptsMade,
+        jobId: job.id,
+      });
+    } catch (dlqErr: any) {
+      console.error('❌ [DLQ] Failed to push job to dead-letter-queue:', dlqErr.message || dlqErr);
+    }
+  }
 });
 
 // ---------------------------------------------------------
@@ -624,6 +635,14 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
   lockDuration: 120000,
   stalledInterval: 60000,
   maxStalledCount: 3
+});
+
+campaignWorker.on('failed', async (job: Job | undefined, err: Error) => {
+  if (!job) return;
+  console.error(`❌ [Campaign Worker] Job ${job.id} failed:`, err.message);
+  if (job.data?.campaignId) {
+    await db.from('campaigns').update({ status: 'failed', error: err.message }).eq('id', job.data.campaignId);
+  }
 });
 
 // ---------------------------------------------------------
