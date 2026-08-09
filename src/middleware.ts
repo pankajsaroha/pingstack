@@ -19,6 +19,7 @@ const publicPaths = [
   '/api/webhooks/meta',
   '/api/support/contact',
   '/api/v1/messages/send', // Public API — auth is handled by API key, not JWT cookie
+  '/api/health', // Health check endpoint for deployment monitoring
 ];
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

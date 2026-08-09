@@ -1,4 +1,8 @@
 import './src/lib/load-env';
+import { validateEnv } from './src/lib/env';
+
+// Validate environment variables on boot
+validateEnv();
 
 console.log(`
 #########################################
@@ -820,3 +824,47 @@ cron.schedule('0 3 * * *', async () => {
     console.error('[Cleanup] Fatal Error:', err);
   }
 });
+
+// ---------------------------------------------------------
+// Graceful Shutdown Signal Handlers (SIGTERM / SIGINT)
+// ---------------------------------------------------------
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\n[Worker Shutdown] Received ${signal}. Starting graceful shutdown...`);
+
+  try {
+    // 1. Close BullMQ workers (waits for active jobs to complete, stops accepting new jobs)
+    await Promise.all([
+      worker.close(),
+      campaignWorker.close()
+    ]);
+    console.log('[Worker Shutdown] BullMQ Workers closed safely.');
+
+    // 2. Close queues
+    await Promise.all([
+      messageQueue.close(),
+      campaignQueue.close(),
+      deadLetterQueue.close()
+    ]);
+    console.log('[Worker Shutdown] BullMQ Queues closed safely.');
+
+    // 3. Close Redis connection
+    if (connection && connection.status === 'ready') {
+      await connection.quit();
+      console.log('[Worker Shutdown] Redis connection closed safely.');
+    }
+
+    console.log('[Worker Shutdown] Clean shutdown complete.');
+    process.exit(0);
+  } catch (err) {
+    console.error('[Worker Shutdown] Error during graceful shutdown:', err);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+

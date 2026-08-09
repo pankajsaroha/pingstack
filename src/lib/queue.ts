@@ -2,8 +2,10 @@ import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const maskedUrl = redisUrl.replace(/:[^:@]+@/, ':****@');
-console.log(`[Queue Init] Active REDIS_URL: ${maskedUrl}`);
+if (process.env.DEBUG_REDIS === 'true') {
+  const maskedUrl = redisUrl.replace(/:[^:@]+@/, ':****@');
+  console.log(`[Queue Init] Active REDIS_URL: ${maskedUrl}`);
+}
 
 export const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
