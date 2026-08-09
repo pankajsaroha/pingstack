@@ -1,60 +1,40 @@
-import React from 'react';
-
 export default function InboxLoading() {
   return (
-    <div className="flex-1 min-h-0 h-full flex bg-glass-card border border-glass-border rounded-[2.5rem] shadow-2xl overflow-hidden animate-pulse">
-      {/* Sidebar List Shimmer */}
-      <div className="w-full md:w-1/3 flex flex-col border-r border-glass-border bg-glass-card/30">
-        <div className="p-6 border-b border-glass-border flex justify-between items-center">
-          <div className="h-6 w-24 bg-glass-input border border-glass-border rounded-lg" />
-          <div className="h-5 w-16 bg-glass-input border border-glass-border rounded-full" />
-        </div>
-        <div className="p-4 border-b border-glass-border">
-          <div className="h-10 w-full bg-glass-input border border-glass-border rounded-xl" />
-        </div>
-        <div className="flex-1 p-4 space-y-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex gap-4 items-center p-3 rounded-2xl bg-glass-input/20 border border-glass-border/10">
-              <div className="w-10 h-10 rounded-full bg-glass-input border border-glass-border shrink-0" />
+    <div className="flex h-[calc(100vh-4rem)] bg-bg animate-pulse">
+      {/* Sidebar Thread List Skeleton */}
+      <div className="w-80 sm:w-96 border-r border-glass-border p-4 space-y-4 flex flex-col shrink-0">
+        <div className="h-10 w-full bg-fg/10 rounded-xl" />
+        <div className="space-y-3 flex-1">
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="p-3 bg-glass-card/40 border border-glass-border/30 rounded-xl flex items-center space-x-3">
+              <div className="h-10 w-10 bg-fg/10 rounded-full shrink-0" />
               <div className="flex-1 space-y-2">
-                <div className="h-4 w-28 bg-glass-input border border-glass-border rounded-lg" />
-                <div className="h-3 w-40 bg-glass-input border border-glass-border rounded-lg" />
+                <div className="flex justify-between">
+                  <div className="h-4 w-28 bg-fg/10 rounded" />
+                  <div className="h-3 w-10 bg-fg/5 rounded" />
+                </div>
+                <div className="h-3 w-3/4 bg-fg/5 rounded" />
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Main Chat Thread Shimmer */}
-      <div className="hidden md:flex flex-1 flex-col bg-glass-input relative">
-        <div className="p-6 border-b border-glass-border flex justify-between items-center bg-glass-card/10">
-          <div className="flex gap-4 items-center">
-            <div className="w-10 h-10 rounded-full bg-glass-input border border-glass-border" />
-            <div className="space-y-2">
-              <div className="h-4 w-32 bg-glass-input border border-glass-border rounded-lg" />
-              <div className="h-3 w-20 bg-glass-input border border-glass-border rounded-lg" />
-            </div>
+      {/* Chat Thread Skeleton */}
+      <div className="flex-1 flex flex-col justify-between p-6">
+        <div className="flex items-center space-x-4 border-b border-glass-border pb-4">
+          <div className="h-10 w-10 bg-fg/10 rounded-full" />
+          <div className="space-y-2">
+            <div className="h-5 w-36 bg-fg/10 rounded" />
+            <div className="h-3 w-20 bg-fg/5 rounded" />
           </div>
         </div>
-        <div className="flex-1 p-6 space-y-6">
-          <div className="flex justify-center">
-            <div className="h-6 w-20 bg-glass-input border border-glass-border rounded-full" />
-          </div>
-          <div className="flex gap-4 items-end">
-            <div className="w-8 h-8 rounded-full bg-glass-input border border-glass-border" />
-            <div className="h-14 w-60 bg-glass-card border border-glass-border rounded-2xl" />
-          </div>
-          <div className="flex gap-4 items-end justify-end">
-            <div className="h-16 w-72 bg-fg/10 border border-glass-border rounded-2xl" />
-          </div>
-          <div className="flex gap-4 items-end">
-            <div className="w-8 h-8 rounded-full bg-glass-input border border-glass-border" />
-            <div className="h-12 w-48 bg-glass-card border border-glass-border rounded-2xl" />
-          </div>
+        <div className="space-y-4 my-auto py-8">
+          <div className="h-12 w-64 bg-fg/10 rounded-2xl rounded-bl-none self-start" />
+          <div className="h-16 w-80 bg-fg/15 rounded-2xl rounded-br-none ml-auto" />
+          <div className="h-10 w-48 bg-fg/10 rounded-2xl rounded-bl-none self-start" />
         </div>
-        <div className="p-6 border-t border-glass-border bg-glass-card/10">
-          <div className="h-12 w-full bg-glass-input border border-glass-border rounded-2xl" />
-        </div>
+        <div className="h-14 w-full bg-glass-card border border-glass-border rounded-2xl" />
       </div>
     </div>
   );

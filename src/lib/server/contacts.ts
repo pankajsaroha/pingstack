@@ -4,6 +4,7 @@ import { cache } from 'react';
 import { Contact } from '@/types';
 
 const CACHE_TTL = 60; // 60 seconds
+const DEFAULT_LIMIT = 50; // Default ceiling to prevent unbounded full-table scans
 
 /**
  * Invalidates Redis contact caches for a specific tenant
@@ -20,10 +21,12 @@ export async function invalidateContactsCache(tenantId: string): Promise<void> {
   }
 }
 
-async function fetchContactsServer(tenantId: string, limit?: number): Promise<any> {
+export async function fetchContactsServer(tenantId: string, limit?: number, page: number = 1): Promise<any> {
   if (!tenantId || !db) return limit ? { contacts: [], totalCount: 0 } : [];
 
-  const cacheKey = `contacts:${tenantId}:${limit ? `limit_${limit}` : 'all'}`;
+  const actualLimit = limit || DEFAULT_LIMIT;
+  const offset = (page - 1) * actualLimit;
+  const cacheKey = `contacts:${tenantId}:p${page}:l${actualLimit}`;
 
   // 1. Read from Redis Cache
   if (connection && connection.status === 'ready') {
@@ -38,17 +41,13 @@ async function fetchContactsServer(tenantId: string, limit?: number): Promise<an
   }
 
   try {
-    let query = db
+    // DB-level pagination: range(offset, offset + actualLimit - 1)
+    const { data, error, count } = await db
       .from('contacts')
       .select('*', { count: 'exact' })
       .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false });
-
-    if (limit) {
-      query = query.range(0, limit - 1);
-    }
-
-    const { data, error, count } = await query;
+      .order('created_at', { ascending: false })
+      .range(offset, offset + actualLimit - 1);
 
     if (error) {
       console.error('[getContactsServer] query failed:', error);

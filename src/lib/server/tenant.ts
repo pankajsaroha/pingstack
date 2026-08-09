@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { cache } from 'react';
 import { dbAdmin as db } from '@/lib/db';
+import { connection } from '@/lib/queue';
 import { ensureFreshLimits } from '@/lib/limits';
 import { Tenant } from '@/types';
 
@@ -12,6 +13,20 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
 
   if (!tenantId || !db) {
     return null;
+  }
+
+  const cacheKey = `tenant:me:${tenantId}`;
+
+  // 1. Read cached tenant profile from Redis across soft page navigations
+  if (connection && connection.status === 'ready') {
+    try {
+      const cached = await connection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error('[getTenantServer] Redis read error:', e);
+    }
   }
 
   try {
@@ -54,7 +69,7 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
       userName = userResult.data.name;
     }
 
-    return {
+    const fullTenant: Tenant = {
       ...tenant,
       plan_type: planType,
       pending_plan_type: pendingPlanType,
@@ -65,6 +80,17 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
       trial_expired: trialExpired,
       whatsapp_account: whatsappAccount || null,
     };
+
+    // 2. Cache in Redis for 5 minutes (300 seconds)
+    if (connection && connection.status === 'ready') {
+      try {
+        await connection.set(cacheKey, JSON.stringify(fullTenant), 'EX', 300);
+      } catch (e) {
+        console.error('[getTenantServer] Redis write error:', e);
+      }
+    }
+
+    return fullTenant;
   } catch (err) {
     console.error('[getTenantServer] unexpected error:', err);
     return null;
