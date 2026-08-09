@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import crypto from 'crypto';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -17,10 +18,52 @@ export async function GET(req: Request) {
   return new Response('Forbidden', { status: 403 });
 }
 
+/**
+ * Verify Meta's X-Hub-Signature-256 header.
+ * Meta signs the raw request body with FB_APP_SECRET using HMAC-SHA256
+ * and sends it as "sha256=<hex>".
+ * Uses timingSafeEqual to prevent timing-based signature extraction.
+ */
+function verifyMetaSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const appSecret = process.env.FB_APP_SECRET;
+  if (!appSecret) {
+    console.error('[webhook/meta] FB_APP_SECRET is not configured — cannot verify signature');
+    return false;
+  }
+  if (!signatureHeader?.startsWith('sha256=')) return false;
+
+  const expectedSig = crypto
+    .createHmac('sha256', appSecret)
+    .update(rawBody, 'utf8')
+    .digest('hex');
+
+  const receivedSig = signatureHeader.slice('sha256='.length);
+
+  // Use timingSafeEqual to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSig, 'hex'),
+      Buffer.from(receivedSig, 'hex')
+    );
+  } catch {
+    return false; // Different lengths → definitely invalid
+  }
+}
+
 export async function POST(req: Request) {
   try {
     if (!db) return NextResponse.json({ success: true });
-    const body = await req.json();
+
+    // Read raw body BEFORE json() so we can verify the HMAC signature
+    const rawBody = await req.text();
+    const signatureHeader = req.headers.get('x-hub-signature-256');
+
+    if (!verifyMetaSignature(rawBody, signatureHeader)) {
+      console.error('[webhook/meta] Signature verification failed — request rejected');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody);
 
     if (body.object === 'whatsapp_business_account') {
       const accountCache = new Map<string, string | null>();

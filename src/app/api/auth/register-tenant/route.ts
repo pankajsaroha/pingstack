@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/hash';
 import { generatePublicId } from '@/lib/utils';
 import { sendVerificationOTP } from '@/lib/email-service';
 import { ensureSupabaseAuthUser, getSupabaseAuthSession } from '@/lib/supabase-auth';
+import { enforceAuthRateLimit } from '@/lib/rate-limit';
 import type { Session } from '@supabase/supabase-js';
 
 type VerificationPayload = {
@@ -26,6 +27,10 @@ type RegisteredUser = {
 
 export async function POST(req: Request) {
   try {
+    // IP-based rate limiting — must come before any DB work
+    const authLimit = await enforceAuthRateLimit(req, 'register');
+    if (authLimit.limited && authLimit.response) return authLimit.response;
+
     if (!db) {
       console.error('[auth/register-tenant] database client is not initialized');
       return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
@@ -164,10 +169,22 @@ export async function POST(req: Request) {
       }
 
       const response = NextResponse.json({ token, tenantId: publicId, supabaseSession });
+      const isSecure = process.env.NODE_ENV === 'production';
+
+      // Set JWT token as httpOnly cookie so it's never accessible to JavaScript (XSS-safe)
+      response.cookies.set('token', token, {
+        path: '/',
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
       if (supabaseSession?.refresh_token) {
         response.cookies.set('supabase_refresh_token', supabaseSession.refresh_token, {
           path: '/',
           httpOnly: true,
+          secure: isSecure,
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 30,
         });

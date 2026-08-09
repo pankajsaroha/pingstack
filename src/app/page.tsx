@@ -23,12 +23,6 @@ export default function Home() {
     const auth = params.get('auth');
     if (auth === 'login' || auth === 'register' || auth === 'forgot') setModalType(auth);
 
-    const tokenExists = document.cookie.split(';').some(item => item.trim().startsWith('token='));
-    if (!tokenExists) {
-      setLoading(false);
-      return;
-    }
-
     const cached = sessionStorage.getItem('tenant_session');
     if (cached) {
       try {

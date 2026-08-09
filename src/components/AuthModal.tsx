@@ -44,8 +44,6 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
         body: JSON.stringify({ email, password })
       });
       if (res.ok) {
-        const data = await res.json();
-        document.cookie = `token=${data.token}; path=/; max-age=604800`;
         router.push('/dashboard');
       } else {
         const data = await res.json();
@@ -91,8 +89,6 @@ export function AuthModal({ isOpen, onClose, initialView = 'login' }: { isOpen: 
         body: JSON.stringify({ step: 'VERIFY', email, code: otp })
       });
       if (res.ok) {
-        const data = await res.json();
-        document.cookie = `token=${data.token}; path=/; max-age=604800`;
         setRegStep(2); // Show success state
         setTimeout(() => {
           router.push('/dashboard');

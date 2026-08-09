@@ -3,6 +3,7 @@ import { dbAdmin as db } from '@/lib/db';
 import { signToken } from '@/lib/jwt';
 import { verifyPassword } from '@/lib/hash';
 import { ensureSupabaseAuthUser, getSupabaseAuthSession } from '@/lib/supabase-auth';
+import { enforceAuthRateLimit } from '@/lib/rate-limit';
 import type { Session } from '@supabase/supabase-js';
 
 type LoginUser = {
@@ -15,6 +16,10 @@ type LoginUser = {
 
 export async function POST(req: Request) {
   try {
+    // IP-based rate limiting — must come before any DB work
+    const authLimit = await enforceAuthRateLimit(req, 'login');
+    if (authLimit.limited && authLimit.response) return authLimit.response;
+
     if (!db) {
       console.error('[auth/login] database client is not initialized');
       return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
@@ -45,17 +50,14 @@ export async function POST(req: Request) {
 
     const validatePassword = async (candidate: string, hash: unknown): Promise<boolean> => {
       if (typeof hash !== 'string') return false;
-      try {
-        if (isBcryptHash(hash)) {
-          return await verifyPassword(candidate, hash);
-        }
-        // Attempt bcrypt compare in case the hash uses a valid bcrypt format that our regex missed
-        const bcryptCompare = await verifyPassword(candidate, hash).catch(() => false);
-        if (bcryptCompare) return true;
-      } catch {
-        // ignore and fallback to plaintext compare
+      // Only ever accept bcrypt hashes — no plaintext fallback.
+      // Plaintext comparison is a security hole: even if it exists in the DB,
+      // we refuse it. The upgrade path below ensures bcrypt gets written on success.
+      if (!isBcryptHash(hash)) {
+        console.warn('[auth/login] Rejecting non-bcrypt password hash — plaintext comparison is disabled');
+        return false;
       }
-      return candidate === hash;
+      return await verifyPassword(candidate, hash).catch(() => false);
     };
 
     let isValid = false;
@@ -173,11 +175,22 @@ export async function POST(req: Request) {
 
     const response = NextResponse.json({ token, supabaseSession });
     const refreshToken = supabaseSession?.refresh_token;
+    const isSecure = process.env.NODE_ENV === 'production';
+
+    // Set JWT token as httpOnly cookie so it's never accessible to JavaScript (XSS-safe)
+    response.cookies.set('token', token, {
+      path: '/',
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
 
     if (refreshToken) {
       response.cookies.set('supabase_refresh_token', String(refreshToken), {
         path: '/',
         httpOnly: true,
+        secure: isSecure,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30,
       });

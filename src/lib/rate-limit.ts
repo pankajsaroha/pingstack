@@ -194,3 +194,73 @@ export async function enforceRateLimit(
   
   return { limited: false };
 }
+
+/**
+ * IP-based rate limiter for authentication endpoints (login, register).
+ * Uses a sliding window — no tenantId needed, keyed by IP + route identifier.
+ *
+ * Limits:
+ *  - 10 attempts per IP per 15 minutes (window resets after each full window)
+ *  - Returns { limited: true, response } when exceeded
+ *
+ * Falls back to allow if Redis is unavailable (prefer availability over lockout).
+ */
+export async function enforceAuthRateLimit(
+  req: Request,
+  route: string
+): Promise<{ limited: boolean; response?: NextResponse }> {
+  if (!connection || connection.status !== 'ready') {
+    return { limited: false }; // Fail open — Redis outage shouldn't lock everyone out
+  }
+
+  // Extract client IP from standard proxy headers or fall back to a constant
+  const ip =
+    (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown';
+
+  const limit = 10;
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+  const now = Date.now();
+  const clearBefore = now - windowMs;
+  const key = `auth_ratelimit:${route}:${ip}`;
+  const member = `${now}:${Math.random().toString(36).substring(2, 9)}`;
+
+  try {
+    const pipeline = connection.pipeline();
+    pipeline.zremrangebyscore(key, 0, clearBefore);
+    pipeline.zadd(key, now, member);
+    pipeline.zcard(key);
+    pipeline.pexpire(key, Math.ceil(windowMs / 1000) + 10);
+
+    const results = await pipeline.exec();
+    if (!results) return { limited: false };
+
+    const currentCount = (results[2][1] as number) || 0;
+
+    if (currentCount > limit) {
+      // Remove the attempt we just added — don't count it against the window
+      await connection.zrem(key, member).catch(() => {});
+      const retryAfterSec = Math.ceil(windowMs / 1000);
+      return {
+        limited: true,
+        response: NextResponse.json(
+          { error: 'Too many attempts. Please try again in 15 minutes.' },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': retryAfterSec.toString(),
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': '0',
+            },
+          }
+        ),
+      };
+    }
+
+    return { limited: false };
+  } catch (err) {
+    console.error('[Auth Rate Limit] Redis error, bypassing:', err);
+    return { limited: false }; // Fail open
+  }
+}

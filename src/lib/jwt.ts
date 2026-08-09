@@ -1,6 +1,27 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_for_dev');
+/**
+ * Resolves the JWT signing secret.
+ * - Production: throws immediately if JWT_SECRET is not set.
+ * - Development: logs a loud warning and uses a deterministic dev-only secret.
+ *   NEVER ship the dev fallback to production.
+ */
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[jwt] JWT_SECRET environment variable is required in production. ' +
+        'Set it to a random string of at least 32 characters.'
+      );
+    }
+    console.warn('[jwt] WARNING: JWT_SECRET is not set. Using dev-only fallback. This MUST be set in production.');
+    return new TextEncoder().encode('dev-only-insecure-jwt-secret-do-not-use-in-production');
+  }
+  return new TextEncoder().encode(secret);
+}
+
+const JWT_SECRET = getJwtSecret();
 
 export interface JwtPayload {
   userId: string;
