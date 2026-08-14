@@ -6,7 +6,12 @@ import { generatePublicId } from '@/lib/utils';
 import { sendVerificationOTP } from '@/lib/email-service';
 import { ensureSupabaseAuthUser, getSupabaseAuthSession } from '@/lib/supabase-auth';
 import { enforceAuthRateLimit } from '@/lib/rate-limit';
+import crypto from 'crypto';
 import type { Session } from '@supabase/supabase-js';
+
+function hashOtp(email: string, code: string): string {
+  return crypto.createHash('sha256').update(`${email}:${code}`).digest('hex');
+}
 
 type VerificationPayload = {
   tenantName?: unknown;
@@ -53,17 +58,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
       }
 
-      // Generate 6-digit OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // Cryptographically secure 6-digit OTP generation using crypto.randomInt
+      const otp = crypto.randomInt(100000, 1000000).toString();
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+      const hashedCode = hashOtp(normalizedEmail, otp);
 
       // Hash password BEFORE storing it in verification table for security
       const passwordHash = await hashPassword(password);
 
-      // Store in verification_codes
+      // Store HASHED code in verification_codes (never store raw plaintext OTPs in DB)
       const { error: otpErr } = await db.from('verification_codes').insert({
         email: normalizedEmail,
-        code: otp,
+        code: hashedCode,
         expires_at: expiresAt.toISOString(),
         payload: { tenantName, userName, passwordHash, country: country || 'IN' }
       });
@@ -73,13 +79,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Failed to initiate verification' }, { status: 500 });
       }
 
-      // Send Email
+      // Send raw OTP via Email only
       const { error: emailErr } = await sendVerificationOTP(normalizedEmail, otp);
       
       if (emailErr) {
         console.error('Resend API Error:', emailErr);
         // Delete the code so the user can retry once the email setup is fixed
-        await db.from('verification_codes').delete().eq('email', normalizedEmail).eq('code', otp);
+        await db.from('verification_codes').delete().eq('email', normalizedEmail).eq('code', hashedCode);
         return NextResponse.json({ 
           error: `Email delivery failed: ${emailErr.message}. Ensure your Resend domain is verified or send to your registered Resend email.` 
         }, { status: 500 });
@@ -95,11 +101,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Missing email or code' }, { status: 400 });
       }
 
-      // Check OTP from DB
+      const hashedInputCode = hashOtp(normalizedEmail, String(code).trim());
+
+      // Verify hashed OTP code from DB
       const { data: verificationData, error: verifyErr } = await db.from('verification_codes')
         .select('*')
         .eq('email', normalizedEmail)
-        .eq('code', code)
+        .eq('code', hashedInputCode)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { checkLimit } from '@/lib/limits';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { invalidateContactsCache } from '@/lib/server/contacts';
+import { logAuditEvent } from '@/lib/audit';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -60,6 +61,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId || tenantId === 'undefined') {
     console.error('API POST contacts: Missing or invalid x-tenant-id');
     return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
@@ -102,6 +104,14 @@ export async function POST(req: Request) {
 
     await invalidateContactsCache(tenantId);
 
+    await logAuditEvent({
+      tenantId,
+      userId,
+      action: 'CONTACT_CREATE',
+      resource: `contact:${data.id}`,
+      details: { name, phone: normalizedPhone }
+    });
+
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Contact processing error:', err, 'TenantID:', req.headers.get('x-tenant-id'));
@@ -111,6 +121,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId || tenantId === 'undefined') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
@@ -122,6 +133,14 @@ export async function DELETE(req: Request) {
     if (error) throw error;
 
     await invalidateContactsCache(tenantId);
+
+    await logAuditEvent({
+      tenantId,
+      userId,
+      action: 'CONTACT_DELETE',
+      resource: `contacts:${ids.length}`,
+      details: { deletedCount: ids.length }
+    });
     
     return NextResponse.json({ success: true });
   } catch (err: any) {

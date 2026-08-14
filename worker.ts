@@ -1,5 +1,6 @@
 import './src/lib/load-env';
 import { validateEnv } from './src/lib/env';
+import { maskPhone } from './src/lib/pii';
 
 // Validate environment variables on boot
 validateEnv();
@@ -195,7 +196,7 @@ const worker = new Worker('message-queue', async (job: Job) => {
   }
 
   console.log(`[Worker] --- NEW JOB START: ${job.id} ---`);
-  console.log(`[Worker] Job Data: msg=${messageId}, phone=${phone}, tpl=${templateId}, lang=${templateLanguage}`);
+  console.log(`[Worker] Job Data: msg=${messageId}, phone=${maskPhone(phone)}, tpl=${templateId}, lang=${templateLanguage}`);
 
   // 1. Fetch message and its context
   const { data: message, error: dbError } = await db

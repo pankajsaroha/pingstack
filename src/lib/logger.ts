@@ -2,6 +2,8 @@
  * Light, structured logger with correlation metadata and JSON formatting in production.
  */
 
+import { redactPII } from './pii';
+
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 export interface LogContext {
@@ -27,10 +29,10 @@ class Logger {
   private format(level: LogLevel, message: string, meta?: LogContext) {
     const isProd = process.env.NODE_ENV === 'production';
     const timestamp = new Date().toISOString();
-    const mergedMeta = { ...this.context, ...meta };
+    const mergedMeta = redactPII({ ...this.context, ...meta });
 
     if (isProd) {
-      // Production: Structured JSON log line
+      // Production: Structured JSON log line with PII redaction
       return JSON.stringify({
         timestamp,
         level,

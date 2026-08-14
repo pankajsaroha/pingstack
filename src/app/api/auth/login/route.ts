@@ -4,6 +4,7 @@ import { signToken } from '@/lib/jwt';
 import { verifyPassword } from '@/lib/hash';
 import { ensureSupabaseAuthUser, getSupabaseAuthSession } from '@/lib/supabase-auth';
 import { enforceAuthRateLimit } from '@/lib/rate-limit';
+import { logAuditEvent } from '@/lib/audit';
 import type { Session } from '@supabase/supabase-js';
 
 type LoginUser = {
@@ -172,6 +173,14 @@ export async function POST(req: Request) {
     } catch {
       // ignore errors here; non-fatal
     }
+
+    await logAuditEvent({
+      tenantId: authenticatedUser.tenant_id,
+      userId: authenticatedUser.id,
+      action: 'AUTH_LOGIN',
+      resource: `user:${authenticatedUser.id}`,
+      details: { email: lookupEmail }
+    });
 
     const response = NextResponse.json({ token, supabaseSession });
     const refreshToken = supabaseSession?.refresh_token;
