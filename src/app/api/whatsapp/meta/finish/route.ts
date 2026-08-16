@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { encrypt } from '@/lib/encryption';
-import { subscribeWABAWebhooks } from '@/lib/whatsapp';
+import { subscribeWABAWebhooks, registerMetaPhoneNumber } from '@/lib/whatsapp';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -10,17 +10,34 @@ export async function POST(req: Request) {
 
   try {
     const { accessToken, wabaId, phoneId, portfolioId } = await req.json();
-    if (!accessToken || !wabaId || !phoneId) {
-      return NextResponse.json({ error: 'Missing configuration details' }, { status: 400 });
+
+    let tokenToUse = accessToken;
+    if (!tokenToUse) {
+      const { data: existing } = await db
+        .from('whatsapp_accounts')
+        .select('access_token')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (existing?.access_token) {
+        const { decrypt } = await import('@/lib/encryption');
+        tokenToUse = decrypt(existing.access_token);
+      }
     }
 
-    // 1. Subscribe WABA to Webhooks
-    const subRes = await subscribeWABAWebhooks(wabaId, accessToken);
+    if (!tokenToUse || !wabaId || !phoneId) {
+      return NextResponse.json({ error: 'Missing configuration details (token, WABA ID, or Phone ID required)' }, { status: 400 });
+    }
+
+    // 1. Subscribe WABA to Webhooks & Register Phone Number
+    const subRes = await subscribeWABAWebhooks(wabaId, tokenToUse);
     if (!subRes.success && subRes.error) {
        console.warn('Webhook subscription warning:', subRes.error);
     }
 
-    const encryptedToken = encrypt(accessToken);
+    await registerMetaPhoneNumber(phoneId, tokenToUse);
+
+    const encryptedToken = encrypt(tokenToUse);
 
     // 2. Prepare Base Payload (without portfolio_id)
     const basePayload = {

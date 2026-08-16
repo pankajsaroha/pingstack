@@ -75,11 +75,21 @@ export default function InboxClient({
         <div className="w-16 h-16 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mb-6">
           <MessageCircle className="w-8 h-8 text-fg/30" />
         </div>
-        <h2 className="text-2xl font-black text-fg tracking-tight">WhatsApp Offline</h2>
-        <p className="text-muted mt-3 text-sm leading-relaxed max-w-sm">Please head over to your API Settings dashboard and link your Meta Business Profile to activate inbox streaming.</p>
-        <Link href="/dashboard" className="mt-8 px-8 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
-          Connect Gateway
-        </Link>
+        <h2 className="text-2xl font-black text-fg tracking-tight">WhatsApp Connection Pending</h2>
+        <p className="text-muted mt-3 text-sm leading-relaxed max-w-md font-medium">
+          If you have already linked your WhatsApp Business Account, it may take a few minutes to complete initial synchronization and activate live inbox streaming.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-4 justify-center items-center">
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-glass-input border border-glass-border hover:bg-white/10 text-fg rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer"
+          >
+            Refresh Page 🔄
+          </button>
+          <Link href="/dashboard" className="px-8 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg">
+            Check Connection Status
+          </Link>
+        </div>
       </div>
     );
   }

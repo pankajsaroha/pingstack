@@ -109,9 +109,6 @@ export function useInboxData({
 
   // ── Fallback polling data fetchers ───────────────────────────────
   const fetchStatusAndData = useCallback(async () => {
-    if (tenant?.whatsapp_account?.status !== 'ACTIVE') {
-      return;
-    }
     try {
       const convsRes = await fetch('/api/chat/conversations', { credentials: 'include' });
       if (convsRes.ok) {
@@ -122,10 +119,19 @@ export function useInboxData({
           initialSelectionMade.current = true;
         }
       }
+
+      // Re-fetch active contact's messages to auto-update delivery & error statuses
+      if (activeContactId) {
+        const msgRes = await fetch(`/api/chat/${activeContactId}?limit=30`, { credentials: 'include' });
+        if (msgRes.ok) {
+          const freshMsgs = await msgRes.json();
+          setMessages(freshMsgs);
+        }
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Inbox polling error:', e);
     }
-  }, [tenant?.whatsapp_account?.status, activeContactId]);
+  }, [activeContactId]);
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -160,7 +166,7 @@ export function useInboxData({
           if (document.visibilityState === 'visible') {
             fetchStatusAndDataRef.current();
           }
-        }, 60000);
+        }, 3000);
       }
     };
 

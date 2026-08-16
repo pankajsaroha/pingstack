@@ -55,7 +55,7 @@ export default function MessageBubble({
       )}
 
       {/* Bubble */}
-      <div className={`max-w-[70%] sm:max-w-[60%] rounded-[1.5rem] px-5 py-3.5 shadow-xl relative border ${
+      <div className={`max-w-[85%] sm:max-w-[65%] min-w-0 rounded-[1.5rem] px-4 sm:px-5 py-3 sm:py-3.5 shadow-xl relative border break-words ${
         isOutbound
           ? 'bg-fg text-bg border-white rounded-br-sm'
           : 'bg-glass-card border-glass-border text-fg rounded-bl-sm'
@@ -85,7 +85,7 @@ export default function MessageBubble({
         )}
 
         {/* Text */}
-        <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">
+        <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium break-words [overflow-wrap:anywhere] min-w-0">
           {msg.content || (msg.media_path ? '' : '[Template Message]')}
         </p>
 

@@ -1,10 +1,12 @@
 'use client';
 
-import { RefreshCw, Trash2, Plus } from 'lucide-react';
+import { RefreshCw, Trash2, Plus, ExternalLink } from 'lucide-react';
 
 interface SyncPanelProps {
   syncing: boolean;
   selectedCount: number;
+  wabaId?: string;
+  businessId?: string;
   onSync: () => void;
   onDeleteSelected: () => void;
   onCreate: () => void;
@@ -13,10 +15,20 @@ interface SyncPanelProps {
 export default function SyncPanel({
   syncing,
   selectedCount,
+  wabaId,
+  businessId,
   onSync,
   onDeleteSelected,
   onCreate,
 }: SyncPanelProps) {
+  const bizId = businessId || wabaId || '';
+  const assetId = wabaId || businessId || '';
+  const metaTemplatesUrl = bizId && assetId
+    ? `https://business.facebook.com/latest/whatsapp_manager/message_templates/?business_id=${bizId}&tab=message-templates&global_scope_id=${bizId}&asset_id=${assetId}`
+    : bizId
+    ? `https://business.facebook.com/latest/whatsapp_manager/message_templates/?business_id=${bizId}&tab=message-templates&global_scope_id=${bizId}`
+    : 'https://business.facebook.com/latest/whatsapp_manager/message_templates/';
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
       <div>
@@ -25,6 +37,17 @@ export default function SyncPanel({
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
+        <a
+          href={metaTemplatesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open Meta WhatsApp Manager Message Templates Portal"
+          className="flex items-center px-4 py-3 bg-glass-input border border-glass-border rounded-2xl text-xs font-black uppercase tracking-widest text-fg/80 hover:text-fg hover:bg-white/10 transition-all"
+        >
+          <ExternalLink className="mr-2 h-4 w-4 text-indigo-400" />
+          Meta Portal ↗
+        </a>
+
         <button
           onClick={onSync}
           disabled={syncing}

@@ -163,17 +163,15 @@ export async function POST(req: Request) {
         role: user.role || 'admin'
       });
 
-      if (!body.password) {
-        return NextResponse.json({ error: 'Password required for verification' }, { status: 400 });
-      }
-
       let supabaseSession: Session | null = null;
-      try {
-        await ensureSupabaseAuthUser(normalizedEmail, body.password);
-        supabaseSession = await getSupabaseAuthSession(normalizedEmail, body.password);
-      } catch (err) {
-        console.warn('[auth/register-tenant] failed to sync with supabase:', err);
-        // Continue - this is non-fatal
+      if (body.password) {
+        try {
+          await ensureSupabaseAuthUser(normalizedEmail, body.password);
+          supabaseSession = await getSupabaseAuthSession(normalizedEmail, body.password);
+        } catch (err) {
+          console.warn('[auth/register-tenant] failed to sync with supabase:', err);
+          // Continue - this is non-fatal
+        }
       }
 
       const response = NextResponse.json({ token, tenantId: publicId, supabaseSession });

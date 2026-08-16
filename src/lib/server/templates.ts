@@ -11,16 +11,34 @@ const CACHE_TTL = 60; // 60 seconds
 export async function invalidateTemplatesCache(tenantId: string): Promise<void> {
   if (!connection || connection.status !== 'ready') return;
   try {
+    const keys = await connection.keys(`templates:${tenantId}:*`);
+    if (keys && keys.length > 0) {
+      await connection.del(...keys);
+    }
     await connection.del(`templates:${tenantId}`);
   } catch (e) {
     console.error('[invalidateTemplatesCache] error:', e);
   }
 }
 
-async function fetchTemplatesServer(tenantId: string): Promise<Template[]> {
+async function fetchTemplatesServer(tenantId: string, onlyApproved = false): Promise<Template[]> {
   if (!tenantId || !db) return [];
 
-  const cacheKey = `templates:${tenantId}`;
+  // Get connected WABA ID
+  let wabaId = '';
+  try {
+    const { data: waAccount } = await db
+      .from('whatsapp_accounts')
+      .select('business_id')
+      .eq('tenant_id', tenantId)
+      .eq('provider', 'META')
+      .maybeSingle();
+    wabaId = waAccount?.business_id || '';
+  } catch (e) {
+    console.warn('[getTemplatesServer] WABA lookup error:', e);
+  }
+
+  const cacheKey = `templates:${tenantId}:${wabaId}:${onlyApproved ? 'approved' : 'all'}`;
 
   // 1. Read from Redis Cache
   if (connection && connection.status === 'ready') {
@@ -46,7 +64,17 @@ async function fetchTemplatesServer(tenantId: string): Promise<Template[]> {
       return [];
     }
 
-    const result = data || [];
+    const allTenantTemplates = data || [];
+
+    // Filter in-memory by WABA ID and approved status to ensure 100% database compatibility
+    const result = allTenantTemplates.filter(t => {
+      if (onlyApproved && t.status !== 'APPROVED') return false;
+      const tplWabaId = t.waba_id || (t.metadata && typeof t.metadata === 'object' ? t.metadata.waba_id : null);
+      if (wabaId && tplWabaId && tplWabaId !== wabaId) return false;
+      return true;
+    });
+
+ 
 
     // 2. Write to Redis Cache
     if (connection && connection.status === 'ready') {

@@ -262,9 +262,11 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       if (res.ok) {
         setToast({ message: 'Setup completed successfully!', type: 'success' });
         setIsSwitching(false);
+        setError(null);
         await refreshTenantAndStats();
+        window.location.reload();
       } else {
-        setError(data.message || 'Finalization failed');
+        setError(data.message || data.error || 'Finalization failed');
       }
     } catch (err: any) {
       setError(err.message);
@@ -362,7 +364,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
   };
 
   const whatsappAccount = tenant?.whatsapp_account;
-  const isConnected = whatsappAccount?.status === 'ACTIVE';
+  const isConnected = whatsappAccount?.status === 'ACTIVE' || whatsappAccount?.status === 'CONNECTED';
 
   return (
     <div className="animate-in fade-in duration-700 max-w-6xl mx-auto p-4 sm:p-6 text-left">

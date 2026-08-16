@@ -3,15 +3,16 @@ import crypto from 'crypto';
 const ALGORITHM = 'aes-256-cbc';
 
 /**
- * Derives a guaranteed 32-byte AES key from the ENCRYPTION_KEY env var.
- *
- * - In production: throws immediately if ENCRYPTION_KEY is not set.
- * - In development: logs a loud warning and falls back to a deterministic
- *   dev-only key so local dev still works without requiring the env var.
- *
- * NEVER commit or ship the fallback key to production.
+ * Derives a guaranteed 32-byte AES key from a secret string.
  */
-const getKey = (): string => {
+function deriveKey(secret: string): string {
+  return crypto.createHash('sha256').update(String(secret)).digest('base64').substring(0, 32);
+}
+
+/**
+ * Resolves the primary key for new encrypt() calls.
+ */
+const getPrimaryKey = (): string => {
   const secret = process.env.ENCRYPTION_KEY;
 
   if (!secret) {
@@ -21,27 +22,38 @@ const getKey = (): string => {
         'Generate one with: node -e "require(\'crypto\').randomBytes(32).toString(\'hex\')"'
       );
     }
-    // Development-only fallback — deterministic so existing dev DB values still decrypt
     console.warn(
       '[encryption] WARNING: ENCRYPTION_KEY is not set. Using dev-only fallback key. ' +
       'This MUST be set in production.'
     );
-    return crypto
-      .createHash('sha256')
-      .update('pingstack-dev-only-insecure-key')
-      .digest('base64')
-      .substring(0, 32);
+    return deriveKey('pingstack-dev-only-insecure-key');
   }
 
-  return crypto.createHash('sha256').update(String(secret)).digest('base64').substring(0, 32);
+  return deriveKey(secret);
+};
+
+/**
+ * Returns candidate keys to attempt for decrypt() in priority order.
+ * Ensures backward compatibility for DB records encrypted under previous fallback keys.
+ */
+const getCandidateKeys = (): string[] => {
+  const keys: string[] = [];
+
+  if (process.env.ENCRYPTION_KEY) {
+    keys.push(deriveKey(process.env.ENCRYPTION_KEY));
+  }
+
+  // Backward compatibility candidate keys for tokens encrypted prior to ENCRYPTION_KEY setting
+  keys.push(deriveKey('pingstack-fallback-secret-development-key'));
+  keys.push(deriveKey('pingstack-dev-only-insecure-key'));
+
+  return keys;
 };
 
 export function encrypt(text: string): string {
   if (!text) return text;
-  // Let errors propagate — callers already have try/catch that return 500.
-  // Silently storing plaintext on encryption failure is far worse than a 500.
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(getKey()), iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(getPrimaryKey()), iv);
   let encrypted = cipher.update(text);
   encrypted = Buffer.concat([encrypted, cipher.final()]);
   return iv.toString('hex') + ':' + encrypted.toString('hex');
@@ -49,13 +61,38 @@ export function encrypt(text: string): string {
 
 export function decrypt(text: string): string {
   if (!text || !text.includes(':')) return text;
-  // Let errors propagate — returning the raw ciphertext on failure would be
-  // silently passed to Meta API and cause a hard-to-debug auth error anyway.
+
   const textParts = text.split(':');
-  const iv = Buffer.from(textParts.shift() as string, 'hex');
-  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-  const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(getKey()), iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
+  const ivHex = textParts.shift() as string;
+  const encryptedHex = textParts.join(':');
+
+  let iv: Buffer;
+  let encryptedText: Buffer;
+  try {
+    iv = Buffer.from(ivHex, 'hex');
+    encryptedText = Buffer.from(encryptedHex, 'hex');
+  } catch {
+    return text;
+  }
+
+  const candidateKeys = getCandidateKeys();
+
+  for (const keyStr of candidateKeys) {
+    try {
+      const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(keyStr), iv);
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      const result = decrypted.toString('utf8');
+
+      // Sanity check: valid UTF-8 string without replacement characters
+      if (result && !result.includes('\uFFFD')) {
+        return result;
+      }
+    } catch {
+      // Try next candidate key
+    }
+  }
+
+  console.error('[encryption] Decryption failed for all candidate keys. Check ENCRYPTION_KEY or re-connect account.');
+  return text;
 }

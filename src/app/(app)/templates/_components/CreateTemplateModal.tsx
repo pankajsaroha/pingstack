@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import Toast from '@/components/Toast';
 
 const LANGUAGES = [
@@ -145,26 +145,43 @@ export default function CreateTemplateModal({
     }
   };
 
+  const bizId = tenant?.whatsapp_account?.portfolio_id || tenant?.whatsapp_account?.business_id || '';
+  const assetId = tenant?.whatsapp_account?.business_id || tenant?.whatsapp_account?.portfolio_id || '';
+  const metaTemplatesUrl = bizId && assetId
+    ? `https://business.facebook.com/latest/whatsapp_manager/message_templates/?business_id=${bizId}&tab=message-templates&global_scope_id=${bizId}&asset_id=${assetId}`
+    : 'https://business.facebook.com/latest/whatsapp_manager/message_templates/';
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] overflow-y-auto animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] overflow-y-auto animate-in fade-in duration-200">
       <div className="flex min-h-full items-start justify-center p-4 text-center sm:items-center sm:p-8">
         <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-4xl w-full p-8 relative text-left my-8 sm:my-0 animate-in zoom-in-95 duration-300">
           <button
             onClick={onClose}
-            className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer bg-transparent border-0 outline-none"
+            className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer bg-transparent border-0 outline-none z-10"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center mb-8">
-            <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mr-6">
-              <X className="w-6 h-6 text-fg hidden" />
-              <span className="text-xs font-black uppercase text-fg">WABA</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pr-12">
+            <div className="flex items-center">
+              <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mr-6 shrink-0">
+                <span className="text-xs font-black uppercase text-fg">WABA</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-fg tracking-tight">Create Meta Template</h3>
+                <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Direct Cloud API Submission Pipeline</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-black text-fg tracking-tight">Create Meta Template</h3>
-              <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Direct Cloud API Submission Pipeline</p>
-            </div>
+
+            <a
+              href={metaTemplatesUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center px-4 py-2.5 bg-glass-input border border-glass-border rounded-xl text-[10px] font-black uppercase tracking-widest text-fg/80 hover:text-fg hover:bg-white/10 transition-all shrink-0"
+            >
+              <span>Meta WhatsApp Manager</span>
+              <ExternalLink className="w-3 h-3 ml-1.5 text-indigo-400" />
+            </a>
           </div>
 
           <form onSubmit={handleSubmit}>

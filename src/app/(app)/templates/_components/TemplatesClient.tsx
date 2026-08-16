@@ -31,7 +31,7 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
     if (sync) setSyncing(true);
     else setLoading(true);
     try {
-      const url = sync ? '/api/whatsapp/meta/templates' : '/api/templates';
+      const url = sync ? '/api/whatsapp/meta/templates' : '/api/templates?status=all';
       const headers: any = { 'Content-Type': 'application/json' };
 
       if (sync && tenant?.id) {
@@ -141,6 +141,8 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
       <SyncPanel
         syncing={syncing}
         selectedCount={selectedIds.size}
+        wabaId={tenant?.whatsapp_account?.business_id}
+        businessId={tenant?.whatsapp_account?.portfolio_id || tenant?.whatsapp_account?.business_id}
         onSync={() => fetchTemplates(true)}
         onDeleteSelected={handleDeleteSelected}
         onCreate={() => setShowModal(true)}
@@ -177,7 +179,8 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
           </div>
         }>
           <TroubleshootModal
-            portfolioId={portfolioId}
+            portfolioId={portfolioId || tenant?.whatsapp_account?.portfolio_id || tenant?.whatsapp_account?.business_id}
+            wabaId={tenant?.whatsapp_account?.business_id}
             onClose={() => setShowTroubleshoot(false)}
             onCreateLocal={() => {
               setShowTroubleshoot(false);

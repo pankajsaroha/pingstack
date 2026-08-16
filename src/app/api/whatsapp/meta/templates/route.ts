@@ -52,100 +52,106 @@ export async function GET(req: Request) {
       }, { status: 400 });
     }
 
-    // 2. Fetch templates from Meta (Try WABA ID first)
-    const baseUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates`;
-    const fields = 'name,status,language,components,category';
-    console.log(`[Templates] Syncing from WABA: ${wabaId}`);
-    
-    // Debug: Check exactly what tasks this token can perform on WABAs
-    const taskCheckRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?fields=name,id,tasks`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    const taskCheck = await taskCheckRes.json();
-    console.log(`[Templates] Token Task Check:`, JSON.stringify(taskCheck));
+    // 2. Resolve all candidate WABA IDs (primary WABA, phone asset WABA, user WABAs, and portfolio WABAs)
+    const targetWabaIds = new Set<string>();
+    if (wabaId) targetWabaIds.add(wabaId);
 
-    // Debug: Check Token Scopes
-    const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
-    const appSecret = process.env.FB_APP_SECRET;
-    const scopeCheckRes = await fetch(`https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`);
-    const scopeCheck = await scopeCheckRes.json();
-    console.log(`[Templates] Token Scopes:`, JSON.stringify(scopeCheck.data?.scopes));
-
-    // Debug: Try to fetch the namespace and see if hello_world is hidden
-    const debugWabaRes = await fetch(`https://graph.facebook.com/v19.0/${wabaId}?fields=message_template_namespace,name`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    const debugWaba = await debugWabaRes.json();
-    console.log(`[Templates] WABA Debug Info:`, JSON.stringify(debugWaba));
-
-    const res = await fetch(`${baseUrl}?fields=${fields}`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    const metaData = await res.json();
-    console.log(`[Templates] Meta Raw Response:`, JSON.stringify(metaData));
-
-    if (metaData.error) {
-      console.error(`[Templates] Meta API Error:`, metaData.error);
-      return NextResponse.json({ 
-        error: metaData.error.message || 'Meta API Error',
-        code: metaData.error.code,
-        fbtrace_id: metaData.error.fbtrace_id
-      }, { status: 400 });
-    }
-
-    let templates = (metaData.data || []) as MetaTemplate[];
-
-    // Probe for hello_world specifically
-    if (templates.length === 0) {
-      console.log(`[Templates] Standard list empty. Probing for 'hello_world' specifically...`);
-      const probeRes = await fetch(`${baseUrl}?name=hello_world&fields=${fields}`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-      const probeData = await probeRes.json();
-      console.log(`[Templates] 'hello_world' Probe Result:`, JSON.stringify(probeData));
-      if (probeData.data?.length > 0) {
-        templates = probeData.data;
-      }
-    }
-
-    // FALLBACK: If WABA returns nothing, try a deep scan of all accessible assets
-    if (templates.length === 0) {
-      console.log(`[Templates] Deep scanning accessible assets...`);
-      
-      const [accountsRes, bizRes] = await Promise.all([
-        fetch(`https://graph.facebook.com/v19.0/me/accounts`, { headers: { 'Authorization': `Bearer ${accessToken}` } }).then(r => r.json()),
-        fetch(`https://graph.facebook.com/v19.0/me?fields=businesses`, { headers: { 'Authorization': `Bearer ${accessToken}` } }).then(r => r.json())
-      ]);
-
-      console.log(`[Templates] Accessible Accounts:`, JSON.stringify(accountsRes));
-      console.log(`[Templates] Accessible Businesses:`, JSON.stringify(bizRes));
-
-      // Try to find the Portfolio ID from the WABA details if we haven't yet
-      const wabaDetailRes = await fetch(`https://graph.facebook.com/v19.0/${wabaId}?fields=owner_business_info`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-      const wabaDetail = await wabaDetailRes.json();
-      portfolioId = wabaDetail.owner_business_info?.id;
-
-      if (portfolioId) {
-        console.log(`[Templates] Syncing from Portfolio: ${portfolioId}`);
-        // Try both possible endpoints for templates on a business/WABA
-        const bizTemplates = await fetch(`https://graph.facebook.com/v19.0/${portfolioId}/message_templates`, {
+    // 2a. If phone_number_id is present, resolve exact WABA ID attached to the phone asset
+    if (whatsappAccount.phone_number_id) {
+      try {
+        const phoneRes = await fetch(`https://graph.facebook.com/v19.0/${whatsappAccount.phone_number_id}?fields=whatsapp_business_account`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
-        }).then(r => r.json());
-        console.log(`[Templates] Portfolio Template Response:`, JSON.stringify(bizTemplates));
-        if (bizTemplates.data) templates = bizTemplates.data;
+        });
+        const phoneData = await phoneRes.json();
+        if (phoneData.whatsapp_business_account?.id) {
+          targetWabaIds.add(phoneData.whatsapp_business_account.id);
+        }
+      } catch (phoneErr) {
+        console.warn('[Templates Sync] Phone WABA lookup warning:', phoneErr);
       }
     }
 
-    console.log(`[Templates] Final count to sync: ${templates.length}`);
+    // 2b. Discover user WABAs via /me/whatsapp_business_accounts
+    try {
+      const meWabaRes = await fetch(`https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?fields=id,name`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      const meWabaData = await meWabaRes.json();
+      if (Array.isArray(meWabaData.data)) {
+        for (const item of meWabaData.data) {
+          if (item.id) targetWabaIds.add(item.id);
+        }
+      }
+    } catch (meErr) {
+      console.warn('[Templates Sync] me WABA lookup warning:', meErr);
+    }
 
-    // 3. Sync with local DB (Upsert)
+    // 2c. Discover portfolio WABAs if portfolioId exists
+    const bizId = portfolioId || whatsappAccount.portfolio_id;
+    if (bizId) {
+      try {
+        const bizRes = await fetch(`https://graph.facebook.com/v19.0/${bizId}?fields=owned_whatsapp_business_accounts{id,name},client_whatsapp_business_accounts{id,name}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const bizData = await bizRes.json();
+        const owned = bizData.owned_whatsapp_business_accounts?.data || [];
+        const client = bizData.client_whatsapp_business_accounts?.data || [];
+        for (const item of [...owned, ...client]) {
+          if (item.id) targetWabaIds.add(item.id);
+        }
+      } catch (bizErr) {
+        console.warn('[Templates Sync] portfolio WABA lookup warning:', bizErr);
+      }
+    }
+
+    console.log(`[Templates Sync] Target WABA IDs for template discovery:`, Array.from(targetWabaIds));
+    const fields = 'name,status,language,components,category';
+    const allFetchedTemplates: MetaTemplate[] = [];
+
+    // 2d. Fetch all template pages for each discovered WABA ID
+    for (const currentWabaId of Array.from(targetWabaIds)) {
+      try {
+        let pageUrl: string | null = `https://graph.facebook.com/v19.0/${currentWabaId}/message_templates?fields=${fields}&limit=100`;
+
+        while (pageUrl) {
+          const pageRes: Response = await fetch(pageUrl, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          const pageData: any = await pageRes.json();
+
+          if (pageData.error) {
+            console.error(`[Templates Sync] Meta API Error for WABA ${currentWabaId}:`, pageData.error);
+            break;
+          }
+
+          if (Array.isArray(pageData.data)) {
+            console.log(`[Templates Sync] Fetched ${pageData.data.length} template(s) from WABA ${currentWabaId}`);
+            allFetchedTemplates.push(...pageData.data);
+          }
+
+          pageUrl = pageData.paging?.next || null;
+        }
+      } catch (fetchErr) {
+        console.error(`[Templates Sync] Error fetching templates for WABA ${currentWabaId}:`, fetchErr);
+      }
+    }
+
+    // Deduplicate fetched templates by name and language
+    const seen = new Set<string>();
+    const templates: MetaTemplate[] = allFetchedTemplates.filter(t => {
+      const key = `${t.name}:${t.language || 'en'}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    console.log(`[Templates Sync] Total unique live templates fetched from Meta: ${templates.length}`);
+
+    // 3. Upsert live Meta templates into local database
     for (const mt of templates) {
       const bodyComponent = mt.components?.find((component) => component.type.toUpperCase() === 'BODY');
       const bodyText = bodyComponent?.text || '';
 
-      // Check if exists
       const { data: existing } = await db
         .from('templates')
         .select('id')
@@ -177,7 +183,36 @@ export async function GET(req: Request) {
       }
     }
 
-    // Return the updated templates from our DB
+    // 4. Safe Cleanup: Compare & delete local templates removed from Meta portal
+    if (templates.length > 0) {
+      const liveMetaNames = new Set(templates.map(t => t.name));
+
+      const { data: existingLocal } = await db
+        .from('templates')
+        .select('id, name')
+        .eq('tenant_id', tenantId);
+
+      const deletedTemplateIds = (existingLocal || [])
+        .filter(t => t.name && !liveMetaNames.has(t.name))
+        .map(t => t.id);
+
+      if (deletedTemplateIds.length > 0) {
+        console.log(`[Templates Sync] Deleting ${deletedTemplateIds.length} template(s) removed from Meta portal:`, deletedTemplateIds);
+        await db.from('templates').delete().in('id', deletedTemplateIds);
+      }
+    } else {
+      console.warn(`[Templates Sync] Meta API returned 0 templates or fetch failed. Skipping local DB cleanup to protect existing data.`);
+    }
+
+    // 5. Invalidate template cache
+    try {
+      const { invalidateTemplatesCache } = await import('@/lib/server/templates');
+      await invalidateTemplatesCache(tenantId);
+    } catch (cacheErr) {
+      console.warn('Template cache invalidation warning:', cacheErr);
+    }
+
+    // Return the updated templates for tenant from DB
     const { data: updatedTemplates } = await db
       .from('templates')
       .select('*')
@@ -185,8 +220,8 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false });
 
     return NextResponse.json({
-      templates: updatedTemplates,
-      portfolioId: whatsappAccount.portfolio_id || portfolioId // Use stored or discovered ID
+      templates: updatedTemplates || [],
+      portfolioId: whatsappAccount.portfolio_id || portfolioId
     });
 
   } catch (err: unknown) {

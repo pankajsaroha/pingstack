@@ -46,7 +46,27 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
 
     const tenantData = tenantResult.data;
     const waArray = tenantData.whatsapp_accounts;
-    const whatsappAccount = Array.isArray(waArray) && waArray.length > 0 ? waArray[0] : null;
+    let whatsappAccount = Array.isArray(waArray) && waArray.length > 0 ? waArray[0] : null;
+
+    // Auto-check live status with Meta if pending
+    if (whatsappAccount && whatsappAccount.provider === 'META' && whatsappAccount.phone_number_id && whatsappAccount.access_token && whatsappAccount.status !== 'CONNECTED') {
+      try {
+        const { decrypt } = await import('@/lib/encryption');
+        const { fetchMetaPhoneNumberStatus } = await import('@/lib/whatsapp');
+        const decryptedToken = decrypt(whatsappAccount.access_token);
+        const metaStatus = await fetchMetaPhoneNumberStatus(whatsappAccount.phone_number_id, decryptedToken);
+        
+        if (metaStatus.isApproved) {
+          whatsappAccount.status = 'CONNECTED';
+          await db.from('whatsapp_accounts').update({ status: 'CONNECTED', updated_at: new Date().toISOString() }).eq('id', whatsappAccount.id);
+        } else if (metaStatus.status && metaStatus.status !== whatsappAccount.status) {
+          whatsappAccount.status = metaStatus.status;
+          await db.from('whatsapp_accounts').update({ status: metaStatus.status, updated_at: new Date().toISOString() }).eq('id', whatsappAccount.id);
+        }
+      } catch (checkErr) {
+        console.warn('[getTenantServer] Meta live status check warning:', checkErr);
+      }
+    }
 
     // Clean nested key to keep tenant shape consistent
     delete tenantData.whatsapp_accounts;

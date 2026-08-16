@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "worker": "tsx worker.ts"
+    "worker": "tsx worker.ts",
+    "db:clean": "tsx scripts/clean-db.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
