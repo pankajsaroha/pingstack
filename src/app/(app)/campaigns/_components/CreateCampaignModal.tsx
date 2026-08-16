@@ -8,6 +8,7 @@ interface CreateCampaignModalProps {
   templates: any[];
   groups: any[];
   planType: string;
+  initialGroupId?: string;
   onClose: () => void;
   onToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   onSaved: (campaignData: {
@@ -23,13 +24,14 @@ export default function CreateCampaignModal({
   templates,
   groups,
   planType,
+  initialGroupId,
   onClose,
   onToast,
   onSaved,
 }: CreateCampaignModalProps) {
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState('');
-  const [groupId, setGroupId] = useState('');
+  const [groupId, setGroupId] = useState(initialGroupId || '');
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [needsVariables, setNeedsVariables] = useState(false);
