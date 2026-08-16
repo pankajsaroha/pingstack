@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Plus, Send, Loader2, ChevronDown } from 'lucide-react';
 import Toast from '@/components/Toast';
 import CampaignCard from './CampaignCard';
@@ -32,6 +32,18 @@ export default function CampaignsClient({
   const [hasMore, setHasMore] = useState(initialCampaigns.length === 50);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [initialGroupId, setInitialGroupId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const gid = params.get('groupId');
+      if (gid) {
+        setInitialGroupId(gid);
+        setShowModal(true);
+      }
+    }
+  }, []);
 
   // Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -202,6 +214,7 @@ export default function CampaignsClient({
             templates={templates}
             groups={groups}
             planType={planType}
+            initialGroupId={initialGroupId}
             onClose={() => setShowModal(false)}
             onToast={fireToast}
             onSaved={handleSavedCampaign}

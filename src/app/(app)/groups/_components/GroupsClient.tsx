@@ -170,6 +170,9 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
               onManage={handleManageGroup}
+              onLaunchCampaign={(g) => {
+                window.location.href = `/campaigns?groupId=${g.id}`;
+              }}
             />
           ))
         )}

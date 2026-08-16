@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { X, Trash2, Plus, Loader2, Folder, Check } from 'lucide-react';
+import { X, Trash2, Plus, Users, Search, Loader2, Send, Folder, Check } from 'lucide-react';
 
 const ContactSelector = lazy(() => import('./ContactSelector'));
 
@@ -101,12 +101,21 @@ export default function GroupDetailModal({ group, onClose, onToast }: GroupDetai
         <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar bg-black/10 text-left">
           <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
             <h3 className="text-sm font-black text-fg/30 uppercase tracking-widest">Active Members ({groupContacts.length})</h3>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  window.location.href = `/campaigns?groupId=${group.id}`;
+                }}
+                className="flex items-center px-4 py-2.5 bg-fg text-bg hover:opacity-90 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 shadow-md hover:scale-[1.02] active:scale-[0.98] cursor-pointer border-0 outline-none"
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                Launch Campaign
+              </button>
               {selectedMemberIds.size > 0 && (
                 <button
                   onClick={() => handleRemoveContact(Array.from(selectedMemberIds))}
                   disabled={removing}
-                  className="flex items-center px-4 py-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black transition-all cursor-pointer"
+                  className="flex items-center px-4 py-2.5 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   Remove selected
@@ -114,9 +123,9 @@ export default function GroupDetailModal({ group, onClose, onToast }: GroupDetai
               )}
               <button
                 onClick={() => setShowSelector(true)}
-                className="flex items-center px-5 py-2.5 bg-fg text-bg hover:opacity-90 rounded-xl text-xs font-black shadow-lg transition-all cursor-pointer border-0 outline-none"
+                className="flex items-center px-4 py-2.5 bg-glass-input border border-glass-border hover:bg-white/10 text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer outline-none"
               >
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                <Plus className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
                 Add Contacts
               </button>
             </div>

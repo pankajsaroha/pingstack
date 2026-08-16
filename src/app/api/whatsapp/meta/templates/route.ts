@@ -260,6 +260,8 @@ export async function POST(req: Request) {
     const accessToken = decrypt(whatsappAccount.access_token);
     const wabaId = whatsappAccount.business_id;
 
+    const normalizedCategory = String(category).trim().toUpperCase();
+
     // 2. Call Meta API to create template
     // POST /v19.0/{WABA_ID}/message_templates
     const metaUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates`;
@@ -273,7 +275,8 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         name,
         language,
-        category,
+        category: normalizedCategory,
+        allow_category_change: false,
         components: [
           {
             type: 'BODY',
@@ -300,7 +303,7 @@ export async function POST(req: Request) {
         content: bodyText, // Store body as content for backwards compatibility
         status: 'PENDING',
         language,
-        category
+        category: normalizedCategory
       })
       .select()
       .single();

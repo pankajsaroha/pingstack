@@ -112,7 +112,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/[0.03] dark:bg-indigo-600/5 blur-[120px]" />
       </div>
 
-      <div className="hidden md:block z-20">
+      <div className="hidden md:block">
         <Sidebar collapsed={isCollapsed} onToggleCollapse={toggleCollapse} />
       </div>
 
@@ -137,8 +137,8 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 z-10 relative">
-        <header className="md:hidden h-16 border-b border-glass-border bg-bg/60 backdrop-blur-xl px-6 flex items-center justify-between shrink-0 z-50">
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        <header className="md:hidden h-16 border-b border-glass-border bg-bg/60 backdrop-blur-xl px-6 flex items-center justify-between shrink-0 z-20">
           <Link href="/" className="flex items-center space-x-2 cursor-pointer group/logo">
             <div className="bg-fg p-1.5 rounded-lg group-hover/logo:scale-105 transition-transform duration-200">
               <svg className="w-5 h-5 text-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -153,7 +153,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
         </header>
 
         {tenant && tenant.whatsapp_account && (tenant.whatsapp_account.status === 'PENDING' || tenant.whatsapp_account.status === 'UNVERIFIED' || tenant.whatsapp_account.status === 'LIMITED') && (
-          <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-amber-500 dark:text-amber-400 z-40 shrink-0">
+          <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-amber-500 dark:text-amber-400 z-10 shrink-0">
             <div className="flex items-center gap-2">
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -174,7 +174,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
         )}
 
         {tenant && tenant.is_trial && !tenant.trial_expired && (
-          <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 border-b border-indigo-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-indigo-400 z-40 shrink-0">
+          <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 border-b border-indigo-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-indigo-400 z-10 shrink-0">
             <div className="flex items-center gap-2">
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
@@ -189,7 +189,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
         )}
 
         <main className={`flex-1 relative ${pathname === '/inbox' ? 'flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
-          <div className={`${pathname === '/inbox' ? 'flex-1 flex flex-col min-h-0 w-full p-2 sm:p-6 md:p-8' : 'p-4 sm:p-6 md:p-8 mt-2'} max-w-6xl w-full mx-auto relative z-10`}>
+          <div className={`${pathname === '/inbox' ? 'flex-1 flex flex-col min-h-0 w-full p-2 sm:p-6 md:p-8' : 'p-4 sm:p-6 md:p-8 mt-2'} max-w-6xl w-full mx-auto relative`}>
             <TenantProvider initialTenant={tenant}>
               {children}
             </TenantProvider>

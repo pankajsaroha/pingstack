@@ -141,8 +141,6 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
       <SyncPanel
         syncing={syncing}
         selectedCount={selectedIds.size}
-        wabaId={tenant?.whatsapp_account?.business_id}
-        businessId={tenant?.whatsapp_account?.portfolio_id || tenant?.whatsapp_account?.business_id}
         onSync={() => fetchTemplates(true)}
         onDeleteSelected={handleDeleteSelected}
         onCreate={() => setShowModal(true)}
