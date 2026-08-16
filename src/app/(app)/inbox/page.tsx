@@ -15,12 +15,14 @@ export default async function InboxPage() {
   }
 
   // Pre-fetch all layout states in parallel to prevent database query waterfalls
-  const [tenant, conversations, contacts, templates] = await Promise.all([
+  const [tenant, conversations, contactsData, templates] = await Promise.all([
     getTenantServer(),
     getConversationsServer(tenantId),
-    getContactsServer(tenantId),
+    getContactsServer(tenantId, 50),
     getTemplatesServer(tenantId)
   ]);
+
+  const contacts = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || []);
 
   if (!tenant) {
     redirect('/login');

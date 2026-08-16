@@ -29,8 +29,6 @@ export function Sidebar({
 
   const handleLogout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
-    document.cookie = 'token=; Max-Age=0; path=/;';
-    document.cookie = 'supabase_refresh_token=; Max-Age=0; path=/;';
     await setSupabaseSession(null);
     router.push('/');
   }, [router]);

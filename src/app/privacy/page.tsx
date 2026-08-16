@@ -13,9 +13,8 @@ export default function PrivacyPolicy() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Check for token in cookies
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='));
-    setIsLoggedIn(!!token);
+    // Check auth state via API since token is httpOnly and not readable by JS
+    fetch('/api/tenant/me').then(r => setIsLoggedIn(r.ok)).catch(() => {});
 
     // Sidebar state
     const saved = localStorage.getItem('sidebar-collapsed');

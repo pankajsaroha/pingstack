@@ -5,16 +5,26 @@ import { X, LayoutTemplate, Plus, ExternalLink } from 'lucide-react';
 
 interface TroubleshootModalProps {
   portfolioId: string;
+  wabaId?: string;
   onClose: () => void;
   onCreateLocal: () => void;
 }
 
 export default function TroubleshootModal({
   portfolioId,
+  wabaId,
   onClose,
   onCreateLocal,
 }: TroubleshootModalProps) {
   const [troubleshootTab, setTroubleshootTab] = useState<'new_account' | 'permissions'>('new_account');
+
+  const bizId = portfolioId || wabaId || '';
+  const assetId = wabaId || portfolioId || '';
+  const metaTemplatesUrl = bizId && assetId
+    ? `https://business.facebook.com/latest/whatsapp_manager/message_templates/?business_id=${bizId}&tab=message-templates&global_scope_id=${bizId}&asset_id=${assetId}`
+    : bizId
+    ? `https://business.facebook.com/latest/whatsapp_manager/message_templates/?business_id=${bizId}&tab=message-templates&global_scope_id=${bizId}`
+    : 'https://business.facebook.com/latest/whatsapp_manager/message_templates/';
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -87,7 +97,7 @@ export default function TroubleshootModal({
               </div>
 
               <a
-                href="https://business.facebook.com/wa/manage/templates"
+                href={metaTemplatesUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center p-4 bg-glass-input hover:bg-white/10 rounded-2xl border border-glass-border cursor-pointer transition-all active:scale-[0.99] group block"
@@ -130,12 +140,12 @@ export default function TroubleshootModal({
             </div>
 
             <a
-              href={`https://business.facebook.com/latest/settings/whatsapp_account?business_id=${portfolioId}`}
+              href={metaTemplatesUrl}
               target="_blank"
               rel="noreferrer"
               className="w-full py-4 bg-fg text-bg rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-neutral-100 transition-all text-center flex items-center justify-center space-x-2 border-0 outline-none"
             >
-              <span>Verify Meta Settings</span>
+              <span>Open Meta WhatsApp Manager</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>

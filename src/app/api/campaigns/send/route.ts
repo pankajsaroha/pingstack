@@ -1,17 +1,31 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { campaignQueue } from '@/lib/queue';
+import { validatePayloadSize, validateCampaignSendPayload } from '@/lib/validation';
+import { logAuditEvent } from '@/lib/audit';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
-  try {
-    const { campaignId, groupIds, contactIds, directData } = await req.json();
-    if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 });
+  // 0. Payload Size Check (Max 5MB)
+  const sizeCheck = validatePayloadSize(req);
+  if (!sizeCheck.valid && sizeCheck.response) return sizeCheck.response;
 
-    // 1. Fetch and verify campaign exists
+  try {
+    const rawBody = await req.json();
+
+    // 1. Strict Input Schema Validation
+    const validation = validateCampaignSendPayload(rawBody);
+    if (!validation.valid || !validation.data) {
+      return NextResponse.json({ error: validation.error || 'Invalid request payload' }, { status: 400 });
+    }
+
+    const { campaignId, groupIds, contactIds, directData } = validation.data;
+
+    // 2. Fetch and verify campaign belongs to this tenant (Strict Tenant Boundary RLS Check)
     const { data: campaign, error: cErr } = await db
       .from('campaigns')
       .select('id, name')
@@ -20,20 +34,33 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (cErr || !campaign) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Campaign not found or access denied' }, { status: 404 });
     }
 
-    // 2. Instantly update campaign status to 'running'
-    await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
+    // 3. Update campaign status to 'running'
+    await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId).eq('tenant_id', tenantId);
 
-    // 3. Queue the campaign processing job in Redis campaign-queue
-    console.log(`[Queue] Triggering background worker to process campaign ${campaignId}...`);
+    // 4. Queue the campaign processing job in Redis campaign-queue
     await campaignQueue.add('process-campaign', {
       tenantId,
       campaignId,
       groupIds,
       contactIds,
       directData
+    });
+
+    // 5. Audit log event
+    await logAuditEvent({
+      tenantId,
+      userId,
+      action: 'CAMPAIGN_SEND',
+      resource: `campaign:${campaignId}`,
+      details: {
+        campaignName: campaign.name,
+        groupCount: groupIds?.length || 0,
+        contactCount: contactIds?.length || 0,
+        directRowCount: directData?.length || 0
+      }
     });
 
     return NextResponse.json({

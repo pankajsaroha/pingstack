@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { parse } from 'csv-parse/sync';
 import * as xlsx from 'xlsx';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { invalidateContactsCache } from '@/lib/server/contacts';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -91,7 +92,13 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ message: `Successfully processed ${importedPhones.length} contacts` });
+    await invalidateContactsCache(tenantId);
+
+    return NextResponse.json({ 
+      success: true, 
+      count: finalNewContacts.length,
+      skipped: contactsToProcess.length - finalNewContacts.length
+    });
   } catch (err: any) {
     console.error('CSV Upload Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

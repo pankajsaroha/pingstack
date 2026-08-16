@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown } from 'lucide-react';
+import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown, CheckCircle2 } from 'lucide-react';
 
 interface ConnectionManagerProps {
   tenant: any;
@@ -40,12 +40,33 @@ export default function ConnectionManager({
 }: ConnectionManagerProps) {
   const whatsappAccount = tenant?.whatsapp_account;
   const [showMore, setShowMore] = useState(false);
+  const [showRecipientGuideModal, setShowRecipientGuideModal] = useState(false);
 
   // Build the Meta Business Manager link using stored business_id / portfolio_id
   const businessId = whatsappAccount?.business_id || whatsappAccount?.portfolio_id || '';
   const metaManagerUrl = businessId
     ? `https://business.facebook.com/latest/settings/whatsapp_account?business_id=${businessId}`
     : 'https://business.facebook.com/settings/';
+
+  const [registering, setRegistering] = useState(false);
+
+  const handleRegisterPhone = async () => {
+    setRegistering(true);
+    try {
+      const res = await fetch('/api/whatsapp/meta/register', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Phone number registered successfully with Meta Cloud API!');
+        window.location.reload();
+      } else {
+        alert(`❌ ${data.error || 'Registration failed'}`);
+      }
+    } catch (err: any) {
+      alert(`❌ ${err.message || 'Error executing registration'}`);
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   return (
     <div className="lg:col-span-2 bg-glass-card border border-glass-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col justify-between">
@@ -137,8 +158,11 @@ export default function ConnectionManager({
             <div className="space-y-1">
               <span className="text-[9px] font-black text-fg/30 uppercase tracking-widest">Connection State</span>
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse" />
-                <span className="text-xs font-black text-fg">Active &amp; Synced</span>
+                <div className={`w-2.5 h-2.5 rounded-full ${whatsappAccount?.status === 'PENDING' ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' : 'bg-emerald-500 shadow-[0_0_8px_#10b981]'} animate-pulse`} />
+                <span className="text-xs font-black text-fg capitalize">{whatsappAccount?.status || 'Active & Synced'}</span>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${(!whatsappAccount?.display_phone_number || whatsappAccount?.display_phone_number?.includes('555') || whatsappAccount?.phone_number_id?.startsWith('105')) ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                  {(!whatsappAccount?.display_phone_number || whatsappAccount?.display_phone_number?.includes('555') || whatsappAccount?.phone_number_id?.startsWith('105')) ? '🧪 Test Number' : '📱 Live Number'}
+                </span>
               </div>
             </div>
             <div className="space-y-1">
@@ -153,15 +177,35 @@ export default function ConnectionManager({
 
           {/* Primary actions row */}
           <div className="flex flex-wrap items-center gap-3 mt-2">
-            {/* Refresh Account — primary CTA for users waiting on business approval / phone numbers */}
+            {/* Refresh Account — primary CTA for users checking updated phone numbers / billing / approval */}
             <button
               onClick={onRefreshAccount}
               disabled={refreshing}
               title="Re-fetch your Meta account status, newly approved phone numbers, and billing"
-              className="flex items-center gap-2 px-5 h-11 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-5 h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-md disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Refreshing…' : 'Refresh Account'}
+            </button>
+
+            {/* Switch Account button */}
+            <button
+              onClick={onSwitchAccount}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-5 h-11 bg-glass-input hover:bg-white/10 border border-glass-border text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Switch Account
+            </button>
+
+            {/* Register Number CTA — triggers POST /{phone_number_id}/register */}
+            <button
+              onClick={handleRegisterPhone}
+              disabled={registering}
+              title="Issue Meta API registration request to resolve Pending status in Meta Manager"
+              className="flex items-center gap-2 px-5 h-11 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50"
+            >
+              {registering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {registering ? 'Registering...' : 'Register Number'}
             </button>
 
             {/* Open Meta Business Manager to add phone / billing */}
@@ -190,21 +234,99 @@ export default function ConnectionManager({
           {showMore && (
             <div className="mt-3 flex flex-wrap gap-3 pt-4 border-t border-glass-border animate-in fade-in slide-in-from-top-2 duration-200">
               <button
-                onClick={onSwitchAccount}
-                disabled={refreshing}
-                className="px-5 h-10 bg-fg text-bg hover:opacity-90 disabled:opacity-50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-sm"
+                onClick={() => setShowRecipientGuideModal(true)}
+                className="px-5 h-10 border border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
               >
-                Switch Account
+                Test Sandbox Help ❓
               </button>
               <button
                 onClick={onResetConnection}
-                className="px-5 h-10 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                className="px-5 h-10 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ml-auto"
               >
                 Reset Connection
               </button>
             </div>
           )}
         </>
+      )}
+
+      {/* Test Sandbox Recipient Guide Modal */}
+      {showRecipientGuideModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-glass-card border border-glass-border max-w-xl w-full rounded-[2rem] p-6 sm:p-8 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-glass-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <span className="text-xl">🧪</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-fg tracking-tight">How to Add Recipient Numbers for Test Sandbox</h3>
+                  <p className="text-xs text-muted font-semibold">Exact location in Meta Developer App Console.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRecipientGuideModal(false)}
+                className="w-8 h-8 rounded-xl bg-glass-input border border-glass-border flex items-center justify-center text-muted hover:text-fg transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-medium text-fg/80 leading-relaxed">
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-2">
+                <p className="font-bold text-amber-400">📌 Direct Meta App Setup URL:</p>
+                <a
+                  href={`https://developers.facebook.com/apps/${process.env.NEXT_PUBLIC_FB_APP_ID || '1459794049184876'}/whatsapp-business/setup/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold transition-all text-xs"
+                >
+                  Open Meta API Setup Console <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">1</span>
+                  <p>In the left sidebar of Meta Developer Portal, click <strong>WhatsApp → API Setup</strong> (or <strong>Getting Started</strong>).</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">2</span>
+                  <p>Scroll down to <strong>Step 1: Select phone numbers</strong>.</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">3</span>
+                  <div>
+                    <p>Look directly below <strong>From: Test Number</strong> box. You will see a dropdown field labeled <strong>"To"</strong> (or <strong>"Recipient phone number"</strong>).</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">4</span>
+                  <p>Click the <strong>"To"</strong> dropdown list, select <strong>"Manage phone number list"</strong>, enter your mobile WhatsApp phone number (with country code e.g. +91), and enter the 6-digit WhatsApp verification OTP sent to your phone.</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl mt-4">
+                <p className="font-bold text-indigo-400 mb-1">💡 Want to send messages to ANY customer without adding numbers?</p>
+                <p className="text-muted">
+                  Click <strong>Switch Asset</strong> or <strong>Meta Manager</strong> to link a real custom phone number for production messaging.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-glass-border flex justify-end">
+              <button
+                onClick={() => setShowRecipientGuideModal(false)}
+                className="px-6 py-2.5 bg-fg text-bg hover:opacity-90 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

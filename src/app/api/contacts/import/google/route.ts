@@ -90,7 +90,14 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, count: allContacts.length });
+    const { invalidateContactsCache } = require('@/lib/server/contacts');
+    await invalidateContactsCache(tenantId);
+
+    return NextResponse.json({ 
+      success: true, 
+      count: finalContacts.length,
+      skipped: allContacts.length - finalContacts.length
+    });
 
   } catch (err: any) {
     console.error('Google Import Error:', err);

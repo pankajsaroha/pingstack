@@ -13,10 +13,10 @@ export default function TermsOfService() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='));
-    setIsLoggedIn(!!token);
     const saved = localStorage.getItem('sidebar-collapsed');
     if (saved !== null) setIsCollapsed(saved === 'true');
+    // Check auth state via API since token is httpOnly and not readable by JS
+    fetch('/api/tenant/me').then(r => setIsLoggedIn(r.ok)).catch(() => {});
     setMounted(true);
   }, []);
 

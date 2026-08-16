@@ -9,7 +9,6 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
   const [scrolled, setScrolled] = useState(false);
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -18,17 +17,12 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
   }, []);
 
   useEffect(() => {
-    const tokenExists = typeof document !== 'undefined' && document.cookie.split(';').some(item => item.trim().startsWith('token='));
-    setHasToken(tokenExists);
-
-    if (tokenExists) {
-      const cached = sessionStorage.getItem('tenant_session');
-      if (cached) {
-        try {
-          setTenant(JSON.parse(cached));
-          setLoading(false);
-        } catch (e) {}
-      }
+    const cached = sessionStorage.getItem('tenant_session');
+    if (cached) {
+      try {
+        setTenant(JSON.parse(cached));
+        setLoading(false);
+      } catch (e) {}
     }
 
     async function checkUser() {
@@ -69,14 +63,10 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
 
           <div className="flex items-center space-x-4">
             {loading ? (
-              hasToken ? (
-                <div className="h-9 w-28 bg-fg/10 rounded-full animate-pulse" />
-              ) : (
-                <div className="flex items-center space-x-4">
-                  <div className="h-4 w-12 bg-fg/10 rounded animate-pulse" />
-                  <div className="h-9 w-24 bg-fg/10 rounded-full animate-pulse" />
-                </div>
-              )
+              <div className="flex items-center space-x-4">
+                <div className="h-4 w-12 bg-fg/10 rounded animate-pulse" />
+                <div className="h-9 w-24 bg-fg/10 rounded-full animate-pulse" />
+              </div>
             ) : tenant ? (
               <Link 
                 href="/dashboard"

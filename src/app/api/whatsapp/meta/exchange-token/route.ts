@@ -105,8 +105,15 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    // 6. Activation
+    // 6. Activation & Auto-Registration
     const phone = phoneData.data[0];
+    try {
+      const { registerMetaPhoneNumber } = await import('@/lib/whatsapp');
+      await registerMetaPhoneNumber(phone.id, tokenToUse);
+    } catch (regErr) {
+      console.warn('Auto registration during activation warning:', regErr);
+    }
+
     const { error: dbError } = await db.from('whatsapp_accounts').upsert({
       tenant_id: tenantId,
       provider: 'META',

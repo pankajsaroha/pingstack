@@ -7,6 +7,13 @@ const font = Outfit({ subsets: ['latin'], variable: '--font-outfit' });
 export const metadata: Metadata = {
   title: 'PingStack | Enterprise WhatsApp Notifications',
   description: 'Send WhatsApp notifications reliably at scale with the PingStack API and Dashboard.',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 import TimezoneSync from '@/components/TimezoneSync';

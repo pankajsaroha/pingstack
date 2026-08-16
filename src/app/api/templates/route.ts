@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { invalidateTemplatesCache } from '@/lib/server/templates';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -14,16 +15,43 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Server error: database not initialized' }, { status: 500 });
   }
 
-  const { data, error } = await db.from('templates')
+  const url = new URL(req.url);
+  const statusFilter = url.searchParams.get('status'); // 'all' or 'APPROVED' (default)
+
+  // Get active connected WABA ID for tenant
+  let wabaId = '';
+  try {
+    const { data: waAccount } = await db
+      .from('whatsapp_accounts')
+      .select('business_id')
+      .eq('tenant_id', tenantId)
+      .eq('provider', 'META')
+      .maybeSingle();
+    wabaId = waAccount?.business_id || '';
+  } catch (e) {
+    console.warn('API GET templates WABA lookup warning:', e);
+  }
+
+  const { data, error } = await db
+    .from('templates')
     .select('*')
     .eq('tenant_id', tenantId)
-    .eq('status', 'APPROVED')
     .order('created_at', { ascending: false });
+
   if (error) {
     console.error('API GET templates error', { tenantId, error });
     return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   }
-  return NextResponse.json(data, {
+
+  const allTenantTemplates = data || [];
+
+  // Filter in-memory by approved status if requested
+  const filtered = allTenantTemplates.filter(t => {
+    if (statusFilter !== 'all' && t.status !== 'APPROVED') return false;
+    return true;
+  });
+
+  return NextResponse.json(filtered, {
     headers: { 'Cache-Control': 'public, max-age=15, stale-while-revalidate=45' }
   });
 }
@@ -58,6 +86,7 @@ export async function POST(req: Request) {
       console.error('Add template error:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    await invalidateTemplatesCache(tenantId);
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Template processing error:', err);
@@ -136,6 +165,8 @@ export async function DELETE(req: Request) {
 
     if (deleteError) throw deleteError;
     
+    await invalidateTemplatesCache(tenantId);
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Template deletion route error:', err);

@@ -55,7 +55,6 @@ export default function Register() {
 
       const data = await res.json();
       if (res.ok) {
-        document.cookie = `token=${data.token}; path=/; max-age=604800`;
         router.push('/dashboard');
       } else {
         setError(data.error);

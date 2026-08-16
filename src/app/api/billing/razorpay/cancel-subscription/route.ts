@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { razorpay } from '@/lib/razorpay';
 import { db } from '@/lib/db';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 type TenantSubscriptionRow = {
   razorpay_subscription_id: string | null;
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
     await db.from('tenants').update({
       subscription_status: 'cancelled'
     }).eq('id', tenantId);
+
+    await invalidateTenantCache(tenantId);
 
     return NextResponse.json({ success: true, message: 'Subscription will be cancelled at the end of the period.' });
 

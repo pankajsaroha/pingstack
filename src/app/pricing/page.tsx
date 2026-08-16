@@ -30,20 +30,14 @@ export default function PublicPricing() {
   const [tenant, setTenant] = useState<any>(null);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
-    const tokenExists = typeof document !== 'undefined' && document.cookie.split(';').some(item => item.trim().startsWith('token='));
-    setHasToken(tokenExists);
-
-    if (tokenExists) {
-      const cached = sessionStorage.getItem('tenant_session');
-      if (cached) {
-        try {
-          setTenant(JSON.parse(cached));
-          setLoading(false);
-        } catch (e) {}
-      }
+    const cached = sessionStorage.getItem('tenant_session');
+    if (cached) {
+      try {
+        setTenant(JSON.parse(cached));
+        setLoading(false);
+      } catch (e) {}
     }
 
     async function checkUser() {
@@ -226,22 +220,9 @@ export default function PublicPricing() {
                 </div>
 
                 {loading ? (
-                  hasToken ? (
-                    <div className="w-full py-4 bg-fg/10 rounded-2xl animate-pulse flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-fg/30">
-                      Loading Plan...
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => setModalType('register')}
-                      className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center ${
-                        plan.popular 
-                          ? 'bg-fg text-bg hover:bg-fg/90 shadow-md' 
-                          : 'bg-glass-input text-fg border border-glass-input-border hover:bg-glass-input/80'
-                      }`}
-                    >
-                      Get Started
-                    </button>
-                  )
+                  <div className="w-full py-4 bg-fg/10 rounded-2xl animate-pulse flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-fg/30">
+                    Loading...
+                  </div>
                 ) : tenant ? (
                   isCurrentPlan ? (
                     tenant.subscription_status === 'active' ? (

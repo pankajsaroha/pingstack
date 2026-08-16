@@ -4,6 +4,12 @@ import { authenticateApiKey } from '@/lib/api-auth';
 import { messageQueue } from '@/lib/queue';
 import { checkLimit, incrementUsage } from '@/lib/limits';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { withCors, corsPreflightResponse } from '@/lib/cors';
+
+// Handle CORS preflight for browser-based SDK consumers
+export async function OPTIONS(req: Request) {
+  return corsPreflightResponse(req);
+}
 
 type SendRequestBody = {
   to?: string;
@@ -16,8 +22,10 @@ export async function POST(req: Request) {
   const authHeader = req.headers.get('Authorization');
   const tenantId = await authenticateApiKey(authHeader);
 
+  const origin = req.headers.get('origin');
+
   if (!tenantId) {
-    return NextResponse.json({ error: 'Unauthorized: Invalid or missing API key' }, { status: 401 });
+    return withCors(NextResponse.json({ error: 'Unauthorized: Invalid or missing API key' }, { status: 401 }), origin);
   }
 
   if (!db) {
@@ -28,7 +36,7 @@ export async function POST(req: Request) {
     // Enforce API Rate limit
     const limitCheck = await enforceRateLimit(tenantId, 'send_message');
     if (limitCheck.limited && limitCheck.response) {
-      return limitCheck.response;
+      return withCors(limitCheck.response, origin);
     }
 
     const body = (await req.json()) as SendRequestBody;
@@ -45,19 +53,19 @@ export async function POST(req: Request) {
 
     // Validate inputs
     if (!to || !templateName) {
-      return NextResponse.json({ error: 'Missing parameters. "to" (phone number) and "template" (template name) are required.' }, { status: 400 });
+      return withCors(NextResponse.json({ error: 'Missing parameters. "to" (phone number) and "template" (template name) are required.' }, { status: 400 }), origin);
     }
 
     // Normalize phone number (digits only)
     const normalizedPhone = String(to).replace(/\D/g, '');
     if (!normalizedPhone || normalizedPhone.length < 10) {
-      return NextResponse.json({ error: 'Invalid phone number format. Provide a valid mobile number with country code.' }, { status: 400 });
+      return withCors(NextResponse.json({ error: 'Invalid phone number format. Provide a valid mobile number with country code.' }, { status: 400 }), origin);
     }
 
     // Check plan campaigns limit
     const canSend = await checkLimit(tenantId, 'campaigns');
     if (!canSend) {
-      return NextResponse.json({ error: 'Upgrade required. Daily campaign/outbound limits reached.' }, { status: 403 });
+      return withCors(NextResponse.json({ error: 'Upgrade required. Daily campaign/outbound limits reached.' }, { status: 403 }), origin);
     }
 
     // Lookup Template by name and tenant_id
@@ -70,12 +78,12 @@ export async function POST(req: Request) {
 
     if (tErr) throw tErr;
     if (!template) {
-      return NextResponse.json({ error: `Template '${templateName}' not found in your account.` }, { status: 404 });
+      return withCors(NextResponse.json({ error: `Template '${templateName}' not found in your account.` }, { status: 404 }), origin);
     }
     
     // In live mode, we only allow APPROVED templates. In sandbox, we allow testing with pending/drafts as well
     if (!isSandbox && template.status !== 'APPROVED') {
-      return NextResponse.json({ error: `Template '${templateName}' is currently '${template.status}'. Messages can only be sent using APPROVED templates.` }, { status: 400 });
+      return withCors(NextResponse.json({ error: `Template '${templateName}' is currently '${template.status}'. Messages can only be sent using APPROVED templates.` }, { status: 400 }), origin);
     }
 
     // Lookup or register contact dynamically
@@ -144,12 +152,12 @@ export async function POST(req: Request) {
     await incrementUsage(tenantId, 'campaigns');
 
     if (isSandbox) {
-      return NextResponse.json({
+      return withCors(NextResponse.json({
         success: true,
         message_id: msg.id,
         status: 'sandbox_delivered',
         note: 'Sandbox Mode: This message was mock-delivered because your Meta WhatsApp Account setup is pending.'
-      });
+      }), origin);
     }
 
     // Queue sending job to Redis via BullMQ queue (Live Mode only)
@@ -162,14 +170,14 @@ export async function POST(req: Request) {
       isDirectText: false
     });
 
-    return NextResponse.json({
+    return withCors(NextResponse.json({
       success: true,
       message_id: msg.id,
       status: 'queued'
-    });
+    }), origin);
 
   } catch (err: any) {
     console.error('[API Messages Send] Error:', err);
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+    return withCors(NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 }), origin);
   }
 }

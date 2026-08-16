@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, Loader2 } from 'lucide-react';
+import { X, Search, Loader2, RotateCcw } from 'lucide-react';
 
 interface CampaignReportProps {
   campaign: any;
@@ -17,6 +17,8 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const [retryNotice, setRetryNotice] = useState<string | null>(null);
 
   const fetchReportData = async (campaignId: string, page: number, search: string) => {
     setReportLoading(true);
@@ -31,6 +33,33 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
       console.error('Report fetch failed:', e);
     } finally {
       setReportLoading(false);
+    }
+  };
+
+  const handleRetryFailed = async () => {
+    if (!campaign?.id) return;
+    setRetrying(true);
+    setRetryNotice(null);
+    try {
+      const res = await fetch('/api/messages/retry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': campaign.tenant_id
+        },
+        body: JSON.stringify({ campaignId: campaign.id })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRetryNotice(`Re-queued ${data.retriedCount} failed message(s) for delivery.`);
+        fetchReportData(campaign.id, currentPage, reportSearch);
+      } else {
+        setRetryNotice(`Retry failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      setRetryNotice(`Retry request failed: ${err.message}`);
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -51,6 +80,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
   const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const failedCount = campaign.stats?.failed || reportData.filter((r) => r.status === 'failed').length;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
@@ -70,7 +100,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
         </div>
 
         {/* Search & Export Toolbar */}
-        <div className="p-6 bg-glass-card/20 border-b border-glass-border text-left">
+        <div className="p-6 bg-glass-card/20 border-b border-glass-border text-left space-y-3">
           <div className="flex items-center space-x-4">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/20" />
@@ -82,10 +112,27 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            {failedCount > 0 && (
+              <button
+                onClick={handleRetryFailed}
+                disabled={retrying}
+                className="flex items-center px-5 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {retrying ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Retry Failed ({failedCount})
+              </button>
+            )}
             <button className="px-6 py-3 bg-glass-input hover:bg-white/10 border border-glass-border text-fg rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer">
               Export CSV
             </button>
           </div>
+          {retryNotice && (
+            <p className="text-xs font-bold text-indigo-400 pl-1">{retryNotice}</p>
+          )}
         </div>
 
         {/* Report logs table */}

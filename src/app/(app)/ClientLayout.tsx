@@ -26,6 +26,25 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
     setMounted(true);
   }, []);
 
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  const handleRegisterPhone = async () => {
+    setIsRegistering(true);
+    try {
+      const res = await fetch('/api/whatsapp/meta/register', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Registration failed');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error triggering registration');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
   const toggleCollapse = () => {
     const newState = !isCollapsed;
     setIsCollapsed(newState);
@@ -34,8 +53,6 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
-    document.cookie = 'token=; Max-Age=0; path=/;';
-    document.cookie = 'supabase_refresh_token=; Max-Age=0; path=/;';
     await setSupabaseSession(null);
     router.push('/');
   };
@@ -134,6 +151,27 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
             <Menu className="w-6 h-6 text-muted hover:text-fg" />
           </button>
         </header>
+
+        {tenant && tenant.whatsapp_account && (tenant.whatsapp_account.status === 'PENDING' || tenant.whatsapp_account.status === 'UNVERIFIED' || tenant.whatsapp_account.status === 'LIMITED') && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-amber-500 dark:text-amber-400 z-40 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <span>
+                ⏳ <strong>Meta Setup Pending Approval</strong>: Your WhatsApp phone number status is currently <strong>{tenant.whatsapp_account.status}</strong> with Meta. Click "Register Number Now" to complete registration with Meta Cloud API.
+              </span>
+            </div>
+            <button
+              onClick={handleRegisterPhone}
+              disabled={isRegistering}
+              className="px-3.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-amber-600/20 cursor-pointer disabled:opacity-50 shrink-0 ml-4"
+            >
+              {isRegistering ? 'Registering...' : 'Register Number Now'}
+            </button>
+          </div>
+        )}
 
         {tenant && tenant.is_trial && !tenant.trial_expired && (
           <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 border-b border-indigo-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-indigo-400 z-40 shrink-0">

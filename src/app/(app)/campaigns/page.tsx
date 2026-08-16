@@ -18,7 +18,7 @@ export default async function CampaignsPage() {
   const [tenant, campaigns, templates, groups] = await Promise.all([
     getTenantServer(),
     getCampaignsServer(tenantId),
-    getTemplatesServer(tenantId),
+    getTemplatesServer(tenantId, true),
     getGroupsServer(tenantId)
   ]);
 

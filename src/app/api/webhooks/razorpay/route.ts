@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { db } from '@/lib/db';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'placeholder_secret';
 
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
           };
           
           await db.from('tenants').update(updateData).eq('id', tenantId);
+          await invalidateTenantCache(tenantId);
         }
         break;
       }
@@ -59,6 +61,7 @@ export async function POST(req: Request) {
           await db.from('tenants').update({
             subscription_status: 'cancelled'
           }).eq('id', tenantId);
+          await invalidateTenantCache(tenantId);
         }
         break;
       }
@@ -71,6 +74,7 @@ export async function POST(req: Request) {
             plan_type: 'starter',
             subscription_status: 'expired'
           }).eq('id', tenantId);
+          await invalidateTenantCache(tenantId);
         }
         break;
       }
