@@ -32,10 +32,10 @@ export default function MessageBubble({
   const isOutbound = msg.direction === 'outbound';
 
   return (
-    <div className={`flex group items-center ${isOutbound ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex group items-center w-full min-w-0 ${isOutbound ? 'justify-end' : 'justify-start'}`}>
 
       {/* Checkbox — visible when selection is active or on hover */}
-      <div className={`mr-3 transition-all ${selectionActive || isSelected ? 'opacity-100 w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-6 overflow-hidden'}`}>
+      <div className={`mr-2.5 sm:mr-3 transition-all shrink-0 ${selectionActive || isSelected ? 'opacity-100 w-5 sm:w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-5 sm:group-hover:w-6 overflow-hidden'}`}>
         <input
           type="checkbox"
           checked={isSelected}
@@ -48,30 +48,42 @@ export default function MessageBubble({
       {!isOutbound && (
         <button
           onClick={() => onDelete(msg.id)}
-          className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer"
+          className="opacity-0 group-hover:opacity-100 p-1.5 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1 cursor-pointer shrink-0"
+          title="Delete message"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* Delete button — outbound side (placed to the LEFT of outbound bubble so it never pushes the bubble right off-screen) */}
+      {isOutbound && (
+        <button
+          onClick={() => onDelete(msg.id)}
+          className="opacity-0 group-hover:opacity-100 p-1.5 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer shrink-0"
+          title="Delete message"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       )}
 
       {/* Bubble */}
-      <div className={`max-w-[85%] sm:max-w-[65%] min-w-0 rounded-[1.5rem] px-4 sm:px-5 py-3 sm:py-3.5 shadow-xl relative border break-words ${
+      <div className={`max-w-[85%] sm:max-w-[70%] min-w-0 rounded-[1.25rem] sm:rounded-[1.5rem] px-3.5 sm:px-5 py-2.5 sm:py-3.5 shadow-xl relative border break-words ${
         isOutbound
           ? 'bg-fg text-bg border-white rounded-br-sm'
           : 'bg-glass-card border-glass-border text-fg rounded-bl-sm'
       }`}>
         {/* Attachment preview */}
         {msg.media_path && (
-          <div className={`mb-3 p-3 rounded-xl border flex items-center ${
+          <div className={`mb-2.5 p-2.5 sm:p-3 rounded-xl border flex items-center ${
             isOutbound ? 'bg-black/5 border-black/10' : 'bg-glass-input border-glass-border'
           }`}>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
+            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center mr-2.5 sm:mr-3 shrink-0 ${
               isOutbound ? 'bg-bg text-fg' : 'bg-indigo-500/10 text-indigo-400'
             }`}>
-              {msg.message_type === 'image' && <Image className="w-4 h-4" />}
-              {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
-              {msg.message_type === 'document' && <FileText className="w-4 h-4" />}
-              {!['image', 'video', 'document'].includes(msg.message_type || '') && <Paperclip className="w-4 h-4" />}
+              {msg.message_type === 'image' && <Image className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              {msg.message_type === 'video' && <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-90" />}
+              {msg.message_type === 'document' && <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              {!['image', 'video', 'document'].includes(msg.message_type || '') && <Paperclip className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
@@ -85,12 +97,12 @@ export default function MessageBubble({
         )}
 
         {/* Text */}
-        <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium break-words [overflow-wrap:anywhere] min-w-0">
+        <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-medium break-words [overflow-wrap:anywhere] min-w-0">
           {msg.content || (msg.media_path ? '' : '[Template Message]')}
         </p>
 
         {/* Timestamp + status */}
-        <div className={`flex items-center justify-end mt-2 space-x-1 ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
+        <div className={`flex items-center justify-end mt-1.5 space-x-1 ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
           <span className="text-[8px] font-black uppercase tracking-wider font-mono">
             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
@@ -117,16 +129,6 @@ export default function MessageBubble({
           )}
         </div>
       </div>
-
-      {/* Delete button — outbound side */}
-      {isOutbound && (
-        <button
-          onClick={() => onDelete(msg.id)}
-          className="opacity-0 group-hover:opacity-100 p-2 text-fg/20 hover:text-red-400 transition-opacity self-center ml-1.5 cursor-pointer"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      )}
     </div>
   );
 }
