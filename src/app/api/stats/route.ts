@@ -91,8 +91,8 @@ export async function GET(req: Request) {
       ? lastPaidDate
       : startOfMonth;
 
-    // ── Phase 3: Fetch billing transactions for cost & conversation metrics ─
-    const [txMonthRes, txPaidRes, conversationsRes] = await Promise.all([
+    // ── Phase 3: Fetch billing transactions, conversations, & campaign metrics ─
+    const [txMonthRes, txPaidRes, conversationsRes, campaignsRes] = await Promise.all([
       db.from('billing_transactions')
         .select('cost')
         .eq('tenant_id', tenantId)
@@ -106,15 +106,21 @@ export async function GET(req: Request) {
       db.from('conversations_view')
         .select('*', { count: 'exact', head: true })
         .eq('tenant_id', tenantId)
-        .not('contact_id', 'is', null)
+        .not('contact_id', 'is', null),
+
+      db.from('campaigns')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
     ]);
 
     const estimatedCostThisMonth = (txMonthRes.data || []).reduce((acc: number, t: any) => acc + Number(t.cost || 0), 0);
     const estimatedCostSinceLastPayment = (txPaidRes.data || []).reduce((acc: number, t: any) => acc + Number(t.cost || 0), 0);
     const conversations = conversationsRes.count || 0;
+    const totalCampaigns = campaignsRes?.count || 0;
 
     const stats = {
       totalContacts,
+      totalCampaigns,
       conversations,
       templatesApproved: approvedTemplates,
       inboundMessages: inboundRes.count || 0,

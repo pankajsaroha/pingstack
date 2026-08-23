@@ -117,7 +117,7 @@ export default function InboxClient({
   })();
 
   return (
-    <div className="flex-1 min-h-0 h-full flex bg-glass-card border border-glass-border rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden -mx-2 sm:mx-0">
+    <div className="flex-1 min-h-0 h-full flex bg-glass-card border border-glass-border rounded-[1.5rem] sm:rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden mx-0 w-full">
       {/* Left panel — conversation list */}
       <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-glass-border bg-glass-card/30`}>
         {/* Panel header */}
