@@ -155,7 +155,7 @@ export default function Home() {
                   <div className="w-3 h-3 rounded-full bg-red-500/80" />
                   <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                   <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                  <span className="text-[10px] text-muted ml-2 font-sans font-bold">PingStack Workspace — Live Dashboard</span>
+                  <span className="text-[10px] text-slate-400 ml-2 font-sans font-bold">PingStack Workspace — Live Dashboard</span>
                 </div>
                 <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] rounded-full font-bold">
                   ● WhatsApp Connected
@@ -163,20 +163,20 @@ export default function Home() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-muted uppercase block font-sans">Sent Messages</span>
-                  <span className="text-lg font-bold text-fg font-sans">12,450</span>
+                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Sent Messages</span>
+                  <span className="text-lg font-bold text-white font-sans">12,450</span>
                 </div>
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-muted uppercase block font-sans">Delivered</span>
+                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Delivered</span>
                   <span className="text-lg font-bold text-emerald-400 font-sans">99.2%</span>
                 </div>
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-muted uppercase block font-sans">Read Ticks</span>
+                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Read Ticks</span>
                   <span className="text-lg font-bold text-indigo-400 font-sans">91.5%</span>
                 </div>
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-muted uppercase block font-sans">Active Contacts</span>
-                  <span className="text-lg font-bold text-fg font-sans">1,820</span>
+                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Active Contacts</span>
+                  <span className="text-lg font-bold text-white font-sans">1,820</span>
                 </div>
               </div>
             </div>

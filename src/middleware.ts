@@ -5,10 +5,8 @@ import { verifyToken } from './lib/jwt';
 const publicPaths = [
   '/login', 
   '/register', 
-  '/privacy',
   '/forgot-password',
   '/docs',
-  '/pricing',
   '/contact',
   '/api/auth/login', 
   '/api/auth/logout',
@@ -26,7 +24,7 @@ const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /**
  * CSRF protection via Origin/Referer header validation.
- * Since the JWT token is now httpOnly + sameSite: strict, cross-site requests
+ * Since the JWT token is httpOnly + sameSite: strict, cross-site requests
  * cannot carry the cookie. We additionally verify the Origin header on
  * state-mutating requests to defence-in-depth against any future misconfigurations.
  */
@@ -36,14 +34,11 @@ function validateCsrf(request: NextRequest): boolean {
   const host = request.headers.get('host');
   if (!host) return false;
 
-  // Allow server-to-server calls (no Origin header = non-browser context or same-origin fetch)
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
 
-  // If neither Origin nor Referer is present, it's likely a server-side or CLI call — allow
   if (!origin && !referer) return true;
 
-  // Validate Origin header
   if (origin) {
     try {
       const originHost = new URL(origin).host;
@@ -53,7 +48,6 @@ function validateCsrf(request: NextRequest): boolean {
     }
   }
 
-  // Fallback: validate Referer header
   if (referer) {
     try {
       const refererHost = new URL(referer).host;
@@ -122,7 +116,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Exclude static resources and file extensions from triggering middleware execution
-    '/((?!api/webhook/gupshup|api/webhooks/meta|_next/static|_next/image|favicon.ico|[^?]*\\.(?:html|css|js|jpe?g|png|gif|svg|ico|woff2?|map|json|txt)$|login|register|privacy|forgot-password|docs|pricing|contact(?!s)|api/auth/login|api/auth/logout|api/auth/register-tenant|api/auth/forgot-password|api/support/contact).*)'
+    // Exclude static resources and unauthenticated auth routes from middleware execution
+    '/((?!api/webhook/gupshup|api/webhooks/meta|_next/static|_next/image|favicon.ico|[^?]*\\.(?:html|css|js|jpe?g|png|gif|svg|ico|woff2?|map|json|txt)$|login|register|forgot-password|docs|contact(?!s)|api/auth/login|api/auth/logout|api/auth/register-tenant|api/auth/forgot-password|api/support/contact).*)'
   ],
 };

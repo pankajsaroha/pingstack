@@ -54,21 +54,34 @@ export function InteractiveShowcase() {
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  // Strict 1 -> 2 -> 3 -> 4 -> 5 serial progression
   useEffect(() => {
     if (isPaused) return;
 
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          setActiveTab((current) => (current + 1) % SLIDES.length);
-          return 0;
-        }
-        return prev + 2.2; // ~4.5 seconds per slide
-      });
-    }, 100);
+    const timer = setInterval(() => {
+      setActiveTab((current) => (current + 1) % SLIDES.length);
+    }, 4500);
 
-    return () => clearInterval(interval);
-  }, [isPaused, activeTab]);
+    return () => clearInterval(timer);
+  }, [isPaused]);
+
+  // Smooth progress bar animation per slide
+  useEffect(() => {
+    if (isPaused) return;
+
+    setProgress(0);
+    const startTime = Date.now();
+    const duration = 4500;
+
+    const anim = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(100, (elapsed / duration) * 100);
+      setProgress(pct);
+      if (pct >= 100) clearInterval(anim);
+    }, 50);
+
+    return () => clearInterval(anim);
+  }, [activeTab, isPaused]);
 
   const handleTabClick = (index: number) => {
     setActiveTab(index);
@@ -195,8 +208,8 @@ export function InteractiveShowcase() {
           </div>
         </div>
 
-        {/* Dynamic Mockup Area */}
-        <div className="bg-[#090b10] border border-glass-border/80 rounded-2xl p-4 sm:p-6 shadow-2xl relative overflow-hidden min-h-[320px] flex flex-col justify-between">
+        {/* Dynamic Mockup Area - High-contrast text visible in both Light and Dark theme */}
+        <div className="bg-[#090b10] border border-white/10 rounded-2xl p-4 sm:p-6 shadow-2xl relative overflow-hidden min-h-[320px] flex flex-col justify-between text-slate-100">
           
           {/* STEP 1: CONNECT WHATSAPP */}
           {activeTab === 0 && (
@@ -207,11 +220,11 @@ export function InteractiveShowcase() {
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-fg uppercase tracking-wider flex items-center gap-2">
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
                       WhatsApp Gateway Active
                       <span className="px-2 py-0.5 bg-emerald-400/20 text-emerald-300 text-[9px] rounded-md font-mono">CONNECTED</span>
                     </h4>
-                    <p className="text-[11px] text-muted font-medium mt-0.5">WABA ID: 1571768617266202 • Phone: +91 98765 43210</p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">WABA ID: 1571768617266202 • Phone: +91 98765 43210</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 px-3 py-1.5 rounded-xl border border-emerald-400/20">
@@ -220,18 +233,18 @@ export function InteractiveShowcase() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="bg-glass-card/60 border border-glass-border p-4 rounded-xl">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted">Meta Signup Status</p>
+                <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Meta Signup Status</p>
                   <p className="text-base font-black text-emerald-400 mt-1 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4" /> Verified
                   </p>
                 </div>
-                <div className="bg-glass-card/60 border border-glass-border p-4 rounded-xl">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted">Phone Status</p>
-                  <p className="text-base font-black text-fg mt-1">ONLINE</p>
+                <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Phone Status</p>
+                  <p className="text-base font-black text-white mt-1">ONLINE</p>
                 </div>
-                <div className="bg-glass-card/60 border border-glass-border p-4 rounded-xl col-span-2 sm:col-span-1">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted">Quality Rating</p>
+                <div className="bg-white/5 border border-white/10 p-4 rounded-xl col-span-2 sm:col-span-1">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Quality Rating</p>
                   <p className="text-base font-black text-emerald-400 mt-1">HIGH (GREEN)</p>
                 </div>
               </div>
@@ -242,27 +255,27 @@ export function InteractiveShowcase() {
           {activeTab === 1 && (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-muted">Meta Approved Templates</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Meta Approved Templates</span>
                 <span className="text-xs text-indigo-400 font-bold flex items-center gap-1">
                   + Create New Template
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-4 bg-glass-card/60 border border-glass-border rounded-xl">
+                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase rounded-md border border-emerald-500/20">Approved</span>
-                    <span className="text-[9px] font-mono text-muted">UTILITY</span>
+                    <span className="text-[9px] font-mono text-slate-400">UTILITY</span>
                   </div>
-                  <h4 className="text-xs font-black text-fg">order_shipping_update</h4>
-                  <p className="text-[11px] text-muted mt-1 font-mono">Hi {"{{1}}"}, your order #{"{{2}}"} has been shipped!</p>
+                  <h4 className="text-xs font-black text-white">order_shipping_update</h4>
+                  <p className="text-[11px] text-slate-400 mt-1 font-mono">Hi {"{{1}}"}, your order #{"{{2}}"} has been shipped!</p>
                 </div>
-                <div className="p-4 bg-glass-card/60 border border-glass-border rounded-xl">
+                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase rounded-md border border-emerald-500/20">Approved</span>
-                    <span className="text-[9px] font-mono text-muted">MARKETING</span>
+                    <span className="text-[9px] font-mono text-slate-400">MARKETING</span>
                   </div>
-                  <h4 className="text-xs font-black text-fg">festive_discount_alert</h4>
-                  <p className="text-[11px] text-muted mt-1 font-mono">Get {"{{1}}"}% off on your next purchase using code {"{{2}}"}.</p>
+                  <h4 className="text-xs font-black text-white">festive_discount_alert</h4>
+                  <p className="text-[11px] text-slate-400 mt-1 font-mono">Get {"{{1}}"}% off on your next purchase using code {"{{2}}"}.</p>
                 </div>
               </div>
             </div>
@@ -273,42 +286,42 @@ export function InteractiveShowcase() {
             <div className="space-y-3 animate-in fade-in zoom-in-95 duration-300">
               <div className="flex items-center justify-between gap-3">
                 <div className="relative flex-1 max-w-xs">
-                  <Search className="w-3.5 h-3.5 text-fg/30 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input 
                     type="text" 
                     readOnly 
                     value="Search contacts..."
-                    className="w-full bg-glass-input border border-glass-border rounded-xl pl-8 pr-3 py-1.5 text-xs text-fg"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="px-3 py-1.5 bg-glass-input border border-glass-border rounded-xl text-[10px] font-black uppercase text-fg">
+                  <button className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase text-slate-200">
                     Upload CSV
                   </button>
-                  <button className="px-3 py-1.5 bg-fg text-bg rounded-xl text-[10px] font-black uppercase">
+                  <button className="px-3 py-1.5 bg-white text-slate-900 rounded-xl text-[10px] font-black uppercase">
                     + Add Contact
                   </button>
                 </div>
               </div>
 
-              <div className="border border-glass-border rounded-xl overflow-hidden bg-glass-card/30">
-                <div className="grid grid-cols-12 bg-white/5 p-2.5 text-[9px] font-black uppercase text-muted border-b border-glass-border">
+              <div className="border border-white/10 rounded-xl overflow-hidden bg-white/5">
+                <div className="grid grid-cols-12 bg-white/5 p-2.5 text-[9px] font-black uppercase text-slate-400 border-b border-white/10">
                   <div className="col-span-4">Name</div>
                   <div className="col-span-4">Phone Number</div>
                   <div className="col-span-2">Group Tag</div>
                   <div className="col-span-2 text-right">WhatsApp Status</div>
                 </div>
-                <div className="divide-y divide-glass-border text-xs font-medium">
+                <div className="divide-y divide-white/10 text-xs font-medium">
                   <div className="grid grid-cols-12 p-2.5 items-center">
-                    <div className="col-span-4 font-bold text-fg">Rahul Sharma</div>
-                    <div className="col-span-4 font-mono text-muted">+91 98765 43210</div>
-                    <div className="col-span-2"><span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-full text-[9px]">VIP Lead</span></div>
+                    <div className="col-span-4 font-bold text-white">Rahul Sharma</div>
+                    <div className="col-span-4 font-mono text-slate-400">+91 98765 43210</div>
+                    <div className="col-span-2"><span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-full text-[9px]">VIP Lead</span></div>
                     <div className="col-span-2 text-right text-emerald-400 text-[10px] font-bold">Valid</div>
                   </div>
                   <div className="grid grid-cols-12 p-2.5 items-center bg-white/[0.02]">
-                    <div className="col-span-4 font-bold text-fg">Sarah Jenkins</div>
-                    <div className="col-span-4 font-mono text-muted">+1 415 555 0199</div>
-                    <div className="col-span-2"><span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-[9px]">Customer</span></div>
+                    <div className="col-span-4 font-bold text-white">Sarah Jenkins</div>
+                    <div className="col-span-4 font-mono text-slate-400">+1 415 555 0199</div>
+                    <div className="col-span-2"><span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full text-[9px]">Customer</span></div>
                     <div className="col-span-2 text-right text-emerald-400 text-[10px] font-bold">Valid</div>
                   </div>
                 </div>
@@ -319,13 +332,13 @@ export function InteractiveShowcase() {
           {/* STEP 4: SEND MESSAGES / CAMPAIGNS */}
           {activeTab === 3 && (
             <div className="space-y-3 animate-in fade-in zoom-in-95 duration-300">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 border border-glass-border rounded-xl bg-glass-card/30 overflow-hidden">
-                <div className="border-r border-glass-border p-2.5 space-y-2 hidden md:block">
-                  <div className="p-2 bg-fg text-bg rounded-lg text-xs font-bold flex items-center justify-between">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div className="border-r border-white/10 p-2.5 space-y-2 hidden md:block">
+                  <div className="p-2 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center justify-between">
                     <span>Rahul Sharma</span>
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   </div>
-                  <div className="p-2 hover:bg-white/5 rounded-lg text-xs text-muted font-medium flex items-center justify-between">
+                  <div className="p-2 hover:bg-white/5 rounded-lg text-xs text-slate-400 font-medium flex items-center justify-between">
                     <span>Sarah Jenkins</span>
                     <span className="text-[9px]">10:14 AM</span>
                   </div>
@@ -334,29 +347,29 @@ export function InteractiveShowcase() {
                 <div className="md:col-span-2 p-3 flex flex-col justify-between min-h-[200px]">
                   <div className="space-y-2">
                     <div className="flex justify-start">
-                      <div className="bg-glass-card border border-glass-border rounded-xl rounded-bl-none p-2.5 max-w-[85%] text-xs text-fg">
+                      <div className="bg-white/10 border border-white/10 rounded-xl rounded-bl-none p-2.5 max-w-[85%] text-xs text-slate-200">
                         Hi, has my order #8872 dispatched?
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <div className="bg-fg text-bg rounded-xl rounded-br-none p-2.5 max-w-[85%] text-xs font-medium">
+                      <div className="bg-indigo-600 text-white rounded-xl rounded-br-none p-2.5 max-w-[85%] text-xs font-medium">
                         Yes Rahul! Your order #8872 has been dispatched via Express delivery.
-                        <div className="flex items-center justify-end gap-1 mt-1 text-[8px] opacity-70">
+                        <div className="flex items-center justify-end gap-1 mt-1 text-[8px] opacity-80">
                           <span>10:42 AM</span>
-                          <CheckCheck className="w-3 h-3 text-indigo-400" />
+                          <CheckCheck className="w-3 h-3 text-emerald-300" />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-glass-border flex items-center gap-2">
+                  <div className="mt-3 pt-2 border-t border-white/10 flex items-center gap-2">
                     <input 
                       type="text" 
                       readOnly 
                       value="Type a message or pick template..." 
-                      className="flex-1 bg-glass-input border border-glass-border rounded-lg px-3 py-1.5 text-xs text-fg/40"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-400"
                     />
-                    <button className="p-1.5 bg-fg text-bg rounded-lg shrink-0">
+                    <button className="p-1.5 bg-indigo-600 text-white rounded-lg shrink-0">
                       <Send className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -368,26 +381,26 @@ export function InteractiveShowcase() {
           {/* STEP 5: TRACK DELIVERY */}
           {activeTab === 4 && (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
-              <div className="bg-glass-card/60 border border-glass-border rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-glass-border pb-2">
-                  <h4 className="text-xs font-black text-fg flex items-center gap-2">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <h4 className="text-xs font-black text-white flex items-center gap-2">
                     Campaign: Q3 Product Launch Broadcast
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black rounded-full uppercase">100% Sent</span>
+                    <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black rounded-full uppercase">100% Sent</span>
                   </h4>
-                  <span className="text-[10px] font-mono text-muted">340 / 340 Dispatched</span>
+                  <span className="text-[10px] font-mono text-slate-400">340 / 340 Dispatched</span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-glass-input/50 p-2.5 rounded-lg border border-glass-border text-center">
-                    <span className="text-[9px] font-black uppercase text-muted block">Sent Ticks</span>
-                    <span className="text-base font-black text-fg">340</span>
+                  <div className="bg-white/5 p-2.5 rounded-lg border border-white/10 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Sent Ticks</span>
+                    <span className="text-base font-black text-white">340</span>
                   </div>
-                  <div className="bg-glass-input/50 p-2.5 rounded-lg border border-glass-border text-center">
-                    <span className="text-[9px] font-black uppercase text-muted block">Delivered</span>
+                  <div className="bg-white/5 p-2.5 rounded-lg border border-white/10 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Delivered</span>
                     <span className="text-base font-black text-emerald-400">338</span>
                   </div>
-                  <div className="bg-glass-input/50 p-2.5 rounded-lg border border-glass-border text-center">
-                    <span className="text-[9px] font-black uppercase text-muted block">Read Rate</span>
+                  <div className="bg-white/5 p-2.5 rounded-lg border border-white/10 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Read Rate</span>
                     <span className="text-base font-black text-indigo-400">92%</span>
                   </div>
                 </div>
@@ -396,7 +409,7 @@ export function InteractiveShowcase() {
           )}
 
           {/* Footer Status Bar of Mockup */}
-          <div className="mt-3 pt-2 border-t border-glass-border/60 flex items-center justify-between text-[10px] text-muted font-mono">
+          <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-400 font-mono">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3 h-3 text-emerald-400" /> PingStack Direct Meta Cloud API Engine
             </span>

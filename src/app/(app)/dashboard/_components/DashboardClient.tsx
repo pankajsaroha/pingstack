@@ -18,6 +18,7 @@ import PlanLimitsCard from './PlanLimitsCard';
 import PerformanceChart from './PerformanceChart';
 import ConnectionManager from './ConnectionManager';
 import BillingModal from './BillingModal';
+import OnboardingChecklist from './OnboardingChecklist';
 
 const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
 const DeveloperPortal = lazy(() => import('./DeveloperPortal'));
@@ -366,13 +367,30 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
   const whatsappAccount = tenant?.whatsapp_account;
   const isConnected = whatsappAccount?.status === 'ACTIVE' || whatsappAccount?.status === 'CONNECTED';
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const getFirstName = (name?: string) => {
+    if (!name) return '';
+    const first = name.trim().split(/\s+/)[0];
+    if (!first) return '';
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  };
+
+  const firstName = getFirstName(tenant?.user_name);
+  const greeting = getGreeting();
+
   return (
     <div className="animate-in fade-in duration-700 max-w-6xl mx-auto p-4 sm:p-6 text-left">
       {/* Header Panel */}
       <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-fg sm:text-4xl">
-            Welcome back, {tenant?.user_name || 'User'}!
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-fg">
+            {greeting}{firstName ? `, ${firstName}` : ''}
           </h1>
           <p className="text-muted mt-2 text-base font-semibold">
             {tenant?.name || 'Workspace'} &bull; {isConnected ? 'Your official Meta Cloud API infrastructure is online.' : 'Link your Meta Business profile to launch notifications.'}
@@ -385,6 +403,13 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
           </div>
         )}
       </div>
+
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist 
+        tenant={tenant}
+        stats={stats}
+        isConnected={isConnected}
+      />
 
       {/* Tab selector */}
       <div className="flex border-b border-glass-border mb-8">
