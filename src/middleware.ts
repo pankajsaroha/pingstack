@@ -91,7 +91,9 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    return NextResponse.redirect(new URL('/login', request.url));
+    const redirectRes = NextResponse.redirect(new URL('/login', request.url));
+    redirectRes.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    return redirectRes;
   }
 
   const payload = await verifyToken(token);
@@ -99,7 +101,9 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
-    return NextResponse.redirect(new URL('/login', request.url));
+    const redirectRes = NextResponse.redirect(new URL('/login', request.url));
+    redirectRes.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    return redirectRes;
   }
 
   const requestHeaders = new Headers(request.headers);
@@ -107,11 +111,18 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-user-id', payload.userId);
   requestHeaders.set('x-user-role', payload.role);
 
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+
+  // Prevent browser back-button caching (BFCache) of protected routes
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  response.headers.set('Pragma', 'no-cache');
+  response.headers.set('Expires', '0');
+
+  return response;
 }
 
 export const config = {

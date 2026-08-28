@@ -248,6 +248,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
   const handleFinishOnboarding = async () => {
     if (!selectedWaba || !selectedPhone) return;
     setConnecting(true);
+    setError(null);
     try {
       const res = await fetch('/api/whatsapp/meta/finish', {
         method: 'POST',
@@ -261,11 +262,15 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       });
       const data = await res.json();
       if (res.ok) {
-        setToast({ message: 'Setup completed successfully!', type: 'success' });
-        setIsSwitching(false);
+        fireToast('Setup completed successfully! WhatsApp Business account linked.', 'success');
         setError(null);
         await refreshTenantAndStats();
-        window.location.reload();
+        setTimeout(() => {
+          setIsSwitching(false);
+          setDiscovery(null);
+          setTempToken('');
+          window.location.reload();
+        }, 1000);
       } else {
         setError(data.message || data.error || 'Finalization failed');
       }

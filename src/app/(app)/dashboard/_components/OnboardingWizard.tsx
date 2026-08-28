@@ -314,9 +314,16 @@ export default function OnboardingWizard({
                         <button
                           onClick={onFinishOnboarding}
                           disabled={connecting || !selectedPhone}
-                          className="w-full bg-fg text-bg hover:opacity-90 disabled:opacity-40 disabled:text-muted h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center"
+                          className="w-full bg-fg text-bg hover:opacity-90 disabled:opacity-40 disabled:text-muted h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center shadow-lg"
                         >
-                          {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Complete Setup'}
+                          {connecting ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Completing Setup...</span>
+                            </span>
+                          ) : (
+                            'Complete Setup'
+                          )}
                         </button>
 
                         <button

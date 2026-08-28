@@ -24,6 +24,23 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
     const saved = localStorage.getItem('sidebar-collapsed');
     if (saved !== null) setIsCollapsed(saved === 'true');
     setMounted(true);
+
+    // Security: Detect browser back/forward cache (BFCache) restorations
+    const handlePageShow = async (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        try {
+          const res = await fetch('/api/tenant/me', { cache: 'no-store' });
+          if (!res.ok) {
+            window.location.replace('/login');
+          }
+        } catch {
+          window.location.replace('/login');
+        }
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
   const [isRegistering, setIsRegistering] = useState(false);
@@ -54,7 +71,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
     await setSupabaseSession(null);
-    router.push('/');
+    window.location.replace('/login');
   };
 
   if (!mounted) {
