@@ -248,6 +248,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
   const handleFinishOnboarding = async () => {
     if (!selectedWaba || !selectedPhone) return;
     setConnecting(true);
+    setError(null);
     try {
       const res = await fetch('/api/whatsapp/meta/finish', {
         method: 'POST',
@@ -261,11 +262,15 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       });
       const data = await res.json();
       if (res.ok) {
-        setToast({ message: 'Setup completed successfully!', type: 'success' });
-        setIsSwitching(false);
+        fireToast('Setup completed successfully! WhatsApp Business account linked.', 'success');
         setError(null);
         await refreshTenantAndStats();
-        window.location.reload();
+        setTimeout(() => {
+          setIsSwitching(false);
+          setDiscovery(null);
+          setTempToken('');
+          window.location.reload();
+        }, 1000);
       } else {
         setError(data.message || data.error || 'Finalization failed');
       }
@@ -386,22 +391,30 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
 
   return (
     <div className="animate-in fade-in duration-700 max-w-6xl mx-auto p-4 sm:p-6 text-left">
-      {/* Header Panel */}
-      <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-fg">
-            {greeting}{firstName ? `, ${firstName}` : ''}
-          </h1>
-          <p className="text-muted mt-2 text-base font-semibold">
-            {tenant?.name || 'Workspace'} &bull; {isConnected ? 'Your official Meta Cloud API infrastructure is online.' : 'Link your Meta Business profile to launch notifications.'}
-          </p>
-        </div>
-        {isConnected && (
-          <div className="flex items-center self-start px-5 py-2.5 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10 text-green-700 dark:text-green-400 rounded-2xl text-sm font-bold border border-green-200/80 dark:border-green-800/40 shadow-sm shadow-green-500/[0.02] transition-all hover:scale-[1.01] cursor-default">
-            <CheckCircle2 className="w-5 h-5 mr-2 text-green-700 dark:text-green-400" />
-            Active Connection
+      {/* Clean Luxury Glass Header Banner */}
+      <div className="bg-glass-card border border-glass-border p-8 mb-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded-full text-[9px] font-black uppercase tracking-widest mb-3">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span>Workspace Infrastructure</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-fg">
+              {greeting}{firstName ? `, ${firstName}` : ''}
+            </h1>
+            <p className="text-muted text-xs sm:text-sm font-semibold mt-1">
+              {tenant?.name || 'Workspace'} &bull; {isConnected ? 'Official Meta Cloud API infrastructure is online & ready.' : 'Link Meta Business profile to launch broadcasts.'}
+            </p>
           </div>
-        )}
+
+          {isConnected && (
+            <div className="flex items-center self-start sm:self-center px-5 py-2.5 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 rounded-2xl text-xs font-black uppercase tracking-widest border border-emerald-500/40 dark:border-emerald-500/30 backdrop-blur-md shadow-md shadow-emerald-500/10 transition-all hover:scale-[1.02] cursor-default shrink-0">
+              <CheckCircle2 className="w-4.5 h-4.5 mr-2 text-emerald-600 dark:text-emerald-400" />
+              Active Connection
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Onboarding Checklist */}

@@ -157,10 +157,31 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
             <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading groups directory...</p>
           </div>
         ) : groups.length === 0 ? (
-          <div className="col-span-full bg-glass-card border border-glass-border p-12 mt-4 rounded-[2.5rem] text-center shadow-xl">
-            <Folder className="mx-auto h-12 w-12 text-fg/20 mb-4 animate-pulse-slow" />
-            <h3 className="text-base font-black text-fg mb-1">No Active Groups</h3>
-            <p className="text-xs text-muted max-w-xs mx-auto leading-relaxed">Create a new group to segment your contacts directory lists.</p>
+          <div className="col-span-full relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card mt-4 group">
+            <img 
+              src="/images/contacts_groups.jpg" 
+              alt="Group Audience Segmentation" 
+              loading="lazy"
+              decoding="async"
+              className="w-full h-[260px] sm:h-[300px] object-cover filter brightness-[0.75] group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 flex flex-col justify-end items-start text-left">
+              <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black uppercase rounded-full tracking-widest mb-3">
+                Audience Segmentation
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Active Groups</h3>
+              <p className="text-xs text-slate-300 font-medium max-w-md mt-1 leading-relaxed">
+                Create contact distribution groups to segment your outreach campaigns by customer tier or tags.
+              </p>
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-5 py-2.5 bg-fg text-bg rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-lg"
+                >
+                  + Create Group
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           groups.map((group) => (

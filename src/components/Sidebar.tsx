@@ -30,8 +30,8 @@ export function Sidebar({
   const handleLogout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
     await setSupabaseSession(null);
-    router.push('/');
-  }, [router]);
+    window.location.replace('/login');
+  }, []);
 
   return (
     <div className={`group/sidebar transition-all duration-300 ease-in-out ${

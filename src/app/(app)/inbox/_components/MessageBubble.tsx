@@ -120,7 +120,9 @@ export default function MessageBubble({
                       <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> META GATEWAY ERROR
                     </div>
                     <div className="leading-relaxed text-fg/60 font-semibold lowercase">
-                      {msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}
+                      {msg.error?.includes('131049')
+                        ? 'Meta Per-User Marketing Limit Reached (Code 131049). Meta caps marketing messages sent to this recipient within 24-48h to prevent spam. Use a Utility template or retry in 24-48h.'
+                        : msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}
                     </div>
                   </div>
                 </div>

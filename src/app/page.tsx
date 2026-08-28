@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { 
   ArrowRight, CheckCircle2, Zap, BarChart3, Shield,
   Smartphone, Globe, LockIcon, Sparkles, MessageSquare, Users, Send, ChevronDown,
-  Calendar, Paperclip, Code2, Webhook, LayoutTemplate, HelpCircle
+  Calendar, Paperclip, Code2, Webhook, LayoutTemplate, HelpCircle, CheckCheck,
+  Check, Image as ImageIcon, FileText, Layers, TrendingUp, ShieldCheck
 } from 'lucide-react';
 import { LandingNav } from '@/components/LandingNav';
 import { LandingFooter } from '@/components/LandingFooter';
@@ -96,108 +97,78 @@ export default function Home() {
       <LandingNav onOpenAuth={setModalType} />
 
       {/* Hero Section */}
-      <section className="relative pt-28 md:pt-36 pb-12 px-6 z-10">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center space-x-2 px-4 py-1.5 bg-glass-card border border-glass-border rounded-full mb-6 backdrop-blur-md shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">WhatsApp Business Messaging SaaS</span>
-          </div>
-          
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight mb-6 leading-[1.15] max-w-4xl mx-auto text-fg">
-            Your business. Your customers. <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 dark:from-blue-400 dark:via-indigo-400 dark:to-emerald-300">
-              One WhatsApp workspace.
-            </span>
-          </h1>
-          
-          <p className="text-xs sm:text-base text-muted font-medium max-w-2xl mx-auto mb-8 leading-relaxed">
-            Connect your WhatsApp Business account, create approved templates, send targeted campaigns, manage customer conversations, and track real-time delivery ticks in one unified platform.
-          </p>
+      <section className="relative pt-28 md:pt-36 pb-16 px-6 z-10">
+        <div className="max-w-5xl mx-auto text-center relative">
+          {/* Multi-Color Bright Aurora Glow Mesh */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-4xl h-72 bg-gradient-to-r from-cyan-400/40 via-indigo-500/35 to-emerald-400/40 dark:from-cyan-500/30 dark:via-purple-500/35 dark:to-emerald-400/30 rounded-full blur-[80px] pointer-events-none z-0 animate-pulse-slow" />
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 min-h-[52px]">
-            {loading ? (
-              <div className="h-14 w-56 bg-fg/5 border border-glass-border rounded-2xl animate-pulse" />
-            ) : tenant ? (
-              <button 
-                onClick={() => router.push('/dashboard')}
-                className="w-full sm:w-auto px-8 py-4 bg-fg text-bg rounded-2xl font-black text-xs uppercase tracking-[0.18em] shadow-lg hover:bg-fg/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center group cursor-pointer"
-              >
-                Go to Dashboard
-                <ArrowRight className="w-4 h-4 ml-2.5 group-hover:translate-x-1 transition-transform" />
-              </button>
-            ) : (
-              <>
+          {/* Luxury Frosted Glass Spotlight Card */}
+          <div className="relative z-10 bg-white/50 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/70 dark:border-white/10 p-8 sm:p-12 rounded-[3rem] shadow-2xl shadow-indigo-500/10 dark:shadow-none">
+            <div className="inline-flex items-center space-x-2 px-4 py-1.5 bg-white/80 dark:bg-white/10 border border-white/80 dark:border-white/15 rounded-full mb-6 backdrop-blur-md shadow-sm">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-950 dark:text-indigo-200">WhatsApp Business Messaging SaaS</span>
+            </div>
+            
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight mb-6 leading-[1.15] max-w-4xl mx-auto text-fg">
+              Your business. Your customers. <br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 dark:from-cyan-300 dark:via-indigo-300 dark:to-emerald-300">
+                One WhatsApp workspace.
+              </span>
+            </h1>
+            
+            <p className="text-xs sm:text-base text-fg/80 dark:text-muted font-medium max-w-2xl mx-auto mb-8 leading-relaxed">
+              Connect your WhatsApp Business account, create approved templates, send targeted campaigns, manage customer conversations, and track real-time delivery ticks in one unified platform.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 min-h-[52px]">
+              {loading ? (
+                <div className="h-14 w-56 bg-fg/5 border border-glass-border rounded-2xl animate-pulse" />
+              ) : tenant ? (
                 <button 
-                  onClick={() => setModalType('register')}
+                  onClick={() => router.push('/dashboard')}
                   className="w-full sm:w-auto px-8 py-4 bg-fg text-bg rounded-2xl font-black text-xs uppercase tracking-[0.18em] shadow-lg hover:bg-fg/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center group cursor-pointer"
                 >
-                  Start for free
+                  Go to Dashboard
                   <ArrowRight className="w-4 h-4 ml-2.5 group-hover:translate-x-1 transition-transform" />
                 </button>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => setModalType('register')}
+                    className="w-full sm:w-auto px-8 py-4 bg-fg text-bg rounded-2xl font-black text-xs uppercase tracking-[0.18em] shadow-lg hover:bg-fg/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center group cursor-pointer"
+                  >
+                    Start for free
+                    <ArrowRight className="w-4 h-4 ml-2.5 group-hover:translate-x-1 transition-transform" />
+                  </button>
 
-                <button 
-                  onClick={scrollToShowcase}
-                  className="w-full sm:w-auto px-6 py-4 bg-glass-card border border-glass-border hover:bg-glass-card/60 text-fg rounded-2xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer"
-                >
-                  <span>See how it works</span>
-                  <ChevronDown className="w-4 h-4 ml-2 text-indigo-400" />
-                </button>
-              </>
-            )}
-          </div>
+                  <button 
+                    onClick={scrollToShowcase}
+                    className="w-full sm:w-auto px-6 py-4 bg-white/80 dark:bg-glass-card border border-white/80 dark:border-glass-border hover:bg-white text-fg rounded-2xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                  >
+                    <span>See how it works</span>
+                    <ChevronDown className="w-4 h-4 ml-2 text-indigo-500 dark:text-indigo-400" />
+                  </button>
+                </>
+              )}
+            </div>
 
-          {/* Product UI Visual Preview directly in Hero */}
-          <div className="mt-14 max-w-4xl mx-auto rounded-3xl border border-glass-border bg-glass-card p-3 shadow-2xl backdrop-blur-xl relative overflow-hidden group">
-            <div className="bg-[#0b0d14] rounded-2xl p-4 sm:p-6 border border-white/5 text-left text-xs font-mono">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                  <span className="text-[10px] text-slate-400 ml-2 font-sans font-bold">PingStack Workspace — Live Dashboard</span>
-                </div>
-                <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] rounded-full font-bold">
-                  ● WhatsApp Connected
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Sent Messages</span>
-                  <span className="text-lg font-bold text-white font-sans">12,450</span>
-                </div>
-                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Delivered</span>
-                  <span className="text-lg font-bold text-emerald-400 font-sans">99.2%</span>
-                </div>
-                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Read Ticks</span>
-                  <span className="text-lg font-bold text-indigo-400 font-sans">91.5%</span>
-                </div>
-                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <span className="text-[9px] text-slate-400 uppercase block font-sans">Active Contacts</span>
-                  <span className="text-lg font-bold text-white font-sans">1,820</span>
-                </div>
-              </div>
+            {/* Social Proof & Capabilities Strip */}
+            <div className="mt-10 pt-6 border-t border-fg/10 dark:border-white/10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[10px] sm:text-xs font-bold text-fg/70 dark:text-muted">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" /> Meta Embedded Signup
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" /> Direct Cloud API Delivery
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" /> Pre-Approved Templates
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" /> Real-Time Live Inbox
+              </span>
             </div>
           </div>
-
-          {/* Social Proof & Capabilities Strip */}
-          <div className="mt-10 pt-6 border-t border-glass-border/60 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[10px] sm:text-xs font-bold text-muted">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Meta Embedded Signup
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-indigo-400" /> Direct Cloud API Delivery
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-blue-400" /> Pre-Approved Templates
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Real-Time Live Inbox
-            </span>
-          </div>
-
         </div>
       </section>
 
@@ -206,64 +177,227 @@ export default function Home() {
         <InteractiveShowcase />
       </section>
 
-      {/* CORE FEATURES SECTION */}
+      {/* FEATURE VISUAL SHOWCASE 1: LIVE INBOX & TEMPLATES */}
       <section className="py-20 px-6 relative z-10 border-t border-glass-border bg-glass-card/10 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 mb-3">Core Platform Capabilities</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 mb-3">Engineered for Performance</h2>
+            <h3 className="text-3xl sm:text-4xl font-black tracking-tight text-fg">Complete WhatsApp workspace tools</h3>
+          </div>
+
+          {/* Luxury Visual Showcase Grid */}
+          <div className="space-y-16">
+            {/* Visual Block 1: Dark Mode Live Streaming Inbox */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center bg-glass-card border border-glass-border p-8 sm:p-12 rounded-[2.5rem] shadow-2xl backdrop-blur-xl">
+              <div className="lg:col-span-5 space-y-6">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Live Customer Support</span>
+                  <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-fg mt-1">Real-Time Dark Mode Streaming Inbox</h3>
+                </div>
+                <p className="text-muted text-xs sm:text-sm font-medium leading-relaxed">
+                  Engage customers 1-on-1 with zero latency. Instantly manage two-way conversations, assign contacts, dispatch pre-approved templates, and view read status in real-time.
+                </p>
+                <ul className="space-y-2.5 text-xs text-fg/80 font-bold">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Live WebSocket conversation updates
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Quick template selector & variable injector
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Media attachments (images, PDFs, documents)
+                  </li>
+                </ul>
+              </div>
+
+              {/* Photo & Graphic Hybrid Card */}
+              <div className="lg:col-span-7 relative group">
+                <div className="relative rounded-3xl overflow-hidden border border-glass-border shadow-2xl bg-glass-card">
+                  <img 
+                    src="/images/customer_success.jpg" 
+                    alt="Customer Success Specialist" 
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-[340px] sm:h-[380px] object-cover object-top filter brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  
+                  {/* Overlay Floating Glass Chat Badge */}
+                  <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl text-white">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Live Support Active</span>
+                      </div>
+                      <span className="text-[9px] font-mono text-slate-300">Response: &lt; 30s</span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-100">"PingStack allowed us to respond to customer WhatsApp inquiries 5x faster."</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Visual Block 2: Meta Pre-Approved Templates & Broadcaster */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center bg-glass-card border border-glass-border p-8 sm:p-12 rounded-[2.5rem] shadow-2xl backdrop-blur-xl">
+              {/* Photo & Graphic Hybrid Card */}
+              <div className="lg:col-span-7 relative group order-2 lg:order-1">
+                <div className="relative rounded-3xl overflow-hidden border border-glass-border shadow-2xl bg-glass-card">
+                  <img 
+                    src="/images/business_owner.jpg" 
+                    alt="Business Owner using WhatsApp SaaS" 
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-[340px] sm:h-[380px] object-cover object-center filter brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  
+                  {/* Overlay Floating Meta Approval Badge */}
+                  <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl text-white flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
+                        ✓
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-white uppercase tracking-wider">Meta Template Verified</h4>
+                        <p className="text-[10px] text-slate-300 font-mono">Status: Approved • 100% Delivery Rate</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black rounded-full uppercase">
+                      Meta Cloud API
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-5 space-y-6 order-1 lg:order-2">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <LayoutTemplate className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Approved Messaging</span>
+                  <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-fg mt-1">Pre-Approved Meta Templates</h3>
+                </div>
+                <p className="text-muted text-xs sm:text-sm font-medium leading-relaxed">
+                  Submit templates directly to Meta Cloud API from PingStack. Add dynamic variables, quick action buttons, header images, and document attachments for rich interactive outreach.
+                </p>
+                <ul className="space-y-2.5 text-xs text-fg/80 font-bold">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> Direct submission to Meta review pipeline
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> Dynamic variables ({"{{1}}"}, {"{{2}}"})
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> Interactive CTA & Quick Reply action buttons
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Visual Block 3: Team Collaboration & Trust */}
+            <div className="relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card group">
+              <img 
+                src="/images/team_collaboration.jpg" 
+                alt="Modern Tech Team Collaborating" 
+                loading="lazy"
+                decoding="async"
+                className="w-full h-[360px] sm:h-[420px] object-cover filter brightness-[0.85] group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/40 p-8 sm:p-14 flex flex-col justify-between">
+                <div className="max-w-xl space-y-4">
+                  <div className="inline-flex items-center space-x-2 px-3 py-1 bg-white/10 border border-white/20 rounded-full text-white text-[10px] font-black uppercase tracking-widest">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Trusted by 1,000+ Teams</span>
+                  </div>
+                  <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+                    Scale customer engagement with confidence
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
+                    Whether you manage a support team of 2 or a growth team broadcasting to 100,000 customers, PingStack gives you direct Meta Cloud API performance with zero setup hassle.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-white/15 max-w-3xl">
+                  <div>
+                    <span className="text-xl sm:text-2xl font-black text-white block">99.9%</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Uptime SLA</span>
+                  </div>
+                  <div>
+                    <span className="text-xl sm:text-2xl font-black text-emerald-400 block">&lt; 1 Sec</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">API Latency</span>
+                  </div>
+                  <div>
+                    <span className="text-xl sm:text-2xl font-black text-indigo-400 block">100%</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Meta Compliant</span>
+                  </div>
+                  <div>
+                    <span className="text-xl sm:text-2xl font-black text-white block">24/7</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Live Support</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid of 10 Platform Capabilities */}
+          <div className="mt-16 text-center mb-12">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 mb-3">Enterprise Core</h2>
             <h3 className="text-3xl sm:text-4xl font-black tracking-tight text-fg">Built for complete WhatsApp messaging management</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard 
               icon={<Smartphone className="w-5 h-5 text-emerald-400" />}
-              title="WhatsApp Business Integration"
+              title="Embedded Onboarding"
               desc="Connect your official Meta WhatsApp Business profile easily with automated setup and number verification."
             />
             <FeatureCard 
-              icon={<LayoutTemplate className="w-5 h-5 text-indigo-400" />}
-              title="Message Templates"
-              desc="Create, sync, and dispatch Meta-approved message templates with dynamic header variables and quick action buttons."
+              icon={<ShieldCheck className="w-5 h-5 text-indigo-400" />}
+              title="Official Meta Cloud API"
+              desc="Direct connection to Meta Cloud API infrastructure guaranteeing low latency and 100% compliance."
             />
             <FeatureCard 
-              icon={<Users className="w-5 h-5 text-blue-400" />}
-              title="Contacts & Segmentation"
-              desc="Organize audience phone numbers into dynamic targeted lists with custom tags and country code validation."
-            />
-            <FeatureCard 
-              icon={<Send className="w-5 h-5 text-indigo-400" />}
-              title="Campaign Broadcasts"
-              desc="Launch batch WhatsApp broadcast campaigns to targeted groups with real-time progress monitors."
+              icon={<LayoutTemplate className="w-5 h-5 text-blue-400" />}
+              title="Pre-Approved Templates"
+              desc="Create, sync, and dispatch Meta-approved message templates with dynamic header variables and action CTA buttons."
             />
             <FeatureCard 
               icon={<MessageSquare className="w-5 h-5 text-emerald-400" />}
-              title="Inbox & Conversations"
+              title="Interactive 1-on-1 Inbox"
               desc="Engage customers in 1-on-1 real-time conversations from a unified dark-mode streaming inbox."
             />
             <FeatureCard 
-              icon={<BarChart3 className="w-5 h-5 text-indigo-400" />}
-              title="Delivery Reports"
+              icon={<Users className="w-5 h-5 text-indigo-400" />}
+              title="Audience Segmentation"
+              desc="Organize audience phone numbers into dynamic targeted lists with custom tags and country code validation."
+            />
+            <FeatureCard 
+              icon={<BarChart3 className="w-5 h-5 text-blue-400" />}
+              title="Real-Time Analytics"
               desc="Track real-time sent, delivered, read double-ticks, and failed delivery logs across all campaigns."
             />
             <FeatureCard 
-              icon={<Calendar className="w-5 h-5 text-blue-400" />}
+              icon={<Calendar className="w-5 h-5 text-emerald-400" />}
               title="Campaign Scheduling"
-              desc="Schedule broadcast campaigns for future dispatch dates and optimal timezones."
+              desc="Schedule broadcast outreach campaigns for optimal time zones with automated queue processing."
             />
             <FeatureCard 
-              icon={<Paperclip className="w-5 h-5 text-purple-400" />}
+              icon={<Paperclip className="w-5 h-5 text-indigo-400" />}
               title="Media & Attachments"
-              desc="Send images, PDF documents, videos, and dynamic media headers directly through WhatsApp templates."
+              desc="Send rich media attachments including images, PDFs, catalogs, and document files directly to contacts."
             />
             <FeatureCard 
-              icon={<Code2 className="w-5 h-5 text-indigo-400" />}
+              icon={<Code2 className="w-5 h-5 text-blue-400" />}
               title="Developer REST API"
-              desc="Integrate PingStack message dispatch into your existing app or CRM via clean REST API endpoints."
+              desc="Integrate PingStack into your existing stack using clean REST API endpoints for automated transactional messaging."
             />
             <FeatureCard 
               icon={<Webhook className="w-5 h-5 text-emerald-400" />}
               title="Real-Time Webhooks"
-              desc="Receive instant HTTP callback notifications for incoming customer messages and delivery receipts."
+              desc="Receive real-time event webhooks for inbound messages, delivery status changes, and customer opt-outs."
             />
           </div>
         </div>
@@ -458,11 +592,12 @@ export default function Home() {
 
 function FeatureCard({ icon, title, desc }: { icon: React.ReactNode; title: string, desc: string }) {
   return (
-    <div className="p-6 rounded-2xl bg-glass-card border border-glass-border hover:bg-glass-card/60 transition-all duration-300 shadow-md group">
-      <div className="w-10 h-10 bg-glass-input border border-glass-border rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+    <div className="p-6 rounded-2xl bg-glass-card border border-glass-border hover:border-indigo-500/40 hover:bg-glass-card/80 transition-all duration-500 shadow-md hover:shadow-2xl hover:-translate-y-1.5 group relative overflow-hidden">
+      <div className="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
+      <div className="w-10 h-10 bg-glass-input border border-glass-border rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/30 transition-all duration-300 shadow-sm">
         {icon}
       </div>
-      <h4 className="text-base font-black mb-2 tracking-tight text-fg">{title}</h4>
+      <h4 className="text-base font-black mb-2 tracking-tight text-fg group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">{title}</h4>
       <p className="text-muted text-xs font-medium leading-relaxed">{desc}</p>
     </div>
   );
