@@ -314,10 +314,31 @@ export default function ContactsClient({
             <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading contacts directory...</p>
           </div>
         ) : contacts.length === 0 ? (
-          <div className="p-20 text-center flex flex-col items-center justify-center opacity-30">
-            <Globe className="w-12 h-12 text-fg mb-4 animate-pulse-slow" />
-            <p className="text-sm font-black uppercase tracking-widest text-fg/60">No Contacts Found</p>
-            <p className="text-xs text-muted mt-2 max-w-xs mx-auto leading-relaxed">Import contacts using Excel, CSV templates or sync your Google Contacts.</p>
+          <div className="relative rounded-b-[2.5rem] overflow-hidden border-t border-glass-border shadow-2xl bg-glass-card group">
+            <img 
+              src="/images/contacts_groups.jpg" 
+              alt="Contacts Directory Management" 
+              loading="lazy"
+              decoding="async"
+              className="w-full h-[260px] sm:h-[300px] object-cover filter brightness-[0.75] group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 flex flex-col justify-end items-start text-left">
+              <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black uppercase rounded-full tracking-widest mb-3">
+                Audience Directory
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Contacts Found</h3>
+              <p className="text-xs text-slate-300 font-medium max-w-md mt-1 leading-relaxed">
+                Import customer phone numbers using CSV spreadsheets or sync your Google Contacts directory.
+              </p>
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="px-5 py-2.5 bg-fg text-bg rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-lg"
+                >
+                  + Add Contact
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <>

@@ -102,20 +102,22 @@ export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: 
         </div>
       </div>
 
-      {/* API Guidebook */}
-      <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
-        <div>
-          <h3 className="text-lg font-black text-fg mb-4 flex items-center">
-            <Book className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
-            API Guidebook
-          </h3>
-          <p className="text-muted text-sm font-semibold leading-relaxed">
-            PingStack syncs templates in background. Reference endpoints or learn variables templates layouts implementation inside our developers portal docs.
+      {/* API Guidebook & Webhooks Specs Card */}
+      <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group flex flex-col justify-between">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none -mr-16 -mt-16" />
+        <div className="relative z-10">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded-full text-[9px] font-black uppercase tracking-widest mb-3">
+            <Book className="w-3 h-3" />
+            <span>Developer Specs &amp; Webhooks</span>
+          </div>
+          <h3 className="text-xl font-black text-fg mb-2">API Guidebook &amp; Infrastructure</h3>
+          <p className="text-muted text-xs font-semibold leading-relaxed">
+            Integrate custom webhooks, generate tenant API tokens, and dispatch bulk message payloads via REST API endpoints.
           </p>
         </div>
-        <div className="mt-8 pt-6 border-t border-glass-border">
-          <a href="/docs" className="inline-flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95">
-            Developer Manuals
+        <div className="relative z-10 mt-8 pt-6 border-t border-glass-border">
+          <a href="/docs" className="inline-flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95">
+            Open Developer Manuals &rarr;
           </a>
         </div>
       </div>
