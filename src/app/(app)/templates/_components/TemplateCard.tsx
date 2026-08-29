@@ -1,17 +1,19 @@
 'use client';
 
-import { Globe, Tag, LayoutTemplate } from 'lucide-react';
+import { Globe, Tag, LayoutTemplate, Pencil } from 'lucide-react';
 
 interface TemplateCardProps {
   template: any;
   selectedIds: Set<string>;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
+  onEditRejected?: (template: any) => void;
 }
 
 export default function TemplateCard({
   template,
   selectedIds,
   onToggleSelection,
+  onEditRejected,
 }: TemplateCardProps) {
   const isSelected = selectedIds.has(template.id);
 
@@ -34,7 +36,7 @@ export default function TemplateCard({
       <div className="flex flex-wrap items-center gap-3 mb-4 pr-10">
         <h3 className="text-xl font-black text-fg tracking-tight">{template.name}</h3>
 
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
             template.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
             template.status === 'REJECTED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
@@ -42,6 +44,20 @@ export default function TemplateCard({
           }`}>
             {template.status || 'PENDING'}
           </span>
+
+          {template.status !== 'APPROVED' && onEditRejected && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditRejected(template);
+              }}
+              className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center shadow-md ml-1"
+            >
+              <Pencil className="w-3 h-3 mr-1" />
+              Edit & Resubmit
+            </button>
+          )}
 
           <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-glass-input text-fg/50 border border-glass-border">
             <Globe className="w-3 h-3 mr-1.5" />

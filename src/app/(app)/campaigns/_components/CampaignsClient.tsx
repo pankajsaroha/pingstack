@@ -97,17 +97,22 @@ export default function CampaignsClient({
     name: string;
     template_id: string;
     group_id: string;
+    group_ids?: string[];
     scheduled_at: string | null;
     excelData: any[] | null;
     groupVarValues?: Record<string, string> | null;
   }) => {
+    const targetGroupIds = campaignData.group_ids && campaignData.group_ids.length > 0
+      ? campaignData.group_ids
+      : (campaignData.group_id === 'EXCEL' ? [] : [campaignData.group_id]);
+
     const cRes = await fetch('/api/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: campaignData.name,
         template_id: campaignData.template_id,
-        group_id: campaignData.group_id === 'EXCEL' ? null : campaignData.group_id,
+        group_id: targetGroupIds[0] || null,
         scheduled_at: campaignData.scheduled_at
       })
     });
@@ -121,7 +126,7 @@ export default function CampaignsClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: campaign.id,
-          groupIds: campaignData.group_id === 'EXCEL' ? [] : [campaignData.group_id],
+          groupIds: targetGroupIds,
           directData: campaignData.excelData,
           templateVariables: campaignData.groupVarValues || undefined
         })

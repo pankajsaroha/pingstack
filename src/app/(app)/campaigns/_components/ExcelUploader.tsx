@@ -51,29 +51,54 @@ export default function ExcelUploader({
     }
   };
 
+  const handleDownloadSample = () => {
+    const csvContent = "Name,Phone Number,Variable 1,Variable 2\nJohn Doe,919876543210,Sample Customer,Today\nJane Smith,919876543211,VIP Member,Discount20";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'pingstack_campaign_sample.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    onToast('Sample CSV template downloaded!', 'success');
+  };
+
   return (
-    <div className="space-y-3">
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className={`w-full py-3.5 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
-          excelData
-            ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400'
-            : 'border-glass-border hover:border-white/20 hover:bg-glass-input text-fg/50'
-        }`}
-      >
-        {excelData ? (
-          <>
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest">{excelData.length} Contacts Shared</span>
-          </>
-        ) : (
-          <>
-            <Upload className="w-5 h-5 text-muted" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-muted">Upload CSV/Excel</span>
-          </>
-        )}
-      </button>
+    <div className="space-y-3 text-left">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className={`flex-1 py-3.5 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
+            excelData
+              ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400'
+              : 'border-glass-border hover:border-white/20 hover:bg-glass-input text-fg/50'
+          }`}
+        >
+          {excelData ? (
+            <>
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest">{excelData.length} Contacts Uploaded</span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-5 h-5 text-muted" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted">Upload CSV/Excel</span>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDownloadSample}
+          className="px-4 py-3.5 border border-glass-border hover:bg-glass-input rounded-2xl text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider cursor-pointer transition-all flex flex-col items-center justify-center shrink-0"
+          title="Download Sample CSV Template"
+        >
+          <FileText className="w-4 h-4 mb-1" />
+          <span>Sample File</span>
+        </button>
+      </div>
 
       {needsVariables && (
         <div className="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10 text-left">
@@ -81,10 +106,10 @@ export default function ExcelUploader({
             <FileText className="w-3.5 h-3.5 mr-1.5" /> PERSONALIZATION METADATA
           </p>
           <p className="text-[10px] text-fg/50 font-bold leading-normal">
-            Variables detected. Upload file structure must be:
+            Variables detected. Spreadsheet column format must be:
           </p>
           <div className="mt-2 flex items-center space-x-2 text-[8px] font-mono bg-black/60 border border-glass-border p-2 rounded-lg text-indigo-300">
-            <span>Col A: Phone</span>
+            <span>Col A: Phone Number</span>
             <span className="text-fg/20">|</span>
             <span>Col B: Var 1</span>
             <span className="text-fg/20">|</span>

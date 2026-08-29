@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Loader2, Sparkles, FileSpreadsheet } from 'lucide-react';
+import { X, Loader2, Sparkles, FileSpreadsheet, ChevronDown, Check } from 'lucide-react';
 import ExcelUploader from './ExcelUploader';
 
 interface CreateCampaignModalProps {
@@ -15,6 +15,7 @@ interface CreateCampaignModalProps {
     name: string;
     template_id: string;
     group_id: string;
+    group_ids?: string[];
     scheduled_at: string | null;
     excelData: any[] | null;
     groupVarValues?: Record<string, string> | null;
@@ -32,7 +33,11 @@ export default function CreateCampaignModal({
 }: CreateCampaignModalProps) {
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState('');
-  const [groupId, setGroupId] = useState(initialGroupId || '');
+  const [recipientSource, setRecipientSource] = useState<'GROUPS' | 'EXCEL'>('GROUPS');
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
+    initialGroupId && initialGroupId !== 'EXCEL' ? [initialGroupId] : []
+  );
+  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [excelData, setExcelData] = useState<any[] | null>(null);
@@ -71,15 +76,20 @@ export default function CreateCampaignModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !templateId || !groupId) return;
+    if (!name || !templateId) return;
 
-    if (isScheduled && !scheduledAt) {
-      onToast('Please select a schedule time.', 'info');
+    if (recipientSource === 'GROUPS' && selectedGroupIds.length === 0) {
+      onToast('Please select at least one contact group.', 'info');
       return;
     }
 
-    if (groupId === 'EXCEL' && (!excelData || excelData.length === 0)) {
+    if (recipientSource === 'EXCEL' && (!excelData || excelData.length === 0)) {
       onToast('Please upload a valid CSV or Excel file.', 'error');
+      return;
+    }
+
+    if (isScheduled && !scheduledAt) {
+      onToast('Please select a schedule time.', 'info');
       return;
     }
 
@@ -88,10 +98,11 @@ export default function CreateCampaignModal({
       await onSaved({
         name,
         template_id: templateId,
-        group_id: groupId,
+        group_id: recipientSource === 'GROUPS' ? (selectedGroupIds[0] || '') : 'EXCEL',
+        group_ids: recipientSource === 'GROUPS' ? selectedGroupIds : [],
         scheduled_at: isScheduled ? scheduledAt : null,
-        excelData: groupId === 'EXCEL' ? excelData : null,
-        groupVarValues: groupId !== 'EXCEL' && varsDetected.length > 0 ? groupVarValues : null,
+        excelData: recipientSource === 'EXCEL' ? excelData : null,
+        groupVarValues: recipientSource === 'GROUPS' && varsDetected.length > 0 ? groupVarValues : null,
       });
       onClose();
     } catch (err: any) {
@@ -151,20 +162,92 @@ export default function CreateCampaignModal({
                 </select>
               </div>
 
-              <div>
+              {/* Multi-Select Dropdown Component */}
+              <div className="relative">
                 <label className="block text-[10px] font-black text-fg/30 uppercase tracking-widest mb-2 px-1">Recipients Source</label>
-                <select
-                  required
-                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
-                  value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
+                <button
+                  type="button"
+                  onClick={() => setGroupDropdownOpen(!groupDropdownOpen)}
+                  className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg flex items-center justify-between text-left"
                 >
-                  <option value="" className="bg-bg text-fg">Select...</option>
-                  <option value="EXCEL" className="bg-bg text-fg">Upload File (.csv / .xlsx)</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id} className="bg-bg text-fg">{g.name}</option>
-                  ))}
-                </select>
+                  <span className="truncate">
+                    {recipientSource === 'EXCEL' ? '📁 Upload File (.csv / .xlsx)' : (
+                      selectedGroupIds.length === 0 ? 'Select Contact Group(s)...' :
+                      selectedGroupIds.length === 1 ? (groups.find(g => g.id === selectedGroupIds[0])?.name || '1 Group Selected') :
+                      `${selectedGroupIds.length} Groups Selected`
+                    )}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 ml-2 shrink-0 transition-transform duration-200 ${groupDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu Overlay */}
+                {groupDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-bg/95 backdrop-blur-md border border-glass-border rounded-2xl shadow-2xl z-50 p-3 space-y-2 text-left animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex justify-between items-center pb-2 border-b border-white/5 px-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted">Recipient Options</span>
+                      {recipientSource === 'GROUPS' && groups.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selectedGroupIds.length === groups.length) setSelectedGroupIds([]);
+                            else setSelectedGroupIds(groups.map(g => g.id));
+                          }}
+                          className="text-[9px] font-bold text-indigo-400 hover:underline bg-transparent border-0 cursor-pointer"
+                        >
+                          {selectedGroupIds.length === groups.length ? 'Deselect All' : 'Select All'}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                      {/* Upload File Option */}
+                      <div
+                        onClick={() => {
+                          setRecipientSource('EXCEL');
+                          setGroupDropdownOpen(false);
+                        }}
+                        className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-colors ${
+                          recipientSource === 'EXCEL' ? 'bg-indigo-500/20 text-indigo-300 font-bold' : 'hover:bg-white/[0.05] text-fg'
+                        }`}
+                      >
+                        <span className="text-xs font-bold">📁 Upload File (.csv / .xlsx)</span>
+                        {recipientSource === 'EXCEL' && <Check className="w-4 h-4 text-indigo-400" />}
+                      </div>
+
+                      <div className="border-t border-white/5 my-1" />
+
+                      {/* Contact Groups with Checkboxes */}
+                      {groups.length === 0 ? (
+                        <p className="text-xs text-muted font-medium p-2">No groups created yet.</p>
+                      ) : (
+                        groups.map((g) => {
+                          const isChecked = recipientSource === 'GROUPS' && selectedGroupIds.includes(g.id);
+                          return (
+                            <label
+                              key={g.id}
+                              className="flex items-center space-x-3 p-2.5 hover:bg-white/[0.05] rounded-xl cursor-pointer transition-colors select-none"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setRecipientSource('GROUPS');
+                                  if (selectedGroupIds.includes(g.id)) {
+                                    setSelectedGroupIds(selectedGroupIds.filter(id => id !== g.id));
+                                  } else {
+                                    setSelectedGroupIds([...selectedGroupIds, g.id]);
+                                  }
+                                }}
+                                className="h-4 w-4 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
+                              />
+                              <span className="text-xs font-bold text-fg">{g.name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -176,8 +259,8 @@ export default function CreateCampaignModal({
               </div>
             )}
 
-            {/* Variable Mapping Section when Group is Selected & Template has Variables */}
-            {varsDetected.length > 0 && groupId !== 'EXCEL' && groupId !== '' && (
+            {/* Variable Mapping Section when Groups are Selected & Template has Variables */}
+            {varsDetected.length > 0 && recipientSource === 'GROUPS' && (
               <div className="p-5 bg-glass-input border border-glass-border rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -186,7 +269,7 @@ export default function CreateCampaignModal({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setGroupId('EXCEL')}
+                    onClick={() => setRecipientSource('EXCEL')}
                     className="text-[9px] font-bold text-indigo-400 hover:underline flex items-center bg-transparent border-0 outline-none cursor-pointer"
                   >
                     <FileSpreadsheet className="w-3 h-3 mr-1" />
@@ -247,7 +330,7 @@ export default function CreateCampaignModal({
             )}
 
             {/* Excel Uploader when EXCEL is selected */}
-            {groupId === 'EXCEL' && (
+            {recipientSource === 'EXCEL' && (
               <div className="mt-3">
                 <ExcelUploader
                   needsVariables={varsDetected.length > 0}

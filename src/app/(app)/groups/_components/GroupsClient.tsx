@@ -5,8 +5,11 @@ import { Plus, Folder, Trash2, Loader2 } from 'lucide-react';
 import Toast from '@/components/Toast';
 import GroupCard from './GroupCard';
 
+import * as XLSX from 'xlsx';
+
 const GroupDetailModal = lazy(() => import('./GroupDetailModal'));
 const ImportModal = lazy(() => import('./ImportModal'));
+const ExportFormatModal = lazy(() => import('./ExportFormatModal'));
 
 interface GroupsClientProps {
   initialGroups: any[];
@@ -18,6 +21,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [activeGroup, setActiveGroup] = useState<any>(null);
+  const [exportingGroup, setExportingGroup] = useState<any | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -110,7 +114,8 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
       });
       if (res.ok) {
         setSelectedIds(new Set());
-        await fetchGroups();
+        fireToast('Groups deleted', 'success');
+        fetchGroups();
       } else {
         const data = await res.json();
         fireToast('Error: ' + data.error, 'error');
@@ -132,19 +137,79 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
     setShowDetailModal(true);
   };
 
+  const handleExportGroup = async (group: any, format: 'xlsx' | 'csv') => {
+    try {
+      fireToast(`Preparing download for group "${group.name}"...`, 'info');
+      const res = await fetch(`/api/groups/${group.id}/contacts`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to fetch group contacts');
+      const contacts = await res.json();
+
+      if (!Array.isArray(contacts) || contacts.length === 0) {
+        fireToast(`Group "${group.name}" has no contacts to export.`, 'info');
+        return;
+      }
+
+      const safeName = (group.name || 'group').toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+      if (format === 'xlsx') {
+        const exportData = contacts.map((c: any) => ({
+          "Name": c.name || 'Anonymous',
+          "Phone Number": c.phone_number || ''
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Group Contacts");
+        worksheet['!cols'] = [{ wch: 25 }, { wch: 20 }];
+
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${safeName}_contacts.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        fireToast(`Downloaded ${contacts.length} contacts as .xlsx!`, 'success');
+      } else {
+        let csvContent = "Name,Phone Number\n";
+        contacts.forEach((c: any) => {
+          const name = (c.name || 'Anonymous').replace(/"/g, '""');
+          const phone = (c.phone_number || '').replace(/"/g, '""');
+          csvContent += `"${name}","${phone}"\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${safeName}_contacts.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        fireToast(`Downloaded ${contacts.length} contacts as .csv!`, 'success');
+      }
+    } catch (err: any) {
+      fireToast('Export Error: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div className="text-left">
       {/* Header Panel */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 text-left">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-fg text-left">Groups</h1>
           <p className="text-muted text-sm font-semibold mt-1">Organize and segment contacts into distribution lists.</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
           {selectedIds.size > 0 && (
             <button
               onClick={handleDeleteSelected}
-              className="flex items-center px-5 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete ({selectedIds.size})
@@ -152,7 +217,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
           )}
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 cursor-pointer border-0"
+            className="flex-1 sm:flex-none flex items-center justify-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 cursor-pointer border-0"
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Group
@@ -202,6 +267,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
               onManage={handleManageGroup}
+              onDownloadExcel={(g) => setExportingGroup(g)}
               onLaunchCampaign={(g) => {
                 window.location.href = `/campaigns?groupId=${g.id}`;
               }}
@@ -209,6 +275,20 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
           ))
         )}
       </div>
+
+      {exportingGroup && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <Loader2 className="w-8 h-8 animate-spin text-fg" />
+          </div>
+        }>
+          <ExportFormatModal
+            group={exportingGroup}
+            onClose={() => setExportingGroup(null)}
+            onExport={(fmt) => handleExportGroup(exportingGroup, fmt)}
+          />
+        </Suspense>
+      )}
 
       {/* Create / Import Modal */}
       {showModal && (

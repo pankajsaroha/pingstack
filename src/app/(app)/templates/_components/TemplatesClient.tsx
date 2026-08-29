@@ -8,6 +8,7 @@ import TemplateCard from './TemplateCard';
 
 const CreateTemplateModal = lazy(() => import('./CreateTemplateModal'));
 const TroubleshootModal = lazy(() => import('./TroubleshootModal'));
+const EditRejectedTemplateModal = lazy(() => import('./EditRejectedTemplateModal'));
 
 interface TemplatesClientProps {
   tenant: any;
@@ -19,6 +20,7 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editingRejectedTemplate, setEditingRejectedTemplate] = useState<any | null>(null);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
   const [portfolioId, setPortfolioId] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -96,6 +98,35 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
         ? `${err.error}. Database Error: ${err.dbError.message || 'Check logs'}`
         : err.error || 'Failed to create template';
       throw new Error(msg);
+    }
+  };
+
+  const handleResubmitRejected = async (formData: {
+    oldTemplateId: string;
+    name: string;
+    language: string;
+    category: string;
+    bodyText: string;
+  }) => {
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (tenant?.id) {
+      headers['x-tenant-id'] = tenant.id;
+    }
+
+    const res = await fetch('/api/whatsapp/meta/templates', {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify(formData)
+    });
+
+    if (res.ok) {
+      fireToast('Old rejected template deleted from Meta. Updated template submitted for review!', 'success');
+      setEditingRejectedTemplate(null);
+      fetchTemplates(true);
+    } else {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to resubmit template');
     }
   };
 
@@ -193,10 +224,26 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
               template={template}
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
+              onEditRejected={(t) => setEditingRejectedTemplate(t)}
             />
           ))
         )}
       </div>
+
+      {editingRejectedTemplate && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+            <Loader2 className="w-8 h-8 animate-spin text-fg" />
+          </div>
+        }>
+          <EditRejectedTemplateModal
+            template={editingRejectedTemplate}
+            onClose={() => setEditingRejectedTemplate(null)}
+            onToast={fireToast}
+            onResubmit={handleResubmitRejected}
+          />
+        </Suspense>
+      )}
 
       {showTroubleshoot && (
         <Suspense fallback={
