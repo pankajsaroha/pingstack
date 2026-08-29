@@ -11,7 +11,8 @@ export async function POST(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
-    const { access_token, groupId } = await req.json();
+    const body = await req.json();
+    const { access_token, groupId, confirmLimit, duplicateAction } = body;
 
     let allContacts: any[] = [];
     let pageToken = '';
@@ -51,24 +52,87 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, count: 0 });
     }
 
-    // Deduplication logic
+    // Fetch existing directory contacts to identify duplicates
     const { data: existingContacts } = await db
       .from('contacts')
-      .select('id, phone_number')
+      .select('id, name, phone_number')
       .eq('tenant_id', tenantId);
 
-    const existingPhones = new Set(existingContacts?.map((c: any) => c.phone_number) || []);
-    const newContacts = allContacts.filter((c: any) => !existingPhones.has(c.phone_number));
-    const finalContacts = Array.from(new Map(newContacts.map((c: any) => [c.phone_number, c])).values());
+    const existingMap = new Map((existingContacts || []).map((c: any) => [c.phone_number, c]));
+    
+    // Unique list from Google
+    const googleUniqueMap = new Map(allContacts.map((c: any) => [c.phone_number, c]));
+    const googleContactsList = Array.from(googleUniqueMap.values());
 
-    if (finalContacts.length > 0) {
-      const { checkLimit } = require('@/lib/limits');
-      const canAdd = await checkLimit(tenantId, 'contacts');
-      if (!canAdd) {
-        return NextResponse.json({ error: 'Contact limit reached for your plan. Upgrade to import more.' }, { status: 403 });
+    const newContactsList: any[] = [];
+    const duplicateContactsList: any[] = [];
+
+    googleContactsList.forEach((c: any) => {
+      if (existingMap.has(c.phone_number)) {
+        const existing = existingMap.get(c.phone_number);
+        duplicateContactsList.push({
+          phone_number: c.phone_number,
+          newName: c.name,
+          existingName: existing.name || 'Anonymous',
+          existingId: existing.id
+        });
+      } else {
+        newContactsList.push(c);
+      }
+    });
+
+    // If duplicates exist and user hasn't explicitly chosen a duplicateAction
+    if (duplicateContactsList.length > 0 && !duplicateAction && !confirmLimit) {
+      return NextResponse.json({
+        duplicateWarning: true,
+        duplicates: duplicateContactsList,
+        newCount: newContactsList.length,
+        totalGoogleCount: googleContactsList.length,
+        accessToken: access_token
+      });
+    }
+
+    // Handle overwrite_all if requested
+    if (duplicateAction === 'overwrite_all' && duplicateContactsList.length > 0) {
+      for (const dup of duplicateContactsList) {
+        if (dup.newName && dup.newName !== dup.existingName) {
+          await db.from('contacts')
+            .update({ name: dup.newName })
+            .eq('id', dup.existingId)
+            .eq('tenant_id', tenantId);
+        }
+      }
+    }
+
+    let contactsToInsert = newContactsList;
+    if (contactsToInsert.length > 0) {
+      const { getContactQuota } = require('@/lib/limits');
+      const quota = await getContactQuota(tenantId);
+
+      if (contactsToInsert.length > quota.remainingQuota) {
+        if (quota.remainingQuota <= 0) {
+          return NextResponse.json({
+            error: `You have reached your contact limit (${quota.maxContacts}) for your ${quota.planType.toUpperCase()} plan. Please upgrade to add more contacts.`
+          }, { status: 403 });
+        }
+
+        if (!confirmLimit) {
+          return NextResponse.json({
+            limitWarning: true,
+            importCount: contactsToInsert.length,
+            remainingQuota: quota.remainingQuota,
+            maxContacts: quota.maxContacts,
+            currentCount: quota.currentCount,
+            planType: quota.planType,
+            accessToken: access_token,
+            isGoogle: true
+          });
+        }
+
+        contactsToInsert = contactsToInsert.slice(0, quota.remainingQuota);
       }
       
-      const { error: insertError } = await db.from('contacts').insert(finalContacts);
+      const { error: insertError } = await db.from('contacts').insert(contactsToInsert);
       if (insertError) throw insertError;
     }
 
@@ -96,8 +160,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      count: finalContacts.length,
-      skipped: allContacts.length - finalContacts.length
+      count: contactsToInsert.length,
+      skipped: allContacts.length - contactsToInsert.length
     });
 
   } catch (err: any) {

@@ -12,6 +12,7 @@ const AddContactModal = lazy(() => import('./AddContactModal'));
 const EditContactModal = lazy(() => import('./EditContactModal'));
 const ImportLimitModal = lazy(() => import('./ImportLimitModal'));
 const SendTemplateModal = lazy(() => import('./SendTemplateModal'));
+import GoogleDuplicateModal from './GoogleDuplicateModal';
 
 interface ContactsClientProps {
   initialContacts: { contacts: Contact[]; totalCount: number };
@@ -102,6 +103,41 @@ export default function ContactsClient({
     await fetchAllContactsPool();
   };
 
+  const [googleDuplicateInfo, setGoogleDuplicateInfo] = useState<any | null>(null);
+  const [pendingAccessToken, setPendingAccessToken] = useState<string | null>(null);
+
+  const performGoogleImport = async (token: string, confirmLimit = false, duplicateAction?: 'skip_all' | 'overwrite_all') => {
+    setIsImporting(true);
+    try {
+      const res = await fetch('/api/contacts/import/google', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token, confirmLimit, duplicateAction })
+      });
+      const data = await res.json();
+      if (res.ok && !data.limitWarning && !data.duplicateWarning) {
+        fireToast(`Imported ${data.count || 0} contacts from Google`, 'success');
+        setImportLimitInfo(null);
+        setGoogleDuplicateInfo(null);
+        setPendingAccessToken(null);
+        await refetchContacts();
+      } else if (data.duplicateWarning) {
+        setPendingAccessToken(token);
+        setGoogleDuplicateInfo(data);
+      } else if (data.limitWarning) {
+        setPendingAccessToken(token);
+        setImportLimitInfo(data);
+      } else {
+        fireToast(data.error || 'Google import failed', 'error');
+      }
+    } catch (e) {
+      fireToast('Google import failed', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleGoogleImport = () => {
     if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
       fireToast('Google Client ID not configured', 'error');
@@ -116,27 +152,7 @@ export default function ContactsClient({
           console.error(response);
           return;
         }
-
-        setIsImporting(true);
-        try {
-          const res = await fetch('/api/contacts/import/google', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: response.access_token })
-          });
-          const data = await res.json();
-          if (data.success) {
-            fireToast(`Imported ${data.count} contacts`, 'success');
-            await refetchContacts();
-          } else {
-            fireToast(data.error || 'Import failed', 'error');
-          }
-        } catch (e) {
-          fireToast('Google import failed', 'error');
-        } finally {
-          setIsImporting(false);
-        }
+        await performGoogleImport(response.access_token, false);
       },
     });
     client.requestAccessToken();
@@ -515,19 +531,41 @@ export default function ContactsClient({
           <ImportLimitModal
             limitInfo={importLimitInfo}
             onConfirmTruncated={() => {
-              if (pendingFile) {
+              if (importLimitInfo.isGoogle && pendingAccessToken) {
+                performGoogleImport(pendingAccessToken, true);
+              } else if (pendingFile) {
                 handleFileUpload(undefined, true, pendingFile);
               }
             }}
             onCancel={() => {
               setImportLimitInfo(null);
               setPendingFile(null);
+              setPendingAccessToken(null);
             }}
           />
         </Suspense>
       )}
 
-      {/* Send Message Wizard Modal */}
+      {/* Google Duplicate Warning Modal */}
+      {googleDuplicateInfo && (
+        <GoogleDuplicateModal
+          duplicateData={googleDuplicateInfo}
+          onSkipAll={() => {
+            if (pendingAccessToken) {
+              performGoogleImport(pendingAccessToken, false, 'skip_all');
+            }
+          }}
+          onOverwriteAll={() => {
+            if (pendingAccessToken) {
+              performGoogleImport(pendingAccessToken, false, 'overwrite_all');
+            }
+          }}
+          onCancel={() => {
+            setGoogleDuplicateInfo(null);
+            setPendingAccessToken(null);
+          }}
+        />
+      )}
       {showSendModal && (
         <Suspense fallback={
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">

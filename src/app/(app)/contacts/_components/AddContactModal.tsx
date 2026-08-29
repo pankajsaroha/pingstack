@@ -33,11 +33,11 @@ export default function AddContactModal({ onClose, onToast, onSaved }: AddContac
     e.preventDefault();
     if (!phone.trim()) return;
 
-    let cleanDigits = phone.trim();
-    if (cleanDigits.startsWith('+')) {
-      cleanDigits = cleanDigits.substring(1);
+    let cleanDigits = phone.trim().replace(/\D/g, '');
+    if (cleanDigits.length !== 10) {
+      onToast('Phone number must be exactly 10 digits.', 'error');
+      return;
     }
-    cleanDigits = cleanDigits.replace(/\D/g, '');
 
     // Combine country code if user provided 10 digits without code
     const fullPhone = normalizePhoneNumber(cleanDigits, countryCode);
@@ -94,10 +94,11 @@ export default function AddContactModal({ onClose, onToast, onSaved }: AddContac
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 9876543210"
+                  maxLength={10}
+                  placeholder="10-digit number (e.g. 9876543210)"
                   className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-bold text-fg focus:border-indigo-500 focus:outline-none transition-all placeholder:text-fg/20 font-mono"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 />
               </div>
             </div>
