@@ -211,8 +211,12 @@ export default function ContactsClient({
     }
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const handleDeleteSingleContact = async (id: string) => {
     if (!confirm('Are you sure you want to delete this contact?')) return;
+    setDeletingId(id);
     try {
       const res = await fetch('/api/contacts', {
         method: 'DELETE',
@@ -220,15 +224,18 @@ export default function ContactsClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [id] })
       });
-      if (res.ok) {
-        fireToast('Contact deleted', 'success');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        fireToast('Contact deleted successfully', 'success');
         await refetchContacts();
       } else {
-        const data = await res.json();
-        fireToast('Error: ' + data.error, 'error');
+        const errorMsg = data.error || `Unable to delete contact (Status ${res.status})`;
+        fireToast(errorMsg, 'error');
       }
     } catch (err: any) {
-      fireToast('Error: ' + err.message, 'error');
+      fireToast(`Delete Error: ${err.message || 'Network connection failed'}`, 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -259,9 +266,14 @@ export default function ContactsClient({
   };
 
   const handleDeleteSelected = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} contacts?`)) return;
+    if (selectedIds.size === 0) {
+      fireToast('Please select at least one contact to delete.', 'info');
+      return;
+    }
+    const countToDelete = selectedIds.size;
+    if (!confirm(`Are you sure you want to delete ${countToDelete} selected contact${countToDelete > 1 ? 's' : ''}?`)) return;
 
+    setIsDeleting(true);
     try {
       const res = await fetch('/api/contacts', {
         method: 'DELETE',
@@ -269,15 +281,19 @@ export default function ContactsClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setSelectedIds(new Set());
+        fireToast(`Successfully deleted ${data.count || countToDelete} contacts`, 'success');
         await refetchContacts();
       } else {
-        const data = await res.json();
-        fireToast('Error: ' + data.error, 'error');
+        const errorMsg = data.error || (res.status === 400 ? 'Could not delete selected contacts. Please check if they are currently in use.' : `Server error (${res.status})`);
+        fireToast(errorMsg, 'error');
       }
     } catch (err: any) {
-      fireToast('Error: ' + err.message, 'error');
+      fireToast(`Delete Error: ${err.message || 'Network connection error'}`, 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -311,10 +327,20 @@ export default function ContactsClient({
             <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={handleDeleteSelected}
-                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+                disabled={isDeleting}
+                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete ({selectedIds.size})</span>
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span>Deleting ({selectedIds.size})...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Delete ({selectedIds.size})</span>
+                  </>
+                )}
               </button>
               <button
                 onClick={() => setShowSendModal(true)}
@@ -397,6 +423,7 @@ export default function ContactsClient({
               contacts={displayedContacts}
               selectedIds={selectedIds}
               searchQuery={searchInput}
+              deletingId={deletingId}
               onToggleSelection={toggleSelection}
               onToggleAll={toggleAll}
               onEditContact={(c) => setEditingContact(c)}

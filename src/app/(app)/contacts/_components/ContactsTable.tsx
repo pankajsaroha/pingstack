@@ -1,11 +1,12 @@
 'use client';
 
-import { Check, Pencil, Trash2 } from 'lucide-react';
+import { Check, Pencil, Trash2, Loader2 } from 'lucide-react';
 
 interface ContactsTableProps {
   contacts: any[];
   selectedIds: Set<string>;
   searchQuery: string;
+  deletingId?: string | null;
   onToggleSelection: (id: string) => void;
   onToggleAll: () => void;
   onEditContact: (contact: any) => void;
@@ -16,6 +17,7 @@ export default function ContactsTable({
   contacts,
   selectedIds,
   searchQuery,
+  deletingId,
   onToggleSelection,
   onToggleAll,
   onEditContact,
@@ -39,33 +41,44 @@ export default function ContactsTable({
     <>
       {/* Desktop Table */}
       <div className="hidden sm:block overflow-x-auto text-left">
-        <table className="min-w-full divide-y divide-white/5">
-          <thead className="bg-glass-card/85 border-b border-glass-border">
-            <tr>
-              <th scope="col" className="px-6 py-4 text-left w-12">
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  onChange={onToggleAll}
-                  className="h-5 w-5 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer animate-none"
-                />
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-glass-border text-[10px] uppercase font-black tracking-widest text-muted">
+              <th className="px-6 py-4 w-12">
+                <button
+                  type="button"
+                  onClick={onToggleAll}
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
+                    isAllSelected ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+                  }`}
+                >
+                  {isAllSelected && <Check className="w-3.5 h-3.5 text-black" />}
+                </button>
               </th>
-              <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Name</th>
-              <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Phone Number</th>
-              <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Added On</th>
-              <th scope="col" className="px-6 py-4 text-right text-[9px] font-black text-muted uppercase tracking-widest">Actions</th>
+              <th className="px-6 py-4">Name</th>
+              <th className="px-6 py-4">Phone Number</th>
+              <th className="px-6 py-4">Contact Added On</th>
+              <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5 bg-transparent">
+          <tbody className="divide-y divide-white/5">
             {filteredContacts.map((contact) => (
-              <tr key={contact.id} className="hover:bg-glass-card transition-colors group">
-                <td className="px-6 py-4 whitespace-nowrap w-12 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(contact.id)}
-                    onChange={() => onToggleSelection(contact.id)}
-                    className="h-5 w-5 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
-                  />
+              <tr
+                key={contact.id}
+                className={`group hover:bg-white/[0.02] transition-colors ${
+                  selectedIds.has(contact.id) ? 'bg-indigo-500/5' : ''
+                }`}
+              >
+                <td className="px-6 py-4">
+                  <button
+                    type="button"
+                    onClick={() => onToggleSelection(contact.id)}
+                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
+                      selectedIds.has(contact.id) ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+                    }`}
+                  >
+                    {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-black" />}
+                  </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <p className="text-sm font-bold text-fg">{contact.name || 'Anonymous'}</p>
@@ -85,10 +98,15 @@ export default function ContactsTable({
                     <button
                       type="button"
                       title="Delete Contact"
+                      disabled={deletingId === contact.id}
                       onClick={() => onDeleteSingle(contact.id)}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-50"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {deletingId === contact.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-red-400" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </td>
@@ -129,10 +147,15 @@ export default function ContactsTable({
               </button>
               <button
                 type="button"
+                disabled={deletingId === contact.id}
                 onClick={() => onDeleteSingle(contact.id)}
-                className="p-2 text-red-400 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+                className="p-2 text-red-400 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-50"
               >
-                <Trash2 className="w-4 h-4" />
+                {deletingId === contact.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-red-400" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>
