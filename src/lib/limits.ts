@@ -135,6 +135,30 @@ export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts
   return true;
 }
 
+export async function getContactQuota(tenantId: string) {
+  if (!db) return { maxContacts: 250, currentCount: 0, remainingQuota: 250, planType: 'starter' };
+
+  let { data: tenant } = await db.from('tenants').select('plan_type').eq('id', tenantId).single();
+  const planType = (tenant as any)?.plan_type || 'starter';
+  const plan = PLANS[planType as PlanType] || PLANS.starter;
+
+  const { count } = await db
+    .from('contacts')
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId);
+
+  const currentCount = count || 0;
+  const maxContacts = plan.maxContacts;
+  const remainingQuota = Math.max(0, maxContacts - currentCount);
+
+  return {
+    planType,
+    maxContacts,
+    currentCount,
+    remainingQuota
+  };
+}
+
 export async function incrementUsage(tenantId: string, type: 'campaigns') {
   if (type === 'campaigns') {
     try {

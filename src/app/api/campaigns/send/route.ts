@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validation.error || 'Invalid request payload' }, { status: 400 });
     }
 
-    const { campaignId, groupIds, contactIds, directData } = validation.data;
+    const { campaignId, groupIds, contactIds, directData, templateVariables } = validation.data;
 
     // 2. Fetch and verify campaign belongs to this tenant (Strict Tenant Boundary RLS Check)
     const { data: campaign, error: cErr } = await db
@@ -46,7 +46,8 @@ export async function POST(req: Request) {
       campaignId,
       groupIds,
       contactIds,
-      directData
+      directData,
+      templateVariables
     });
 
     // 5. Audit log event

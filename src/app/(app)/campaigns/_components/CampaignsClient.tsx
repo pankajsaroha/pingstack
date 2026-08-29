@@ -99,6 +99,7 @@ export default function CampaignsClient({
     group_id: string;
     scheduled_at: string | null;
     excelData: any[] | null;
+    groupVarValues?: Record<string, string> | null;
   }) => {
     const cRes = await fetch('/api/campaigns', {
       method: 'POST',
@@ -121,7 +122,8 @@ export default function CampaignsClient({
         body: JSON.stringify({
           campaignId: campaign.id,
           groupIds: campaignData.group_id === 'EXCEL' ? [] : [campaignData.group_id],
-          directData: campaignData.excelData
+          directData: campaignData.excelData,
+          templateVariables: campaignData.groupVarValues || undefined
         })
       });
 

@@ -4,6 +4,8 @@ import { parse } from 'csv-parse/sync';
 import * as xlsx from 'xlsx';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { invalidateContactsCache } from '@/lib/server/contacts';
+import { normalizePhoneNumber } from '@/lib/phone';
+import { getContactQuota } from '@/lib/limits';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -22,6 +24,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const groupId = formData.get('groupId') as string | null;
+    const confirmLimit = formData.get('confirmLimit') === 'true';
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -43,11 +46,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unsupported file format. Please upload CSV or Excel.' }, { status: 400 });
     }
 
-    const contactsToProcess = records.map((record: any) => ({
-      tenant_id: tenantId,
-      name: record.name || record.Name || null,
-      phone_number: String(record.phone || record.phone_number || record.Phone || record.PhoneNumber || '').replace(/\D/g, '')
-    })).filter((c: any) => c.phone_number && c.phone_number.trim() !== '');
+    const contactsToProcess = records.map((record: any) => {
+      const keys = Object.keys(record);
+      
+      // Smart Phone Column Detection (phone, mobile, number, contact, whatsapp, tel)
+      const phoneKey = keys.find(k => /phone|mobile|cell|contact|number|whatsapp|tel/i.test(k));
+      const rawPhone = phoneKey ? record[phoneKey] : '';
+
+      // Smart Name Column Detection (name, customer, client, user)
+      const nameKey = keys.find(k => /name|customer|client|user/i.test(k));
+      const rawName = nameKey ? record[nameKey] : '';
+
+      return {
+        tenant_id: tenantId,
+        name: rawName ? String(rawName).trim() : null,
+        phone_number: normalizePhoneNumber(rawPhone)
+      };
+    }).filter((c: any) => c.phone_number && c.phone_number.trim() !== '');
 
     if (contactsToProcess.length === 0) {
       return NextResponse.json({ error: 'No valid contacts found in file' }, { status: 400 });
@@ -67,7 +82,31 @@ export async function POST(req: Request) {
     const newContacts = contactsToProcess.filter((c: any) => !existingPhonesSet.has(c.phone_number));
 
     // Unique check within the file for new contacts
-    const finalNewContacts = Array.from(new Map(newContacts.map((c: any) => [c.phone_number, c])).values());
+    let finalNewContacts = Array.from(new Map(newContacts.map((c: any) => [c.phone_number, c])).values());
+
+    // Step 3: Check Plan Contact Quota
+    const quota = await getContactQuota(tenantId);
+    if (finalNewContacts.length > quota.remainingQuota) {
+      if (quota.remainingQuota <= 0) {
+        return NextResponse.json({
+          error: `You have reached your contact limit (${quota.maxContacts}) for your ${quota.planType.toUpperCase()} plan. Please upgrade to add more contacts.`
+        }, { status: 403 });
+      }
+
+      if (!confirmLimit) {
+        return NextResponse.json({
+          limitWarning: true,
+          importCount: finalNewContacts.length,
+          remainingQuota: quota.remainingQuota,
+          maxContacts: quota.maxContacts,
+          currentCount: quota.currentCount,
+          planType: quota.planType
+        });
+      }
+
+      // Truncate to available quota if confirmed
+      finalNewContacts = finalNewContacts.slice(0, quota.remainingQuota);
+    }
 
     if (finalNewContacts.length > 0) {
       const { error: insertError } = await db.from('contacts').insert(finalNewContacts);

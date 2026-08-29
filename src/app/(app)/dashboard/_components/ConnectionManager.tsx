@@ -160,9 +160,15 @@ export default function ConnectionManager({
               <div className="flex items-center gap-2">
                 <div className={`w-2.5 h-2.5 rounded-full ${whatsappAccount?.status === 'PENDING' ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' : 'bg-emerald-500 shadow-[0_0_8px_#10b981]'} animate-pulse`} />
                 <span className="text-xs font-black text-fg capitalize">{whatsappAccount?.status || 'Active & Synced'}</span>
-                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${(!whatsappAccount?.display_phone_number || whatsappAccount?.display_phone_number?.includes('555') || whatsappAccount?.phone_number_id?.startsWith('105')) ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
-                  {(!whatsappAccount?.display_phone_number || whatsappAccount?.display_phone_number?.includes('555') || whatsappAccount?.phone_number_id?.startsWith('105')) ? '🧪 Test Number' : '📱 Live Number'}
-                </span>
+                {(() => {
+                  const isTest = whatsappAccount?.is_test_number === true || 
+                    Boolean(whatsappAccount?.display_phone_number?.includes('555-01') || whatsappAccount?.display_phone_number?.includes('55501'));
+                  return (
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isTest ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                      {isTest ? '🧪 Test Sandbox' : '📱 Live Number'}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
             <div className="space-y-1">

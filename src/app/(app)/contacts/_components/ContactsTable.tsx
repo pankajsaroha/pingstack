@@ -1,6 +1,6 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { Check, Pencil, Trash2 } from 'lucide-react';
 
 interface ContactsTableProps {
   contacts: any[];
@@ -8,6 +8,8 @@ interface ContactsTableProps {
   searchQuery: string;
   onToggleSelection: (id: string) => void;
   onToggleAll: () => void;
+  onEditContact: (contact: any) => void;
+  onDeleteSingle: (id: string) => void;
 }
 
 export default function ContactsTable({
@@ -16,10 +18,22 @@ export default function ContactsTable({
   searchQuery,
   onToggleSelection,
   onToggleAll,
+  onEditContact,
+  onDeleteSingle,
 }: ContactsTableProps) {
   const filteredContacts = contacts;
 
-  const isAllSelected = filteredContacts.length > 0 && selectedIds.size === filteredContacts.length;
+  const isAllSelected = filteredContacts.length > 0 && selectedIds.size >= filteredContacts.length;
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   return (
     <>
@@ -39,6 +53,7 @@ export default function ContactsTable({
               <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Name</th>
               <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Phone Number</th>
               <th scope="col" className="px-6 py-4 text-left text-[9px] font-black text-muted uppercase tracking-widest">Added On</th>
+              <th scope="col" className="px-6 py-4 text-right text-[9px] font-black text-muted uppercase tracking-widest">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 bg-transparent">
@@ -56,7 +71,27 @@ export default function ContactsTable({
                   <p className="text-sm font-bold text-fg">{contact.name || 'Anonymous'}</p>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-fg/50 font-mono tracking-tight">{contact.phone_number}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-[10px] font-black text-fg/30 uppercase tracking-tight">{new Date(contact.created_at).toLocaleDateString()}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-[11px] font-bold text-fg/40 tracking-tight font-mono">{formatDate(contact.created_at)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-xs">
+                  <div className="flex items-center justify-end space-x-2">
+                    <button
+                      type="button"
+                      title="Edit Contact"
+                      onClick={() => onEditContact(contact)}
+                      className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Delete Contact"
+                      onClick={() => onDeleteSingle(contact.id)}
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -68,12 +103,11 @@ export default function ContactsTable({
         {filteredContacts.map((contact) => (
           <div
             key={contact.id}
-            onClick={() => onToggleSelection(contact.id)}
-            className={`p-5 flex items-center justify-between active:bg-glass-card transition-colors ${
+            className={`p-5 flex items-center justify-between transition-colors ${
               selectedIds.has(contact.id) ? 'bg-indigo-500/5' : ''
             }`}
           >
-            <div className="flex items-center">
+            <div className="flex items-center" onClick={() => onToggleSelection(contact.id)}>
               <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-4 transition-colors ${
                 selectedIds.has(contact.id) ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
               }`}>
@@ -81,12 +115,26 @@ export default function ContactsTable({
               </div>
               <div>
                 <p className="font-bold text-fg text-sm">{contact.name || 'Anonymous'}</p>
-                <p className="text-[10px] text-muted font-semibold tracking-wide mt-1 font-mono">{contact.phone_number}</p>
+                <p className="text-[10px] text-muted font-semibold tracking-wide mt-0.5 font-mono">{contact.phone_number}</p>
+                <p className="text-[9px] text-fg/30 font-bold tracking-tight font-mono mt-0.5">{formatDate(contact.created_at)}</p>
               </div>
             </div>
-            <span className="text-[9px] text-fg/30 font-black uppercase tracking-tight">
-              {new Date(contact.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-            </span>
+            <div className="flex items-center space-x-1">
+              <button
+                type="button"
+                onClick={() => onEditContact(contact)}
+                className="p-2 text-indigo-400 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeleteSingle(contact.id)}
+                className="p-2 text-red-400 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ))}
       </div>

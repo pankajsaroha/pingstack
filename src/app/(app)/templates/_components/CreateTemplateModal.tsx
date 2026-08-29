@@ -332,7 +332,14 @@ export default function CreateTemplateModal({
                 disabled={submitting}
                 className="flex-[2] px-6 py-4 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 disabled:opacity-40 flex items-center justify-center cursor-pointer border-0 outline-none"
               >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Submit to Meta'}
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <span>Submitting to Meta...</span>
+                  </>
+                ) : (
+                  'Submit to Meta'
+                )}
               </button>
             </div>
           </form>

@@ -4,6 +4,7 @@ import { checkLimit } from '@/lib/limits';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { invalidateContactsCache } from '@/lib/server/contacts';
 import { logAuditEvent } from '@/lib/audit';
+import { normalizePhoneNumber } from '@/lib/phone';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -25,14 +26,29 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const pageParam = searchParams.get('page');
   const searchParam = searchParams.get('search') || '';
+  const idsOnly = searchParams.get('idsOnly') === 'true';
 
-  let query = db.from('contacts').select('*', { count: 'exact' }).eq('tenant_id', tenantId);
+  let query = db.from('contacts').select(idsOnly ? 'id' : '*', { count: 'exact' }).eq('tenant_id', tenantId);
 
   if (searchParam) {
-    query = query.or(`name.ilike.%${searchParam}%,phone_number.ilike.%${searchParam}%`);
+    const rawSearch = searchParam.trim();
+    const digitsSearch = rawSearch.replace(/\D/g, '');
+    if (digitsSearch) {
+      query = query.or(`name.ilike.%${rawSearch}%,phone_number.ilike.%${digitsSearch}%`);
+    } else {
+      query = query.or(`name.ilike.%${rawSearch}%,phone_number.ilike.%${rawSearch}%`);
+    }
   }
 
   query = query.order('created_at', { ascending: false });
+
+  if (idsOnly) {
+    const { data, error } = await query;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ids: (data || []).map((c: any) => c.id) });
+  }
 
   if (pageParam) {
     const page = parseInt(pageParam) || 1;
@@ -77,8 +93,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
 
-    // NORMALIZE PHONE: Strip + and non-digits
-    const normalizedPhone = String(phone_number).replace(/\D/g, '');
+    // NORMALIZE PHONE: Strip +, non-digits, and prepend 91 default country code if 10 digits
+    const normalizedPhone = normalizePhoneNumber(phone_number);
 
     const canAddContact = await checkLimit(tenantId, 'contacts');
     if (!canAddContact) {
@@ -116,6 +132,43 @@ export async function POST(req: Request) {
   } catch (err: any) {
     console.error('Contact processing error:', err, 'TenantID:', req.headers.get('x-tenant-id'));
     return NextResponse.json({ error: err.message || 'Processing error' }, { status: 400 });
+  }
+}
+
+export async function PUT(req: Request) {
+  const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
+  if (!tenantId || tenantId === 'undefined') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  try {
+    const { id, name, phone_number } = await req.json();
+    if (!id || !phone_number) return NextResponse.json({ error: 'ID and Phone number are required' }, { status: 400 });
+
+    const normalizedPhone = normalizePhoneNumber(phone_number);
+
+    const { data, error } = await db.from('contacts')
+      .update({ name: name || null, phone_number: normalizedPhone })
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await invalidateContactsCache(tenantId);
+
+    await logAuditEvent({
+      tenantId,
+      userId,
+      action: 'CONTACT_UPDATE',
+      resource: `contact:${id}`,
+      details: { name, phone: normalizedPhone }
+    });
+
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 

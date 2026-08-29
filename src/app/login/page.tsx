@@ -3,28 +3,37 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
 
-    if (res.ok) {
-      router.push('/dashboard');
-    } else {
-      const data = await res.json();
-      setError(data.error);
+      if (res.ok) {
+        router.push('/dashboard');
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Login failed');
+        setLoading(false);
+      }
+    } catch {
+      setError('Connection error. Please try again.');
+      setLoading(false);
     }
   };
 
@@ -69,8 +78,19 @@ export default function Login() {
             </div>
           </div>
           <div className="pt-2">
-            <button type="submit" className="w-full flex justify-center py-4 border border-transparent rounded-2xl shadow-xl text-sm font-black text-white bg-gray-900 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all">
-              Sign in
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center py-4 border border-transparent rounded-2xl shadow-xl text-sm font-black text-white bg-gray-900 hover:bg-black hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all cursor-pointer border-0 outline-none"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2 text-white" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                'Sign in'
+              )}
             </button>
           </div>
           <div className="text-center text-sm mt-6 flex flex-col items-center space-y-4">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2, Check } from 'lucide-react';
 
 interface ContactSelectorProps {
@@ -28,8 +28,9 @@ export default function ContactSelector({
       const res = await fetch('/api/contacts');
       if (res.ok) {
         const data = await res.json();
-        const groupContactIds = new Set(groupContacts.map((c) => c.id));
-        const filtered = data.filter((c: any) => !groupContactIds.has(c.id));
+        const contactsList = Array.isArray(data) ? data : (data.contacts || []);
+        const groupContactIds = new Set((groupContacts || []).map((c) => c.id));
+        const filtered = contactsList.filter((c: any) => !groupContactIds.has(c.id));
         setAvailableContacts(filtered);
       }
     } catch (e) {
@@ -39,9 +40,10 @@ export default function ContactSelector({
     }
   };
 
+  // Fetch full directory ONCE on mount
   useEffect(() => {
     fetchAvailableContacts();
-  }, [groupId, groupContacts]);
+  }, [groupId]);
 
   const handleToggleSelect = (id: string) => {
     const next = new Set(selectorIds);
@@ -63,11 +65,30 @@ export default function ContactSelector({
     }
   };
 
-  const filteredPool = availableContacts.filter(
-    (c) =>
-      (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.phone_number || '').includes(searchTerm)
-  );
+  const cleanSearch = searchTerm.trim().toLowerCase();
+  const digitsSearch = cleanSearch.replace(/\D/g, '');
+
+  // 100% Instant In-Memory Filtered Pool (Zero network latency during typing)
+  const filteredPool = useMemo(() => {
+    if (!cleanSearch) return availableContacts;
+    return availableContacts.filter((c) => {
+      const nameMatch = (c.name || '').toLowerCase().includes(cleanSearch);
+      const rawPhone = c.phone_number || '';
+      const phoneMatch = rawPhone.includes(cleanSearch) || 
+                         (digitsSearch.length > 0 && rawPhone.includes(digitsSearch));
+      return nameMatch || phoneMatch;
+    });
+  }, [availableContacts, cleanSearch, digitsSearch]);
+
+  const isAllSelected = filteredPool.length > 0 && selectorIds.size === filteredPool.length;
+
+  const handleToggleAll = () => {
+    if (isAllSelected) {
+      setSelectorIds(new Set());
+    } else {
+      setSelectorIds(new Set(filteredPool.map((c) => c.id)));
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[55] animate-in fade-in duration-200">
@@ -85,14 +106,23 @@ export default function ContactSelector({
               Close
             </button>
           </div>
-          <div className="relative">
+          <div className="flex items-center gap-3">
             <input
               type="text"
-              placeholder="Search contact pool..."
-              className="w-full pl-4 pr-10 py-3 bg-glass-input border border-glass-border rounded-2xl text-xs font-semibold focus:outline-none transition-all text-fg placeholder:text-fg/20 font-sans"
+              placeholder="Search by name or number..."
+              className="flex-1 pl-4 pr-4 py-3 bg-glass-input border border-glass-border rounded-2xl text-xs font-semibold focus:outline-none transition-all text-fg placeholder:text-fg/20 font-sans"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {filteredPool.length > 0 && (
+              <button
+                type="button"
+                onClick={handleToggleAll}
+                className="px-3 py-3 border border-glass-border hover:bg-glass-card rounded-2xl text-[10px] font-black uppercase tracking-widest text-indigo-400 cursor-pointer shrink-0"
+              >
+                {isAllSelected ? 'Deselect All' : 'Select All'}
+              </button>
+            )}
           </div>
         </div>
 
