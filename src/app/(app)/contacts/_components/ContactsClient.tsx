@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Trash2, Send, Plus, Loader2, Globe } from 'lucide-react';
 import Toast from '@/components/Toast';
 import ContactsTable from './ContactsTable';
@@ -9,6 +9,8 @@ import ImportContacts from './ImportContacts';
 import { Contact, Template } from '@/types';
 
 const AddContactModal = lazy(() => import('./AddContactModal'));
+const EditContactModal = lazy(() => import('./EditContactModal'));
+const ImportLimitModal = lazy(() => import('./ImportLimitModal'));
 const SendTemplateModal = lazy(() => import('./SendTemplateModal'));
 
 interface ContactsClientProps {
@@ -20,8 +22,10 @@ export default function ContactsClient({
   initialContacts,
   initialTemplates,
 }: ContactsClientProps) {
-  const [pageSize] = useState(10);
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts.contacts);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [allContactsPool, setAllContactsPool] = useState<Contact[]>(
+    Array.isArray(initialContacts) ? initialContacts : (initialContacts.contacts || [])
+  );
   const [templates] = useState<Template[]>(initialTemplates);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -29,66 +33,73 @@ export default function ContactsClient({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(initialContacts.totalCount);
-  const [isFirstMount, setIsFirstMount] = useState(true);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingContact, setEditingContact] = useState<any | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
+
+  const [importLimitInfo, setImportLimitInfo] = useState<any | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const fireToast = (message: string, type: 'success' | 'error' | 'info') =>
     setToast({ message, type });
 
-  const fetchContacts = async (pageNumber: number, query: string) => {
+  const fetchAllContactsPool = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/contacts?page=${pageNumber}&pageSize=${pageSize}&search=${encodeURIComponent(query)}`,
-        { credentials: 'include' }
-      );
-      const data = await res.json();
-      if (data && Array.isArray(data.contacts)) {
-        setContacts(data.contacts);
-        setTotalCount(data.totalCount);
+      const res = await fetch('/api/contacts', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.contacts || []);
+        setAllContactsPool(list);
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load contacts pool', e);
     } finally {
       setLoading(false);
     }
   };
 
-  // Debounce input value changes to trigger search query updates
   useEffect(() => {
-    if (isFirstMount) {
-      setIsFirstMount(false);
-      return;
-    }
-    const delayDebounce = setTimeout(() => {
-      setPage(1);
-      setSearchQuery(searchInput);
-    }, 300);
+    fetchAllContactsPool();
+  }, []);
 
-    return () => clearTimeout(delayDebounce);
-  }, [searchInput]);
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
 
-  // Fetch when search query updates
-  useEffect(() => {
-    if (isFirstMount) return;
-    fetchContacts(1, searchQuery);
-  }, [searchQuery]);
+  const handleSearchChange = (val: string) => {
+    setSearchInput(val);
+    setPage(1);
+  };
 
-  // Page triggers
-  useEffect(() => {
-    if (isFirstMount) return;
-    fetchContacts(page, searchQuery);
-  }, [page]);
+  const cleanSearch = searchInput.trim().toLowerCase();
+  const digitsSearch = cleanSearch.replace(/\D/g, '');
 
-  // Re-fetch helper helper
+  // 100% Instant In-Memory Filtered Contacts Pool
+  const filteredContactsPool = useMemo(() => {
+    if (!cleanSearch) return allContactsPool;
+    return allContactsPool.filter((c) => {
+      const nameMatch = (c.name || '').toLowerCase().includes(cleanSearch);
+      const rawPhone = c.phone_number || '';
+      const phoneMatch = rawPhone.includes(cleanSearch) || (digitsSearch.length > 0 && rawPhone.includes(digitsSearch));
+      return nameMatch || phoneMatch;
+    });
+  }, [allContactsPool, cleanSearch, digitsSearch]);
+
+  const totalCount = filteredContactsPool.length;
+
+  const displayedContacts = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredContactsPool.slice(start, start + pageSize);
+  }, [filteredContactsPool, page, pageSize]);
+
+  // Re-fetch helper
   const refetchContacts = async () => {
-    await fetchContacts(page, searchQuery);
+    await fetchAllContactsPool();
   };
 
   const handleGoogleImport = () => {
@@ -131,13 +142,16 @@ export default function ContactsClient({
     client.requestAccessToken();
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload = async (e?: React.ChangeEvent<HTMLInputElement>, confirmLimit = false, fileToUpload?: File) => {
+    const file = fileToUpload || e?.target?.files?.[0];
     if (!file) return;
 
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
+    if (confirmLimit) {
+      formData.append('confirmLimit', 'true');
+    }
 
     try {
       const res = await fetch('/api/contacts/upload-csv', {
@@ -145,17 +159,24 @@ export default function ContactsClient({
         credentials: 'include',
         body: formData,
       });
-      if (res.ok) {
-        fireToast('Contacts uploaded', 'success');
+      const data = await res.json();
+
+      if (res.ok && !data.limitWarning) {
+        fireToast('Contacts uploaded successfully', 'success');
+        setImportLimitInfo(null);
+        setPendingFile(null);
         await refetchContacts();
+      } else if (data.limitWarning) {
+        setPendingFile(file);
+        setImportLimitInfo(data);
       } else {
-        const data = await res.json();
-        fireToast('Error: ' + data.error, 'error');
+        fireToast(data.error || 'Upload failed', 'error');
       }
     } catch (err) {
       fireToast('Upload failed', 'error');
     } finally {
       setUploading(false);
+      if (e?.target) e.target.value = '';
     }
   };
 
@@ -171,6 +192,43 @@ export default function ContactsClient({
     } else {
       const data = await res.json();
       throw new Error(data.error || 'Failed to add contact');
+    }
+  };
+
+  const handleUpdateContact = async (id: string, name: string, phone: string) => {
+    const res = await fetch('/api/contacts', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, phone_number: phone })
+    });
+    if (res.ok) {
+      fireToast('Contact updated successfully', 'success');
+      await refetchContacts();
+    } else {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to update contact');
+    }
+  };
+
+  const handleDeleteSingleContact = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this contact?')) return;
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] })
+      });
+      if (res.ok) {
+        fireToast('Contact deleted', 'success');
+        await refetchContacts();
+      } else {
+        const data = await res.json();
+        fireToast('Error: ' + data.error, 'error');
+      }
+    } catch (err: any) {
+      fireToast('Error: ' + err.message, 'error');
     }
   };
 
@@ -231,18 +289,11 @@ export default function ContactsClient({
   };
 
   const toggleAll = () => {
-    const filtered = contacts.filter(c => {
-      const query = searchQuery.toLowerCase();
-      return (
-        (c.name?.toLowerCase() || '').includes(query) ||
-        c.phone_number.includes(query)
-      );
-    });
-
-    if (selectedIds.size === filtered.length && filtered.length > 0) {
+    if (selectedIds.size > 0) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map(c => c.id)));
+      setSelectedIds(new Set(filteredContactsPool.map(c => c.id)));
+      fireToast(`Selected all ${filteredContactsPool.length} contacts`, 'info');
     }
   };
 
@@ -303,7 +354,7 @@ export default function ContactsClient({
               className="focus:border-indigo-500 focus:outline-none block w-full pl-4 pr-4 py-3 text-sm font-semibold border border-glass-border rounded-2xl bg-glass-input text-fg placeholder:text-fg/20 transition-all font-sans"
               placeholder="Search contacts..."
               value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
             />
           </div>
         </div>
@@ -313,7 +364,7 @@ export default function ContactsClient({
             <Loader2 className="w-8 h-8 animate-spin mb-4 text-fg" />
             <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading contacts directory...</p>
           </div>
-        ) : contacts.length === 0 ? (
+        ) : allContactsPool.length === 0 ? (
           <div className="relative rounded-b-[2.5rem] overflow-hidden border-t border-glass-border shadow-2xl bg-glass-card group">
             <img 
               src="/images/contacts_groups.jpg" 
@@ -343,19 +394,37 @@ export default function ContactsClient({
         ) : (
           <>
             <ContactsTable
-              contacts={contacts}
+              contacts={displayedContacts}
               selectedIds={selectedIds}
-              searchQuery={searchQuery}
+              searchQuery={searchInput}
               onToggleSelection={toggleSelection}
               onToggleAll={toggleAll}
+              onEditContact={(c) => setEditingContact(c)}
+              onDeleteSingle={handleDeleteSingleContact}
             />
 
-            {/* Pagination Controls */}
-            {totalCount > pageSize && (
-              <div className="p-6 border-t border-glass-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-glass-card/10">
+            {/* Pagination & Rows Per Page Controls */}
+            <div className="p-6 border-t border-glass-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-glass-card/10">
+              <div className="flex flex-wrap items-center gap-4">
                 <p className="text-xs font-bold text-muted">
-                  Showing {Math.min(totalCount, (page - 1) * pageSize + 1)}–{Math.min(totalCount, page * pageSize)} of {totalCount} contacts
+                  Showing {totalCount === 0 ? 0 : Math.min(totalCount, (page - 1) * pageSize + 1)}–{Math.min(totalCount, page * pageSize)} of {totalCount} contacts
                 </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase text-muted tracking-widest">Rows per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    className="bg-glass-input border border-glass-border rounded-xl px-3 py-1.5 text-xs font-bold text-fg focus:outline-none cursor-pointer"
+                  >
+                    <option value={10} className="bg-bg text-fg">10</option>
+                    <option value={25} className="bg-bg text-fg">25</option>
+                    <option value={50} className="bg-bg text-fg">50</option>
+                    <option value={100} className="bg-bg text-fg">100</option>
+                  </select>
+                </div>
+              </div>
+
+              {totalCount > pageSize && (
                 <div className="flex gap-2">
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -372,8 +441,8 @@ export default function ContactsClient({
                     Next
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </div>
@@ -393,6 +462,44 @@ export default function ContactsClient({
         </Suspense>
       )}
 
+      {/* Edit Contact Modal */}
+      {editingContact && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <Loader2 className="w-8 h-8 animate-spin text-fg" />
+          </div>
+        }>
+          <EditContactModal
+            contact={editingContact}
+            onClose={() => setEditingContact(null)}
+            onToast={fireToast}
+            onUpdated={handleUpdateContact}
+          />
+        </Suspense>
+      )}
+
+      {/* Import Plan Limit Warning Modal */}
+      {importLimitInfo && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <Loader2 className="w-8 h-8 animate-spin text-fg" />
+          </div>
+        }>
+          <ImportLimitModal
+            limitInfo={importLimitInfo}
+            onConfirmTruncated={() => {
+              if (pendingFile) {
+                handleFileUpload(undefined, true, pendingFile);
+              }
+            }}
+            onCancel={() => {
+              setImportLimitInfo(null);
+              setPendingFile(null);
+            }}
+          />
+        </Suspense>
+      )}
+
       {/* Send Message Wizard Modal */}
       {showSendModal && (
         <Suspense fallback={
@@ -403,7 +510,7 @@ export default function ContactsClient({
           <SendTemplateModal
             selectedIds={selectedIds}
             templates={templates}
-            contacts={contacts}
+            contacts={allContactsPool}
             onClose={() => setShowSendModal(false)}
             onToast={fireToast}
             onSent={handleSendTemplate}

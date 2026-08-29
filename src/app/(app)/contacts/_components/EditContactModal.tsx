@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { normalizePhoneNumber } from '@/lib/phone';
 
-interface AddContactModalProps {
+interface EditContactModalProps {
+  contact: any;
   onClose: () => void;
   onToast: (msg: string, type: 'success' | 'error' | 'info') => void;
-  onSaved: (name: string, phone: string) => Promise<void>;
+  onUpdated: (id: string, name: string, phone: string) => Promise<void>;
 }
 
 const COUNTRY_CODES = [
@@ -23,9 +24,9 @@ const COUNTRY_CODES = [
   { code: '81', label: 'Japan (+81)' },
 ];
 
-export default function AddContactModal({ onClose, onToast, onSaved }: AddContactModalProps) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+export default function EditContactModal({ contact, onClose, onToast, onUpdated }: EditContactModalProps) {
+  const [name, setName] = useState(contact.name || '');
+  const [phone, setPhone] = useState(contact.phone_number || '');
   const [countryCode, setCountryCode] = useState('91');
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,15 +40,14 @@ export default function AddContactModal({ onClose, onToast, onSaved }: AddContac
     }
     cleanDigits = cleanDigits.replace(/\D/g, '');
 
-    // Combine country code if user provided 10 digits without code
     const fullPhone = normalizePhoneNumber(cleanDigits, countryCode);
 
     setSubmitting(true);
     try {
-      await onSaved(name, fullPhone);
+      await onUpdated(contact.id, name, fullPhone);
       onClose();
     } catch (err: any) {
-      onToast(err.message || 'Failed to add contact', 'error');
+      onToast(err.message || 'Failed to update contact', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -63,7 +63,7 @@ export default function AddContactModal({ onClose, onToast, onSaved }: AddContac
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="text-xl font-black text-fg mb-6 tracking-tight text-left">Add Contact</h3>
+        <h3 className="text-xl font-black text-fg mb-6 tracking-tight text-left">Edit Contact</h3>
         <form onSubmit={handleSubmit}>
           <div className="space-y-5 mb-8 text-left">
             <div>
@@ -115,7 +115,7 @@ export default function AddContactModal({ onClose, onToast, onSaved }: AddContac
               disabled={submitting}
               className="px-8 py-3.5 bg-fg text-bg hover:opacity-90 disabled:opacity-40 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center border-0 outline-none"
             >
-              {submitting ? 'Saving...' : 'Save Contact'}
+              {submitting ? 'Updating...' : 'Update Contact'}
             </button>
           </div>
         </form>

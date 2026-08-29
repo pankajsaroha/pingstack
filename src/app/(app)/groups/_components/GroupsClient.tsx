@@ -38,7 +38,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
     }
   };
 
-  const handleSavedGroup = async (groupName: string, type: 'GOOGLE' | 'FILE', fileOrToken?: any) => {
+  const handleSavedGroup = async (groupName: string, type: 'GOOGLE' | 'FILE' | 'EXISTING', fileOrToken?: any) => {
     const res = await fetch('/api/groups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,6 +79,17 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
       } else {
         const fData = await fRes.json();
         fireToast('Error: ' + fData.error, 'error');
+      }
+    } else if (type === 'EXISTING' && Array.isArray(fileOrToken) && fileOrToken.length > 0) {
+      const addRes = await fetch('/api/groups/add-contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId, contactIds: fileOrToken })
+      });
+      if (addRes.ok) {
+        fireToast(`Group created with ${fileOrToken.length} contact(s)`, 'success');
+      } else {
+        fireToast('Group created, but failed to attach contacts', 'error');
       }
     } else {
       fireToast('Empty group created successfully', 'success');

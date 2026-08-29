@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { normalizePhoneNumber } from '@/lib/phone';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
         const phoneNumbers = person.phoneNumbers || [];
         
         phoneNumbers.forEach((p: any) => {
-          let phone = p.value.replace(/[\s\-\(\)]/g, '');
+          let phone = normalizePhoneNumber(p.value);
           if (phone) {
             allContacts.push({
               tenant_id: tenantId,

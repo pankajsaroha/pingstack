@@ -43,6 +43,7 @@ export interface CampaignSendPayload {
   groupIds?: string[];
   contactIds?: string[];
   directData?: Array<{ phone: string; variables?: string[] }>;
+  templateVariables?: Record<string, string>;
 }
 
 export function validateCampaignSendPayload(body: any): { valid: boolean; data?: CampaignSendPayload; error?: string } {
@@ -77,6 +78,14 @@ export function validateCampaignSendPayload(body: any): { valid: boolean; data?:
     contactIds = body.contactIds.map((c: any) => sanitizeString(c)).filter(Boolean);
   }
 
+  let templateVariables: Record<string, string> | undefined;
+  if (body.templateVariables && typeof body.templateVariables === 'object') {
+    templateVariables = {};
+    for (const [k, v] of Object.entries(body.templateVariables)) {
+      templateVariables[sanitizeString(k)] = sanitizeString(v);
+    }
+  }
+
   let directData: Array<{ phone: string; variables?: string[] }> | undefined;
   if (body.directData !== undefined) {
     if (!Array.isArray(body.directData)) {
@@ -107,6 +116,7 @@ export function validateCampaignSendPayload(body: any): { valid: boolean; data?:
       groupIds,
       contactIds,
       directData,
-    },
+      templateVariables
+    }
   };
 }
