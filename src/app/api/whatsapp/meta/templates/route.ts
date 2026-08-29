@@ -239,7 +239,7 @@ export async function POST(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
-    const { name, language, category, bodyText } = await req.json();
+    const { name, language, category, bodyText, oldTemplateId } = await req.json();
 
     if (!name || !language || !category || !bodyText) {
       return NextResponse.json({ error: 'Missing required fields (name, language, category, bodyText)' }, { status: 400 });
@@ -262,8 +262,7 @@ export async function POST(req: Request) {
 
     const normalizedCategory = String(category).trim().toUpperCase();
 
-    // 2. Call Meta API to create template
-    // POST /v19.0/{WABA_ID}/message_templates
+    // 1. Call Meta API to create new template FIRST
     const metaUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates`;
 
     const metaResponse = await fetch(metaUrl, {
@@ -290,18 +289,45 @@ export async function POST(req: Request) {
 
     if (metaData.error) {
       console.error('Meta Template API Error:', metaData.error);
-      return NextResponse.json({ error: metaData.error.message || 'Meta API Error' }, { status: 400 });
+      return NextResponse.json({
+        error: metaData.error.message || 'Meta API Error: Failed to submit template to Meta.'
+      }, { status: 400 });
     }
 
-    // 3. Store in DB
+    // 2. Meta creation SUCCEEDED (metaData.id created on Meta)!
+    // If oldTemplateId is provided, delete old template from Meta WABA & DB
+    if (oldTemplateId) {
+      try {
+        const { data: oldT } = await db.from('templates').select('*').eq('id', oldTemplateId).eq('tenant_id', tenantId).maybeSingle();
+        if (oldT) {
+          if (oldT.template_id) {
+            await fetch(`https://graph.facebook.com/v19.0/${oldT.template_id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+          }
+          const deleteMetaUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates?name=${encodeURIComponent(oldT.name)}`;
+          await fetch(deleteMetaUrl, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          await db.from('templates').delete().eq('id', oldTemplateId).eq('tenant_id', tenantId);
+        }
+      } catch (delErr) {
+        console.warn('[Meta Template Resubmit] Warning deleting old template:', delErr);
+      }
+    }
+
+    // 3. Store new template in local DB with Meta status (defaults to PENDING)
+    const initialStatus = metaData.status || 'PENDING';
     const { data: template, error: dbError } = await db
       .from('templates')
       .insert({
         tenant_id: tenantId,
         name,
-        template_id: metaData.id, // Meta template ID
-        content: bodyText, // Store body as content for backwards compatibility
-        status: 'PENDING',
+        template_id: metaData.id,
+        content: bodyText,
+        status: initialStatus,
         language,
         category: normalizedCategory
       })
