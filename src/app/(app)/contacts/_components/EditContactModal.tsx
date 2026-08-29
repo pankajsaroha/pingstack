@@ -34,11 +34,11 @@ export default function EditContactModal({ contact, onClose, onToast, onUpdated 
     e.preventDefault();
     if (!phone.trim()) return;
 
-    let cleanDigits = phone.trim();
-    if (cleanDigits.startsWith('+')) {
-      cleanDigits = cleanDigits.substring(1);
+    let cleanDigits = phone.trim().replace(/\D/g, '');
+    if (cleanDigits.length < 10 || cleanDigits.length > 15) {
+      onToast('Phone number must contain at least 10 digits.', 'error');
+      return;
     }
-    cleanDigits = cleanDigits.replace(/\D/g, '');
 
     const fullPhone = normalizePhoneNumber(cleanDigits, countryCode);
 

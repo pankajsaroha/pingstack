@@ -43,11 +43,20 @@ export async function GET(req: Request) {
   query = query.order('created_at', { ascending: false });
 
   if (idsOnly) {
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    let allIds: string[] = [];
+    let from = 0;
+    const CHUNK_SIZE = 1000;
+    while (true) {
+      const { data, error } = await query.range(from, from + CHUNK_SIZE - 1);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      if (!data || data.length === 0) break;
+      allIds.push(...data.map((c: any) => c.id));
+      if (data.length < CHUNK_SIZE) break;
+      from += CHUNK_SIZE;
     }
-    return NextResponse.json({ ids: (data || []).map((c: any) => c.id) });
+    return NextResponse.json({ ids: allIds });
   }
 
   if (pageParam) {
@@ -56,23 +65,36 @@ export async function GET(req: Request) {
     const start = (page - 1) * pageSize;
     const end = start + pageSize - 1;
     query = query.range(start, end);
-  }
 
-  const { data, error, count } = await query;
+    const { data, error, count } = await query;
+    if (error) {
+      console.error('API GET contacts error', { tenantId, error });
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+    }
 
-  if (error) {
-    console.error('API GET contacts error', { tenantId, error });
-    return NextResponse.json({ error: error.message, details: error }, { status: 500 });
-  }
-
-  if (pageParam) {
     return NextResponse.json({
       contacts: data || [],
       totalCount: count || 0
     });
   }
 
-  return NextResponse.json(data);
+  // Fetch ALL rows without 1000-row Supabase limit ceiling
+  let allRows: any[] = [];
+  let from = 0;
+  const CHUNK_SIZE = 1000;
+  while (true) {
+    const { data, error } = await query.range(from, from + CHUNK_SIZE - 1);
+    if (error) {
+      console.error('API GET contacts error', { tenantId, error });
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+    }
+    if (!data || data.length === 0) break;
+    allRows.push(...data);
+    if (data.length < CHUNK_SIZE) break;
+    from += CHUNK_SIZE;
+  }
+
+  return NextResponse.json(allRows);
 }
 
 export async function POST(req: Request) {
@@ -95,6 +117,21 @@ export async function POST(req: Request) {
 
     // NORMALIZE PHONE: Strip +, non-digits, and prepend 91 default country code if 10 digits
     const normalizedPhone = normalizePhoneNumber(phone_number);
+
+    // Check duplicate phone number for this tenant
+    const { data: existingContact } = await db
+      .from('contacts')
+      .select('id, name, phone_number')
+      .eq('tenant_id', tenantId)
+      .eq('phone_number', normalizedPhone)
+      .maybeSingle();
+
+    if (existingContact) {
+      const existingName = existingContact.name ? `'${existingContact.name}'` : 'Anonymous';
+      return NextResponse.json({ 
+        error: `Duplicate Contact: Phone number ${normalizedPhone} already exists in your directory (Saved as ${existingName}).`
+      }, { status: 409 });
+    }
 
     const canAddContact = await checkLimit(tenantId, 'contacts');
     if (!canAddContact) {
