@@ -87,7 +87,7 @@ export function validateCampaignSendPayload(body: any): { valid: boolean; data?:
   }
 
   let directData: Array<{ phone: string; variables?: string[] }> | undefined;
-  if (body.directData !== undefined) {
+  if (body.directData !== undefined && body.directData !== null) {
     if (!Array.isArray(body.directData)) {
       return { valid: false, error: 'directData must be an array of contact objects.' };
     }

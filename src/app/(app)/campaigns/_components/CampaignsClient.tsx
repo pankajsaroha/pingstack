@@ -3,6 +3,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { Plus, Send, Loader2, ChevronDown } from 'lucide-react';
 import Toast from '@/components/Toast';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import CampaignCard from './CampaignCard';
 
 const CreateCampaignModal = lazy(() => import('./CreateCampaignModal'));
@@ -145,6 +146,78 @@ export default function CampaignsClient({
     await fetchCampaigns();
   };
 
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [campaignToDelete, setCampaignToDelete] = useState<any>(null);
+  const [deleteCampaignMessages, setDeleteCampaignMessages] = useState<boolean>(false);
+
+  const handleRetryCampaignFailed = async (campaignId: string) => {
+    setRetryingIds(prev => new Set(prev).add(campaignId));
+    try {
+      const res = await fetch('/api/messages/retry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || ''
+        },
+        body: JSON.stringify({ campaignId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fireToast(`Retrying ${data.retriedCount || 0} failed message(s)...`, 'success');
+        await fetchCampaigns();
+      } else {
+        fireToast(data.error || 'Failed to retry campaign messages', 'error');
+      }
+    } catch (e: any) {
+      fireToast(e.message || 'Retry request failed', 'error');
+    } finally {
+      setRetryingIds(prev => {
+        const next = new Set(prev);
+        next.delete(campaignId);
+        return next;
+      });
+    }
+  };
+
+  const confirmDeleteCampaign = async () => {
+    if (!campaignToDelete) return;
+    const campaignId = campaignToDelete.id;
+    setDeletingIds(prev => new Set(prev).add(campaignId));
+    try {
+      const res = await fetch('/api/campaigns', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || ''
+        },
+        body: JSON.stringify({ id: campaignId, deleteMessages: deleteCampaignMessages })
+      });
+      if (res.ok) {
+        fireToast(
+          deleteCampaignMessages
+            ? 'Campaign and all associated message records deleted.'
+            : 'Campaign removed from history. Individual chat records preserved.',
+          'success'
+        );
+        setCampaignToDelete(null);
+        setDeleteCampaignMessages(false);
+        await fetchCampaigns();
+      } else {
+        const data = await res.json();
+        fireToast(data.error || 'Failed to delete campaign', 'error');
+      }
+    } catch (e: any) {
+      fireToast(e.message || 'Delete request failed', 'error');
+    } finally {
+      setDeletingIds(prev => {
+        const next = new Set(prev);
+        next.delete(campaignId);
+        return next;
+      });
+    }
+  };
+
   const handleViewReport = (campaign: any) => {
     setActiveCampaign(campaign);
     setShowReportModal(true);
@@ -208,7 +281,11 @@ export default function CampaignsClient({
                 key={campaign.id}
                 campaign={campaign}
                 planType={planType}
+                isRetrying={retryingIds.has(campaign.id)}
+                isDeleting={deletingIds.has(campaign.id)}
                 onViewReport={handleViewReport}
+                onRetryFailed={handleRetryCampaignFailed}
+                onDeleteCampaign={(cId) => setCampaignToDelete(campaigns.find(c => c.id === cId))}
               />
             ))}
 
@@ -230,6 +307,23 @@ export default function CampaignsClient({
           </>
         )}
       </div>
+
+      {/* Luxury Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!campaignToDelete}
+        title="Delete Campaign"
+        description={`Are you sure you want to remove campaign "${campaignToDelete?.name || ''}" from your campaign history?`}
+        checkboxLabel="Delete all individual message logs associated with this campaign as well"
+        checkboxChecked={deleteCampaignMessages}
+        onCheckboxChange={setDeleteCampaignMessages}
+        confirmText="Delete Campaign"
+        isDeleting={deletingIds.has(campaignToDelete?.id)}
+        onConfirm={confirmDeleteCampaign}
+        onClose={() => {
+          setCampaignToDelete(null);
+          setDeleteCampaignMessages(false);
+        }}
+      />
 
       {/* Create Modal */}
       {showModal && (

@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Send, Clock, Check, CheckCheck, AlertCircle,
-  Trash2, Image, FileText, Paperclip
+  Trash2, Image, FileText, Paperclip, X
 } from 'lucide-react';
 
 interface MessageBubbleProps {
@@ -30,6 +31,7 @@ export default function MessageBubble({
   onDelete,
 }: MessageBubbleProps) {
   const isOutbound = msg.direction === 'outbound';
+  const [showErrorPopover, setShowErrorPopover] = useState(false);
 
   return (
     <div className={`flex group items-center w-full min-w-0 ${isOutbound ? 'justify-end' : 'justify-start'}`}>
@@ -55,7 +57,7 @@ export default function MessageBubble({
         </button>
       )}
 
-      {/* Delete button — outbound side (placed to the LEFT of outbound bubble so it never pushes the bubble right off-screen) */}
+      {/* Delete button — outbound side */}
       {isOutbound && (
         <button
           onClick={() => onDelete(msg.id)}
@@ -114,12 +116,39 @@ export default function MessageBubble({
               {msg.status === 'read'      && <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />}
               {msg.status === 'failed'    && (
                 <div className="relative group/error">
-                  <AlertCircle className="w-3.5 h-3.5 text-red-400 cursor-help" />
-                  <div className="absolute bottom-full right-0 mb-3 w-64 bg-glass-card/85 text-fg p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/20 shadow-2xl opacity-0 group-hover/error:opacity-100 transition-all z-50 pointer-events-none translate-y-2 group-hover/error:translate-y-0">
-                    <div className="flex items-center mb-1.5 border-b border-glass-border pb-1.5 text-red-400">
-                      <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> META GATEWAY ERROR
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowErrorPopover(!showErrorPopover);
+                    }}
+                    className="flex items-center cursor-pointer border-0 bg-transparent p-0 outline-none"
+                    title="Tap to view error details"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 text-red-400 cursor-pointer hover:scale-110 transition-transform" />
+                  </button>
+
+                  <div
+                    className={`absolute bottom-full right-0 mb-3 w-64 bg-glass-card/95 backdrop-blur-xl text-fg p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/30 shadow-2xl transition-all z-50 pointer-events-auto ${
+                      showErrorPopover
+                        ? 'opacity-100 translate-y-0 block'
+                        : 'opacity-0 translate-y-2 pointer-events-none hidden sm:group-hover/error:block sm:group-hover/error:opacity-100 sm:group-hover/error:pointer-events-auto'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between mb-1.5 border-b border-glass-border pb-1.5 text-red-400">
+                      <div className="flex items-center">
+                        <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> META GATEWAY ERROR
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowErrorPopover(false)}
+                        className="text-muted hover:text-fg p-0.5 cursor-pointer border-0 bg-transparent"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    <div className="leading-relaxed text-fg/60 font-semibold lowercase">
+                    <div className="leading-relaxed text-fg/70 font-semibold lowercase select-text">
                       {msg.error?.includes('131049')
                         ? 'Meta Per-User Marketing Limit Reached (Code 131049). Meta caps marketing messages sent to this recipient within 24-48h to prevent spam. Use a Utility template or retry in 24-48h.'
                         : msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}

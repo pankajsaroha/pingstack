@@ -156,13 +156,24 @@ export default function CreateTemplateModal({
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center mb-8">
+          <div className="flex items-center mb-6">
             <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mr-6 shrink-0">
               <span className="text-xs font-black uppercase text-fg">WABA</span>
             </div>
             <div>
               <h3 className="text-xl font-black text-fg tracking-tight">Create Meta Template</h3>
               <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Direct Cloud API Submission Pipeline</p>
+            </div>
+          </div>
+
+          {/* Meta Approval Time Notice */}
+          <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl mb-8 text-left">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-fg font-medium leading-relaxed">
+                <strong className="font-bold text-indigo-400 block mb-1">Meta Review & Approval Window:</strong>
+                Submitting a template routes it directly to Meta Cloud API for automated review. Meta review usually completes within a few minutes, but can take <strong className="text-indigo-400">up to 24 hours</strong> for final approval.
+              </div>
             </div>
           </div>
 

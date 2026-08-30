@@ -119,3 +119,41 @@ export async function POST(req: Request) {
 
   return NextResponse.json(data);
 }
+
+export async function DELETE(req: Request) {
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  try {
+    const { id, deleteMessages } = await req.json();
+    if (!id) return NextResponse.json({ error: 'Missing campaign id' }, { status: 400 });
+
+    if (deleteMessages) {
+      // Delete associated message records completely from DB
+      await db.from('messages').delete().eq('campaign_id', id).eq('tenant_id', tenantId);
+    } else {
+      // Preserve individual contact chat history by unlinking campaign_id
+      await db.from('messages').update({ campaign_id: null }).eq('campaign_id', id).eq('tenant_id', tenantId);
+    }
+
+    // Delete campaign record from history
+    const { error } = await db.from('campaigns').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) throw error;
+
+    // Invalidate Redis cache for this tenant
+    if (connection && connection.status === 'ready') {
+      try {
+        const keys = await connection.keys(`campaigns:${tenantId}:*`);
+        if (keys.length > 0) await connection.del(...keys);
+      } catch (e) {
+        console.error('[Campaigns Cache] Failed to invalidate after DELETE:', e);
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('Campaign DELETE route error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to delete campaign' }, { status: 500 });
+  }
+}
