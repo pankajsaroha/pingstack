@@ -388,10 +388,10 @@ export default function CreateCampaignModal({
             <button
               type="submit"
               disabled={submitting}
-              className="px-8 py-3.5 bg-fg text-bg hover:opacity-90 disabled:opacity-40 disabled:text-muted rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all flex items-center justify-center cursor-pointer border-0 outline-none"
+              className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/80 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all flex items-center justify-center cursor-pointer border-0 outline-none"
             >
-              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {submitting ? 'Dispatching...' : (isScheduled ? 'Schedule Dispatch' : 'Queue Send Now')}
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />}
+              <span>{submitting ? 'Sending Campaign...' : (isScheduled ? 'Schedule Dispatch' : 'Send Campaign')}</span>
             </button>
           </div>
         </form>

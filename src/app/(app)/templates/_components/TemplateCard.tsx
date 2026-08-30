@@ -1,12 +1,13 @@
 'use client';
 
-import { Globe, Tag, LayoutTemplate, Pencil } from 'lucide-react';
+import { Globe, Tag, LayoutTemplate, Pencil, Trash2 } from 'lucide-react';
 
 interface TemplateCardProps {
   template: any;
   selectedIds: Set<string>;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onEditRejected?: (template: any) => void;
+  onDeleteSingle?: (id: string) => void;
 }
 
 export default function TemplateCard({
@@ -14,6 +15,7 @@ export default function TemplateCard({
   selectedIds,
   onToggleSelection,
   onEditRejected,
+  onDeleteSingle,
 }: TemplateCardProps) {
   const isSelected = selectedIds.has(template.id);
 
@@ -24,7 +26,20 @@ export default function TemplateCard({
       }`}
       onClick={(e) => onToggleSelection(template.id, e)}
     >
-      <div className="absolute top-6 right-6 z-30">
+      <div className="absolute top-6 right-6 z-30 flex items-center space-x-2">
+        {onDeleteSingle && (
+          <button
+            type="button"
+            title="Delete template from Meta and local history"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteSingle(template.id);
+            }}
+            className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer border border-transparent"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
         <input
           type="checkbox"
           checked={isSelected}

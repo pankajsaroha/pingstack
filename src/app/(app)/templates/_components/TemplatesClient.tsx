@@ -3,6 +3,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { LayoutTemplate, Loader2 } from 'lucide-react';
 import Toast from '@/components/Toast';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import SyncPanel from './SyncPanel';
 import TemplateCard from './TemplateCard';
 
@@ -89,7 +90,7 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
     });
 
     if (res.ok) {
-      fireToast('Template submitted to Meta', 'success');
+      fireToast('Template submitted to Meta successfully! Meta can take up to 24 hours to review and approve your template.', 'success');
       setShowModal(false);
       fetchTemplates(true);
     } else {
@@ -121,7 +122,7 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
     });
 
     if (res.ok) {
-      fireToast('Old rejected template deleted from Meta. Updated template submitted for review!', 'success');
+      fireToast('Updated template submitted to Meta successfully! Meta can take up to 24 hours to review and approve your template.', 'success');
       setEditingRejectedTemplate(null);
       fetchTemplates(true);
     } else {
@@ -130,10 +131,27 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
     }
   };
 
-  const handleDeleteSelected = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} template(s)?`)) return;
+  const [deletingTemplateData, setDeletingTemplateData] = useState<{ ids: string[]; label: string } | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState(false);
 
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 0) return;
+    setDeletingTemplateData({
+      ids: Array.from(selectedIds),
+      label: `${selectedIds.size} template(s)`
+    });
+  };
+
+  const handleDeleteSingleTemplate = (id: string, name: string) => {
+    setDeletingTemplateData({
+      ids: [id],
+      label: `template "${name}"`
+    });
+  };
+
+  const confirmDeleteTemplates = async () => {
+    if (!deletingTemplateData) return;
+    setDeletingTemplate(true);
     try {
       const headers: any = { 'Content-Type': 'application/json' };
       if (tenant?.id) {
@@ -144,18 +162,26 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
         method: 'DELETE',
         credentials: 'include',
         headers,
-        body: JSON.stringify({ ids: Array.from(selectedIds) })
+        body: JSON.stringify({ ids: deletingTemplateData.ids })
       });
+
       if (res.ok) {
-        setSelectedIds(new Set());
-        fireToast('Templates deleted', 'success');
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          deletingTemplateData.ids.forEach(id => next.delete(id));
+          return next;
+        });
+        fireToast('Template(s) deleted successfully from Meta and catalog', 'success');
+        setDeletingTemplateData(null);
         fetchTemplates();
       } else {
         const data = await res.json();
-        fireToast('Error: ' + data.error, 'error');
+        fireToast('Error deleting template: ' + (data.error || 'Unknown error'), 'error');
       }
     } catch (err: any) {
       fireToast('Error: ' + err.message, 'error');
+    } finally {
+      setDeletingTemplate(false);
     }
   };
 
@@ -187,16 +213,16 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
           <div className="relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card mt-4 group">
             <img 
               src="/images/template_builder.jpg" 
-              alt="Meta Template Builder" 
+              alt="WhatsApp Message Template Catalog" 
               loading="lazy"
               decoding="async"
               className="w-full h-[260px] sm:h-[300px] object-cover filter brightness-[0.75] group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 flex flex-col justify-end items-start text-left">
               <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black uppercase rounded-full tracking-widest mb-3">
-                Meta Cloud API Sync
+                Meta Message Templates
               </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Active Message Templates</h3>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Templates Available</h3>
               <p className="text-xs text-slate-300 font-medium max-w-md mt-1 leading-relaxed">
                 Pull pre-approved templates directly from your Meta Business Account sync, or build your first template draft here.
               </p>
@@ -225,10 +251,22 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
               onEditRejected={(t) => setEditingRejectedTemplate(t)}
+              onDeleteSingle={(id) => handleDeleteSingleTemplate(id, template.name)}
             />
           ))
         )}
       </div>
+
+      {/* Luxury Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!deletingTemplateData}
+        title="Delete Template"
+        description={`Are you sure you want to delete ${deletingTemplateData?.label || 'this template'}? This action will automatically delete the template from Meta Cloud API and purge it from your catalog.`}
+        confirmText="Delete Template"
+        isDeleting={deletingTemplate}
+        onConfirm={confirmDeleteTemplates}
+        onClose={() => setDeletingTemplateData(null)}
+      />
 
       {editingRejectedTemplate && (
         <Suspense fallback={

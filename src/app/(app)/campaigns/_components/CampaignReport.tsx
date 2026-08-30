@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, Loader2, RotateCcw } from 'lucide-react';
+import { X, Search, Loader2, RotateCcw, AlertCircle } from 'lucide-react';
 
 interface CampaignReportProps {
   campaign: any;
@@ -19,6 +19,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
   const [totalCount, setTotalCount] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [retryNotice, setRetryNotice] = useState<string | null>(null);
+  const [activeErrorId, setActiveErrorId] = useState<string | null>(null);
 
   const fetchReportData = async (campaignId: string, page: number, search: string) => {
     setReportLoading(true);
@@ -173,15 +174,47 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
-                        row.status === 'read' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
-                        row.status === 'delivered' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                        row.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
-                        'bg-glass-input border-glass-border text-fg/50'
-                      }`}>
-                        {row.status}
-                      </span>
+                    <td className="px-6 py-4 text-center relative">
+                      <div className="flex items-center justify-center space-x-1.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
+                          row.status === 'read' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
+                          row.status === 'delivered' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
+                          row.status === 'failed' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+                          'bg-glass-input border-glass-border text-fg/50'
+                        }`}>
+                          {row.status}
+                        </span>
+
+                        {row.status === 'failed' && (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setActiveErrorId(activeErrorId === row.id ? null : row.id)}
+                              className="text-red-400 hover:text-red-300 p-0.5 cursor-pointer border-0 bg-transparent"
+                              title="Tap to view failure reason"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5" />
+                            </button>
+
+                            {activeErrorId === row.id && (
+                              <div className="absolute right-0 top-full mt-2 w-64 bg-glass-card/95 backdrop-blur-xl border border-red-500/30 p-3 rounded-xl shadow-2xl text-[10px] text-fg z-50 text-left">
+                                <div className="flex items-center justify-between text-red-400 font-black mb-1 border-b border-glass-border pb-1">
+                                  <span>Failure Reason</span>
+                                  <button
+                                    onClick={() => setActiveErrorId(null)}
+                                    className="text-muted hover:text-fg border-0 bg-transparent cursor-pointer"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                                <p className="text-fg/80 font-mono text-[9px] leading-relaxed break-words">
+                                  {row.error || 'Recipient unreachable or rejected by Meta endpoint.'}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right text-[10px] text-fg/30 font-semibold font-mono">
                       {new Date(row.created_at).toLocaleString()}

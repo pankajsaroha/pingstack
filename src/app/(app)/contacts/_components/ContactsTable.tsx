@@ -118,6 +118,26 @@ export default function ContactsTable({
 
       {/* Mobile View */}
       <div className="sm:hidden divide-y divide-white/5 text-left">
+        <div className="p-4 bg-glass-input/40 border-b border-glass-border flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onToggleAll}
+            className="flex items-center space-x-3 cursor-pointer text-left border-0 bg-transparent"
+          >
+            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+              isAllSelected ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+            }`}>
+              {isAllSelected && <Check className="w-3.5 h-3.5 text-black" />}
+            </div>
+            <span className="text-xs font-black uppercase tracking-widest text-fg/80">
+              {isAllSelected ? 'Deselect All (This Page)' : 'Select All (This Page)'}
+            </span>
+          </button>
+          <span className="text-[10px] font-mono text-muted font-bold">
+            {selectedIds.size} Selected
+          </span>
+        </div>
+
         {filteredContacts.map((contact) => (
           <div
             key={contact.id}
