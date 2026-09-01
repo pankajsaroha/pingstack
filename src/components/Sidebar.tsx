@@ -19,10 +19,12 @@ const navItems = [
 
 export function Sidebar({ 
   collapsed: isCollapsed, 
-  onToggleCollapse 
+  onToggleCollapse,
+  onItemClick,
 }: { 
   collapsed: boolean; 
-  onToggleCollapse: () => void 
+  onToggleCollapse: () => void;
+  onItemClick?: (href: string) => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -74,6 +76,7 @@ export function Sidebar({
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => onItemClick?.(item.href)}
               title={isCollapsed ? item.name : ''}
               className={`flex items-center py-2.5 text-sm font-bold rounded-xl transition-all duration-300 group ${
                 isActive 
@@ -109,6 +112,7 @@ export function Sidebar({
           <div className="mt-4 px-3 mb-4">
             <Link 
               href="/privacy" 
+              onClick={() => onItemClick?.('/privacy')}
               className={`flex items-center text-[9px] font-black transition-all duration-300 uppercase tracking-widest px-3 py-2 rounded-xl ${
                 pathname === '/privacy' 
                   ? 'bg-fg text-bg shadow-md' 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/Sidebar';
-import { Menu, X, AlertTriangle, LogOut } from 'lucide-react';
+import { Menu, X, AlertTriangle, LogOut, Loader2 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { setSupabaseSession } from '@/lib/db';
 import { TenantProvider } from '@/context/tenant-context';
@@ -16,6 +16,8 @@ interface ClientLayoutProps {
 export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [targetPath, setTargetPath] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +44,21 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
     window.addEventListener('pageshow', handlePageShow);
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
+
+  // Auto-close mobile drawer & clear navigation loading overlay when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setIsNavigating(false);
+    setTargetPath(null);
+  }, [pathname]);
+
+  const handleNavItemClick = (href: string) => {
+    setIsMobileMenuOpen(false);
+    if (href !== pathname) {
+      setIsNavigating(true);
+      setTargetPath(href);
+    }
+  };
 
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -130,7 +147,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
       </div>
 
       <div className="hidden md:block">
-        <Sidebar collapsed={isCollapsed} onToggleCollapse={toggleCollapse} />
+        <Sidebar collapsed={isCollapsed} onToggleCollapse={toggleCollapse} onItemClick={handleNavItemClick} />
       </div>
 
       {isMobileMenuOpen && (
@@ -148,7 +165,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <Sidebar collapsed={false} onToggleCollapse={() => {}} />
+              <Sidebar collapsed={false} onToggleCollapse={() => {}} onItemClick={handleNavItemClick} />
             </div>
           </div>
         </div>
@@ -206,6 +223,25 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
         )}
 
         <main className={`flex-1 relative ${pathname === '/inbox' ? 'flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
+          {isNavigating && (
+            <div className="absolute inset-0 bg-bg/80 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
+              <div className="p-8 rounded-3xl bg-glass-card/90 border border-glass-border shadow-2xl flex flex-col items-center max-w-sm text-center">
+                <div className="relative mb-5">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                  </div>
+                  <div className="absolute -inset-1 rounded-2xl bg-indigo-500/20 blur-md -z-10 animate-pulse" />
+                </div>
+                <h3 className="text-sm font-black text-fg uppercase tracking-widest">
+                  Loading {targetPath ? targetPath.replace('/', '').toUpperCase() : 'PAGE'}...
+                </h3>
+                <p className="text-[11px] text-muted font-medium mt-1">
+                  Fetching workspace messaging data
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className={`${pathname === '/inbox' ? 'flex-1 flex flex-col min-h-0 w-full p-2 sm:p-6 md:p-8' : 'p-4 sm:p-6 md:p-8 mt-2'} max-w-6xl w-full mx-auto relative`}>
             <TenantProvider initialTenant={tenant}>
               {children}
