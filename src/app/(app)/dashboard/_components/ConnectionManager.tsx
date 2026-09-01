@@ -5,6 +5,7 @@ import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown, C
 
 interface ConnectionManagerProps {
   tenant: any;
+  hasSentMessages?: boolean;
   isSwitching: boolean;
   discovery: any[] | null;
   selectedWaba: string;
@@ -23,6 +24,7 @@ interface ConnectionManagerProps {
 
 export default function ConnectionManager({
   tenant,
+  hasSentMessages = false,
   isSwitching,
   discovery,
   selectedWaba,
@@ -41,12 +43,46 @@ export default function ConnectionManager({
   const whatsappAccount = tenant?.whatsapp_account;
   const [showMore, setShowMore] = useState(false);
   const [showRecipientGuideModal, setShowRecipientGuideModal] = useState(false);
+  const [dismissedNotice, setDismissedNotice] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('meta_setup_notice_dismissed') === 'true';
+    }
+    return false;
+  });
+
+  const handleDismissNotice = () => {
+    setDismissedNotice(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('meta_setup_notice_dismissed', 'true');
+    }
+  };
+
+  const statusUpper = (whatsappAccount?.status || '').toUpperCase();
+  const isApproved = statusUpper === 'APPROVED' || statusUpper === 'ACTIVE';
+  const isTest = whatsappAccount?.is_test_number === true;
+
+  // Show notice ONLY for newly added users (hasSentMessages = false) or pending/test accounts
+  const isNewOrTestUser =
+    !dismissedNotice &&
+    (!hasSentMessages || !isApproved || isTest);
 
   // Build the Meta Business Manager link using stored business_id / portfolio_id
   const businessId = whatsappAccount?.business_id || whatsappAccount?.portfolio_id || '';
+  const wabaId = whatsappAccount?.waba_id || whatsappAccount?.business_id || '';
+
   const metaManagerUrl = businessId
     ? `https://business.facebook.com/latest/settings/whatsapp_account?business_id=${businessId}`
     : 'https://business.facebook.com/settings/';
+
+  const paymentSettingsUrl = businessId
+    ? `https://business.facebook.com/billing_hub/payment_settings?business_id=${businessId}`
+    : 'https://business.facebook.com/billing_hub/payment_settings';
+
+  const phoneNumbersUrl = wabaId
+    ? `https://business.facebook.com/wa/manage/phone-numbers/?waba_id=${wabaId}`
+    : (businessId
+      ? `https://business.facebook.com/latest/settings/whatsapp_account?business_id=${businessId}`
+      : 'https://business.facebook.com/settings/');
 
   const [registering, setRegistering] = useState(false);
 
@@ -180,6 +216,83 @@ export default function ConnectionManager({
               <p className="text-xs font-mono font-bold text-fg/75 truncate select-all">{whatsappAccount?.phone_number_id || 'Not Associated'}</p>
             </div>
           </div>
+          {/* Required Meta Setup Guidance Notice — Shown only for new users or pending/test accounts */}
+          {isNewOrTestUser && (
+            <div className="my-6 p-5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-blue-500/10 border border-indigo-500/25 rounded-3xl relative overflow-hidden shadow-xl text-left animate-in fade-in duration-300">
+              <div className="flex items-start space-x-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 mt-0.5 shadow-inner">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="text-sm font-black text-fg tracking-tight">
+                      Required Meta Setup Before Sending Messages
+                    </h4>
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        Mandatory Meta Steps
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleDismissNotice}
+                        className="text-muted hover:text-fg p-1 rounded-lg transition-colors border-0 bg-transparent cursor-pointer"
+                        title="Dismiss setup notice"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted font-medium mt-1 leading-relaxed">
+                    After linking with Meta, messages cannot be sent until you configure a real phone number and payment settings. Open Meta Business Manager and set up the two options located at the bottom sidebar:
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                    {/* Option 1: Payment Settings */}
+                    <div className="p-4 bg-glass-card/80 border border-glass-border rounded-2xl flex flex-col justify-between hover:border-indigo-500/40 transition-all shadow-md">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1.5 text-fg">
+                          <span className="text-sm">1. 💳</span>
+                          <span className="text-xs font-black">Payment Settings</span>
+                        </div>
+                        <p className="text-[11px] text-muted font-medium leading-normal">
+                          Set your payment method / credit card for WhatsApp WABA message billing.
+                        </p>
+                      </div>
+                      <a
+                        href={paymentSettingsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3.5 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md text-center cursor-pointer border-0"
+                      >
+                        Payment Settings <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+
+                    {/* Option 2: WhatsApp Manager (Phone Numbers) */}
+                    <div className="p-4 bg-glass-card/80 border border-glass-border rounded-2xl flex flex-col justify-between hover:border-indigo-500/40 transition-all shadow-md">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1.5 text-fg">
+                          <span className="text-sm">2. 📱</span>
+                          <span className="text-xs font-black">WhatsApp Manager</span>
+                        </div>
+                        <p className="text-[11px] text-muted font-medium leading-normal">
+                          Add and verify your real phone number to activate production broadcasts.
+                        </p>
+                      </div>
+                      <a
+                        href={phoneNumbersUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3.5 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md text-center cursor-pointer border-0"
+                      >
+                        WhatsApp Manager <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Primary actions row */}
           <div className="flex flex-wrap items-center gap-3 mt-2">

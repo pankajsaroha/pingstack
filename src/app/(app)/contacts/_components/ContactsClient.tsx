@@ -274,7 +274,7 @@ export default function ContactsClient({
 
     if (res.ok) {
       setSelectedIds(new Set());
-      fireToast('Messages queued', 'success');
+      fireToast('Message queued. Go to inbox to see.', 'success');
     } else {
       const data = await res.json();
       throw new Error(data.error || 'Failed to send template messages');
