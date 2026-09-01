@@ -26,6 +26,17 @@ export function LandingNav({ onOpenAuth }: { onOpenAuth: (type: 'login' | 'regis
     }
 
     async function checkUser() {
+      const hasAuthCookie = typeof document !== 'undefined' && (
+        document.cookie.includes('token=') ||
+        document.cookie.includes('sb-') ||
+        document.cookie.includes('auth=')
+      );
+
+      if (!hasAuthCookie && !cached) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch('/api/tenant/me');
         if (res.ok) {
