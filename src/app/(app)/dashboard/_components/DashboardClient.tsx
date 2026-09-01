@@ -484,6 +484,12 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
             <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-top-4 duration-700">
               <ConnectionManager
                 tenant={tenant}
+                hasSentMessages={Boolean(
+                  (stats?.sent || 0) > 0 ||
+                  (stats?.delivered || 0) > 0 ||
+                  (stats?.read || 0) > 0 ||
+                  (stats?.totalCampaigns || 0) > 0
+                )}
                 isSwitching={isSwitching}
                 discovery={discovery}
                 selectedWaba={selectedWaba}

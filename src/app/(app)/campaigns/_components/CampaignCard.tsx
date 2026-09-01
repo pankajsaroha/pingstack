@@ -53,16 +53,39 @@ export default function CampaignCard({
               </span>
             )}
 
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-              campaign.status === 'running' ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30 animate-pulse' :
-              campaign.status === 'completed' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' :
-              campaign.status === 'partially_failed' || campaign.status === 'failed' ? 'bg-red-500/15 text-red-300 border border-red-500/30' :
-              campaign.status === 'draft' ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30' :
-              'bg-glass-input text-fg/60 border border-glass-border'
-            }`}>
-              {campaign.status === 'running' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5 animate-ping" />}
-              {campaign.status}
-            </span>
+            {campaign.status === 'running' && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500/15 text-blue-300 border border-blue-500/30 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5 animate-ping" />
+                Running
+              </span>
+            )}
+
+            {(campaign.status === 'completed' || campaign.status === 'passed') && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-400" />
+                Passed
+              </span>
+            )}
+
+            {(campaign.status === 'partial_success' || campaign.status === 'partially_failed') && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <AlertCircle className="w-3 h-3 mr-1 text-amber-400" />
+                Partial Success
+              </span>
+            )}
+
+            {campaign.status === 'failed' && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-red-500/15 text-red-300 border border-red-500/30">
+                <AlertCircle className="w-3 h-3 mr-1 text-red-400" />
+                Failed
+              </span>
+            )}
+
+            {campaign.status !== 'running' && campaign.status !== 'completed' && campaign.status !== 'passed' && campaign.status !== 'partial_success' && campaign.status !== 'partially_failed' && campaign.status !== 'failed' && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-glass-input text-fg/60 border border-glass-border">
+                {campaign.status}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center space-x-3 text-xs text-muted font-medium mt-2">

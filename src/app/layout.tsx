@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Outfit } from 'next/font/google';
 import './globals.css';
 
-const font = Outfit({ subsets: ['latin'], variable: '--font-outfit' });
+const font = Outfit({ subsets: ['latin'], variable: '--font-outfit', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'PingStack | Enterprise WhatsApp Notifications',

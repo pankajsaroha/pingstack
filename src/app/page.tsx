@@ -1,60 +1,38 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { 
-  ArrowRight, CheckCircle2, Zap, BarChart3, Shield,
-  Smartphone, Globe, LockIcon, Sparkles, MessageSquare, Users, Send, ChevronDown,
-  Calendar, Paperclip, Code2, Webhook, LayoutTemplate, HelpCircle, CheckCheck,
-  Check, Image as ImageIcon, FileText, Layers, TrendingUp, ShieldCheck
-} from 'lucide-react';
-import { LandingNav } from '@/components/LandingNav';
-import { LandingFooter } from '@/components/LandingFooter';
-import { AuthModal } from '@/components/AuthModal';
-import { InteractiveShowcase } from '@/components/InteractiveShowcase';
-import { useRouter } from 'next/navigation';
+import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
+import { 
+  CheckCircle2, Zap, BarChart3, Shield,
+  Smartphone, Users, MessageSquare, Sparkles,
+  Calendar, Paperclip, Code2, Webhook, LayoutTemplate, ShieldCheck
+} from 'lucide-react';
+import { LandingFooter } from '@/components/LandingFooter';
+import { 
+  LandingHeaderNav, 
+  HeroActionsSection, 
+  DynamicShowcaseWrapper, 
+  FAQSectionClient,
+  CtaRegisterButton
+} from './_components/LandingClientWrappers';
+
+export const metadata: Metadata = {
+  title: 'PingStack | Enterprise WhatsApp Notifications & Campaign SaaS',
+  description: 'Connect your official WhatsApp Business profile via Meta Cloud API. Manage pre-approved templates, 1-on-1 live inbox, broadcast campaigns, and real-time delivery logs.',
+  openGraph: {
+    title: 'PingStack | Enterprise WhatsApp Business SaaS',
+    description: 'Connect your WhatsApp Business profile, send broadcast campaigns, and manage live customer chats.',
+    url: 'https://pingstack.in',
+    siteName: 'PingStack',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PingStack | Enterprise WhatsApp Messaging',
+    description: 'Connect your WhatsApp Business account via Meta Cloud API.',
+  },
+};
 
 export default function Home() {
-  const router = useRouter();
-  const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
-  const [tenant, setTenant] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const auth = params.get('auth');
-    if (auth === 'login' || auth === 'register' || auth === 'forgot') setModalType(auth);
-
-    const cached = sessionStorage.getItem('tenant_session');
-    if (cached) {
-      try {
-        setTenant(JSON.parse(cached));
-      } catch (e) {}
-    }
-
-    async function checkUser() {
-      try {
-        const res = await fetch('/api/tenant/me');
-        if (res.ok) {
-          const data = await res.json();
-          setTenant(data);
-          sessionStorage.setItem('tenant_session', JSON.stringify(data));
-        }
-      } catch (err) {
-      } finally {
-        setLoading(false);
-      }
-    }
-    checkUser();
-  }, []);
-
-  const scrollToShowcase = () => {
-    const el = document.getElementById('how-it-works');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const faqs = [
     {
       q: "What is PingStack?",
@@ -94,7 +72,7 @@ export default function Home() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-500/[0.04] dark:bg-indigo-600/10 blur-[140px] animate-pulse-slow" />
       </div>
 
-      <LandingNav onOpenAuth={setModalType} />
+      <LandingHeaderNav />
 
       {/* Hero Section */}
       <section className="relative pt-28 md:pt-36 pb-16 px-6 z-10">
@@ -121,37 +99,7 @@ export default function Home() {
             </p>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 min-h-[52px]">
-              {loading ? (
-                <div className="h-14 w-56 bg-fg/5 border border-glass-border rounded-2xl animate-pulse" />
-              ) : tenant ? (
-                <button 
-                  onClick={() => router.push('/dashboard')}
-                  className="w-full sm:w-auto px-8 py-4 bg-fg text-bg rounded-2xl font-black text-xs uppercase tracking-[0.18em] shadow-lg hover:bg-fg/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center group cursor-pointer"
-                >
-                  Go to Dashboard
-                  <ArrowRight className="w-4 h-4 ml-2.5 group-hover:translate-x-1 transition-transform" />
-                </button>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => setModalType('register')}
-                    className="w-full sm:w-auto px-8 py-4 bg-fg text-bg rounded-2xl font-black text-xs uppercase tracking-[0.18em] shadow-lg hover:bg-fg/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center group cursor-pointer"
-                  >
-                    Start for free
-                    <ArrowRight className="w-4 h-4 ml-2.5 group-hover:translate-x-1 transition-transform" />
-                  </button>
-
-                  <button 
-                    onClick={scrollToShowcase}
-                    className="w-full sm:w-auto px-6 py-4 bg-white/80 dark:bg-glass-card border border-white/80 dark:border-glass-border hover:bg-white text-fg rounded-2xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer shadow-sm"
-                  >
-                    <span>See how it works</span>
-                    <ChevronDown className="w-4 h-4 ml-2 text-indigo-500 dark:text-indigo-400" />
-                  </button>
-                </>
-              )}
-            </div>
+            <HeroActionsSection />
 
             {/* Social Proof & Capabilities Strip */}
             <div className="mt-10 pt-6 border-t border-fg/10 dark:border-white/10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[10px] sm:text-xs font-bold text-fg/70 dark:text-muted">
@@ -174,7 +122,7 @@ export default function Home() {
 
       {/* HOW PINGSTACK WORKS (PRODUCT TOUR) */}
       <section id="how-it-works" className="relative z-10 py-6 scroll-mt-20">
-        <InteractiveShowcase />
+        <DynamicShowcaseWrapper />
       </section>
 
       {/* FEATURE VISUAL SHOWCASE 1: LIVE INBOX & TEMPLATES */}
@@ -215,13 +163,14 @@ export default function Home() {
 
               {/* Photo & Graphic Hybrid Card */}
               <div className="lg:col-span-7 relative group">
-                <div className="relative rounded-3xl overflow-hidden border border-glass-border shadow-2xl bg-glass-card">
-                  <img 
+                <div className="relative rounded-3xl overflow-hidden border border-glass-border shadow-2xl bg-glass-card h-[340px] sm:h-[380px]">
+                  <Image 
                     src="/images/customer_success.jpg" 
                     alt="Customer Success Specialist" 
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-[340px] sm:h-[380px] object-cover object-top filter brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
+                    width={800}
+                    height={500}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="w-full h-full object-cover object-top filter brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   
@@ -244,13 +193,14 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center bg-glass-card border border-glass-border p-8 sm:p-12 rounded-[2.5rem] shadow-2xl backdrop-blur-xl">
               {/* Photo & Graphic Hybrid Card */}
               <div className="lg:col-span-7 relative group order-2 lg:order-1">
-                <div className="relative rounded-3xl overflow-hidden border border-glass-border shadow-2xl bg-glass-card">
-                  <img 
+                <div className="relative rounded-3xl overflow-hidden border border-glass-border shadow-2xl bg-glass-card h-[340px] sm:h-[380px]">
+                  <Image 
                     src="/images/business_owner.jpg" 
                     alt="Business Owner using WhatsApp SaaS" 
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-[340px] sm:h-[380px] object-cover object-center filter brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
+                    width={800}
+                    height={500}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="w-full h-full object-cover object-center filter brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   
@@ -298,13 +248,14 @@ export default function Home() {
             </div>
 
             {/* Visual Block 3: Team Collaboration & Trust */}
-            <div className="relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card group">
-              <img 
+            <div className="relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card group h-[360px] sm:h-[420px]">
+              <Image 
                 src="/images/team_collaboration.jpg" 
                 alt="Modern Tech Team Collaborating" 
-                loading="lazy"
-                decoding="async"
-                className="w-full h-[360px] sm:h-[420px] object-cover filter brightness-[0.85] group-hover:scale-105 transition-transform duration-700"
+                width={1200}
+                height={600}
+                sizes="100vw"
+                className="w-full h-full object-cover filter brightness-[0.85] group-hover:scale-105 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/40 p-8 sm:p-14 flex flex-col justify-between">
                 <div className="max-w-xl space-y-4">
@@ -533,28 +484,7 @@ export default function Home() {
             <h3 className="text-3xl font-black tracking-tight text-fg">Everything you need to know</h3>
           </div>
 
-          <div className="space-y-4">
-            {faqs.map((faq, idx) => (
-              <div 
-                key={idx}
-                className="bg-glass-card border border-glass-border rounded-2xl p-5 transition-all cursor-pointer"
-                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-              >
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-black text-fg flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4 text-indigo-400 shrink-0" />
-                    {faq.q}
-                  </h4>
-                  <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${openFaq === idx ? 'rotate-180' : ''}`} />
-                </div>
-                {openFaq === idx && (
-                  <p className="text-xs text-muted font-medium mt-3 leading-relaxed pt-3 border-t border-glass-border/60">
-                    {faq.a}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
+          <FAQSectionClient faqs={faqs} />
         </div>
       </section>
 
@@ -568,24 +498,12 @@ export default function Home() {
             <p className="text-muted text-xs sm:text-sm font-medium mb-8 max-w-xl mx-auto">
               Get started with PingStack today. Connect your WhatsApp Business account in minutes and launch your first campaign.
             </p>
-            <button 
-              onClick={() => setModalType('register')}
-              className="px-8 py-4 bg-fg text-bg rounded-2xl font-black text-xs uppercase tracking-[0.18em] shadow-lg hover:bg-fg/90 hover:scale-[1.02] active:scale-[0.98] transition-all inline-flex items-center cursor-pointer"
-            >
-              Start for free
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </button>
+            <CtaRegisterButton />
           </div>
         </div>
       </section>
 
       <LandingFooter />
-
-      <AuthModal 
-        isOpen={modalType !== null} 
-        onClose={() => { setModalType(null); router.replace('/'); }} 
-        initialView={modalType === 'register' ? 'register' : modalType === 'forgot' ? 'forgot' : 'login'} 
-      />
     </div>
   );
 }

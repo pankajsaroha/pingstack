@@ -48,11 +48,13 @@ export default function ContactsTable({
                 <button
                   type="button"
                   onClick={onToggleAll}
-                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
-                    isAllSelected ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                    isAllSelected
+                      ? 'bg-indigo-600 border-indigo-600 shadow-sm'
+                      : 'border-fg/30 bg-glass-input hover:border-fg/60'
                   }`}
                 >
-                  {isAllSelected && <Check className="w-3.5 h-3.5 text-black" />}
+                  {isAllSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                 </button>
               </th>
               <th className="px-6 py-4">Name</th>
@@ -66,18 +68,20 @@ export default function ContactsTable({
               <tr
                 key={contact.id}
                 className={`group hover:bg-white/[0.02] transition-colors ${
-                  selectedIds.has(contact.id) ? 'bg-indigo-500/5' : ''
+                  selectedIds.has(contact.id) ? 'bg-indigo-500/10' : ''
                 }`}
               >
                 <td className="px-6 py-4">
                   <button
                     type="button"
                     onClick={() => onToggleSelection(contact.id)}
-                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
-                      selectedIds.has(contact.id) ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                      selectedIds.has(contact.id)
+                        ? 'bg-indigo-600 border-indigo-600 shadow-sm'
+                        : 'border-fg/30 bg-glass-input hover:border-fg/60'
                     }`}
                   >
-                    {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-black" />}
+                    {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                   </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -124,10 +128,12 @@ export default function ContactsTable({
             onClick={onToggleAll}
             className="flex items-center space-x-3 cursor-pointer text-left border-0 bg-transparent"
           >
-            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
-              isAllSelected ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+              isAllSelected
+                ? 'bg-indigo-600 border-indigo-600 shadow-sm'
+                : 'border-fg/30 bg-glass-input hover:border-fg/60'
             }`}>
-              {isAllSelected && <Check className="w-3.5 h-3.5 text-black" />}
+              {isAllSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
             </div>
             <span className="text-xs font-black uppercase tracking-widest text-fg/80">
               {isAllSelected ? 'Deselect All (This Page)' : 'Select All (This Page)'}
@@ -142,14 +148,16 @@ export default function ContactsTable({
           <div
             key={contact.id}
             className={`p-5 flex items-center justify-between transition-colors ${
-              selectedIds.has(contact.id) ? 'bg-indigo-500/5' : ''
+              selectedIds.has(contact.id) ? 'bg-indigo-500/10' : ''
             }`}
           >
             <div className="flex items-center" onClick={() => onToggleSelection(contact.id)}>
-              <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-4 transition-colors ${
-                selectedIds.has(contact.id) ? 'bg-white border-white' : 'border-glass-border bg-glass-input'
+              <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-4 transition-all ${
+                selectedIds.has(contact.id)
+                  ? 'bg-indigo-600 border-indigo-600 shadow-sm'
+                  : 'border-fg/30 bg-glass-input hover:border-fg/60'
               }`}>
-                {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-black" />}
+                {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
               </div>
               <div>
                 <p className="font-bold text-fg text-sm">{contact.name || 'Anonymous'}</p>

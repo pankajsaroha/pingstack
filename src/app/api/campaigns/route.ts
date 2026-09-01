@@ -68,11 +68,40 @@ export async function GET(req: Request) {
       });
     }
 
-    // 3. Merge stats into campaign objects
-    const result = list.map((c: any) => ({
-      ...c,
-      stats: statsMap[c.id] || { sent: 0, delivered: 0, read: 0, failed: 0 }
-    }));
+    // 3. Merge stats into campaign objects and compute accurate campaign status
+    const result = list.map((c: any) => {
+      const stats = statsMap[c.id] || { pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 };
+      const pendingCount = stats.pending || 0;
+      const failedCount = stats.failed || 0;
+      const successCount = (stats.sent || 0) + (stats.delivered || 0) + (stats.read || 0);
+      const totalMessages = pendingCount + failedCount + successCount;
+
+      let computedStatus = c.status;
+
+      // Compute status based on message execution results if not draft/scheduled
+      if (c.status !== 'draft' && c.status !== 'scheduled') {
+        if (pendingCount > 0) {
+          computedStatus = 'running';
+        } else if (totalMessages > 0) {
+          if (failedCount === totalMessages) {
+            // All messages failed!
+            computedStatus = 'failed';
+          } else if (failedCount > 0 && successCount > 0) {
+            // Some messages sent/delivered and some failed!
+            computedStatus = 'partial_success';
+          } else if (successCount > 0 && failedCount === 0) {
+            // All messages successfully sent/delivered!
+            computedStatus = 'completed';
+          }
+        }
+      }
+
+      return {
+        ...c,
+        status: computedStatus,
+        stats
+      };
+    });
 
     const payload = { data: result, page, pageSize, hasMore: list.length === pageSize };
 

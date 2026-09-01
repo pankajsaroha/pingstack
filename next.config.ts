@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react"],
   },
   serverExternalPackages: ["bullmq", "ioredis", "xlsx"],
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
 
   async headers() {
     return [
