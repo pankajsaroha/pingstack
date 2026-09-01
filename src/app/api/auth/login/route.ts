@@ -191,7 +191,7 @@ export async function POST(req: Request) {
       path: '/',
       httpOnly: true,
       secure: isSecure,
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
