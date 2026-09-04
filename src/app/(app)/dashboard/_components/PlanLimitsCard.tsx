@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Zap, Book } from 'lucide-react';
+import { Zap, Book, ArrowRight } from 'lucide-react';
 import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
 
 interface TenantLimitsData {
@@ -36,76 +36,83 @@ export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: 
   const storagePct = Math.min(100, (storageMbUsed / (activePlan?.maxStorageMb || 1)) * 100);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-      {/* Plan Limits */}
-      <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <h3 className="text-lg font-black text-fg flex items-center">
-            <Zap className="w-5 h-5 mr-3 text-indigo-600 dark:text-indigo-400" />
-            Plan Limits &amp; Retainers
-          </h3>
-          <span className="self-start sm:self-auto px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/20">
-            {tenant?.plan_type ? String(tenant.plan_type) : 'Starter'} Profile
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+      {/* Plan Limits Card */}
+      <div className="p-5 bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl space-y-4 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-indigo-500" />
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+              Plan Limits &amp; Quotas
+            </h3>
+          </div>
+          <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+            {tenant?.plan_type ? String(tenant.plan_type) : 'Starter'} Plan
           </span>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-3.5 pt-1">
+          {/* Template Sends */}
           <div>
-            <div className="flex justify-between items-end mb-2">
-              <span className="text-xs font-bold text-fg/50 flex items-center gap-1">
-                <span>Template Sends Today</span>
-              </span>
-              <span className="text-[10px] font-black text-fg/30 uppercase">
+            <div className="flex justify-between items-center text-xs mb-1.5">
+              <span className="text-zinc-600 dark:text-zinc-400 font-medium">Template Sends Today</span>
+              <span className="font-mono text-zinc-500 text-[11px]">
                 {campaignsUsed} / {maxCampaigns === Infinity ? '∞' : maxCampaigns}
               </span>
             </div>
-            <div className="h-1.5 w-full bg-glass-input rounded-full overflow-hidden border border-glass-border">
+            <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000"
+                className="h-full bg-indigo-500 rounded-full transition-all duration-500"
                 style={{ width: `${campaignPct}%` }}
               />
             </div>
           </div>
 
+          {/* Managed Contacts */}
           <div>
-            <div className="flex justify-between items-end mb-2">
-              <span className="text-xs font-bold text-fg/50">Total Managed Contacts</span>
-              <span className="text-[10px] font-black text-fg/30 uppercase">
+            <div className="flex justify-between items-center text-xs mb-1.5">
+              <span className="text-zinc-600 dark:text-zinc-400 font-medium">Managed Contacts</span>
+              <span className="font-mono text-zinc-500 text-[11px]">
                 {contactsUsed} / {maxContacts === Infinity ? '∞' : maxContacts}
               </span>
             </div>
-            <div className="h-1.5 w-full bg-glass-input rounded-full overflow-hidden border border-glass-border">
+            <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-1000"
+                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                 style={{ width: `${contactPct}%` }}
               />
             </div>
           </div>
 
+          {/* Storage Usage */}
           <div>
-            <div className="flex justify-between items-end mb-2">
-              <span className="text-xs font-bold text-fg/50">WABA Storage Usage</span>
-              <span className="text-[10px] font-black text-fg/30 uppercase">
+            <div className="flex justify-between items-center text-xs mb-1.5">
+              <span className="text-zinc-600 dark:text-zinc-400 font-medium">WABA Storage</span>
+              <span className="font-mono text-zinc-500 text-[11px]">
                 {storageMbUsed} MB / {maxStorage} MB
               </span>
             </div>
-            <div className="h-1.5 w-full bg-glass-input rounded-full overflow-hidden border border-glass-border">
+            <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-1000"
+                className="h-full bg-amber-500 rounded-full transition-all duration-500"
                 style={{ width: `${storagePct}%` }}
               />
             </div>
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-glass-border flex items-center justify-between">
-          <Link href="/pricing" className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-fg flex items-center uppercase tracking-widest transition-all">
-            Upgrade subscription &rarr;
+        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+          <Link 
+            href="/pricing" 
+            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors"
+          >
+            <span>Upgrade Subscription</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           {tenant?.plan_type && getActivePlanType(String(tenant.plan_type)) !== 'starter' && tenant.subscription_status === 'active' && (
             <button
               onClick={onCancelSubscription}
-              className="text-[9px] font-black text-fg/20 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer"
+              className="text-[10px] font-mono text-zinc-400 hover:text-rose-500 uppercase tracking-wider transition-colors cursor-pointer"
             >
               Cancel Sub
             </button>
@@ -113,23 +120,31 @@ export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: 
         </div>
       </div>
 
-      {/* API Guidebook & Webhooks Specs Card */}
-      <div className="bg-glass-card border border-glass-border p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group flex flex-col justify-between">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none -mr-16 -mt-16" />
-        <div className="relative z-10">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded-full text-[9px] font-black uppercase tracking-widest mb-3">
-            <Book className="w-3 h-3" />
-            <span>Developer Specs &amp; Webhooks</span>
+      {/* Developer API & Webhook Specs Card */}
+      <div className="p-5 bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl space-y-4 shadow-2xs flex flex-col justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Book className="w-4 h-4 text-indigo-500" />
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+              API Specs &amp; Integrations
+            </h3>
           </div>
-          <h3 className="text-xl font-black text-fg mb-2">API Guidebook &amp; Infrastructure</h3>
-          <p className="text-muted text-xs font-semibold leading-relaxed">
-            Integrate custom webhooks, generate tenant API tokens, and dispatch bulk message payloads via REST API endpoints.
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            Integrate custom inbound webhooks, generate workspace API tokens, and dispatch bulk message payloads via REST API endpoints.
           </p>
         </div>
-        <div className="relative z-10 mt-8 pt-6 border-t border-glass-border">
-          <Link href="/docs" className="inline-flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95">
-            Open Developer Manuals &rarr;
+
+        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+          <Link 
+            href="/docs" 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-900 rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+          >
+            <span>Open Developer Docs</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
+          <span className="text-[10px] font-mono text-zinc-400">Meta API v19.0</span>
         </div>
       </div>
     </div>

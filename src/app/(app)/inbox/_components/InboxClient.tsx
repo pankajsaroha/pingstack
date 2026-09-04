@@ -71,22 +71,22 @@ export default function InboxClient({
 
   if (status === 'NOT_CONNECTED') {
     return (
-      <div className="flex-grow flex-1 min-h-[450px] flex flex-col items-center justify-center bg-glass-card border border-glass-border rounded-[2.5rem] shadow-2xl text-center p-12 max-w-2xl mx-auto my-12">
-        <div className="w-16 h-16 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mb-6">
-          <MessageCircle className="w-8 h-8 text-fg/30" />
+      <div className="flex-grow flex-1 min-h-[420px] flex flex-col items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xs text-center p-8 max-w-xl mx-auto my-8">
+        <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 rounded-xl flex items-center justify-center mb-4">
+          <MessageCircle className="w-6 h-6 text-zinc-400" />
         </div>
-        <h2 className="text-2xl font-black text-fg tracking-tight">WhatsApp Connection Pending</h2>
-        <p className="text-muted mt-3 text-sm leading-relaxed max-w-md font-medium">
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">WhatsApp Connection Pending</h2>
+        <p className="text-zinc-500 dark:text-zinc-400 mt-2 text-xs leading-relaxed max-w-md">
           If you have already linked your WhatsApp Business Account, it may take a few minutes to complete initial synchronization and activate live inbox streaming.
         </p>
-        <div className="mt-8 flex flex-wrap gap-4 justify-center items-center">
+        <div className="mt-6 flex flex-wrap gap-3 justify-center items-center">
           <button 
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-glass-input border border-glass-border hover:bg-white/10 text-fg rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer"
+            className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
           >
             Refresh Page 🔄
           </button>
-          <Link href="/dashboard" className="px-8 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg">
+          <Link href="/dashboard" className="px-5 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-2xs">
             Check Connection Status
           </Link>
         </div>
@@ -96,17 +96,15 @@ export default function InboxClient({
 
   if (status === 'PENDING') {
     return (
-      <div className="flex-grow flex-1 min-h-[450px] flex flex-col items-center justify-center bg-[#050505] text-center p-10">
-        <div className="flex-grow flex-1 min-h-[450px] flex flex-col items-center justify-center bg-glass-card border border-red-500/10 rounded-[2.5rem] text-center p-12 max-w-2xl mx-auto my-12 shadow-2xl">
-          <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-6">
-            <AlertCircle className="w-8 h-8 text-red-400" />
-          </div>
-          <h2 className="text-2xl font-black text-fg tracking-tight">Sync Pipeline Crashed</h2>
-          <p className="text-muted mt-3 text-sm leading-relaxed max-w-sm font-semibold">Verification check failed. Retrigger partner permissions on Facebook settings.</p>
-          <Link href="/dashboard" className="mt-8 px-6 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl font-bold transition-all">
-            Retry Setup
-          </Link>
+      <div className="flex-grow flex-1 min-h-[420px] flex flex-col items-center justify-center bg-white dark:bg-zinc-900 border border-red-500/20 rounded-xl text-center p-8 max-w-xl mx-auto my-8 shadow-2xs">
+        <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center mb-4">
+          <AlertCircle className="w-6 h-6 text-red-500" />
         </div>
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Sync Pipeline Crashed</h2>
+        <p className="text-zinc-500 dark:text-zinc-400 mt-2 text-xs leading-relaxed max-w-sm">Verification check failed. Retrigger partner permissions on Facebook settings.</p>
+        <Link href="/dashboard" className="mt-6 px-4 py-2 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold transition-all">
+          Retry Setup
+        </Link>
       </div>
     );
   }
@@ -117,33 +115,33 @@ export default function InboxClient({
   })();
 
   return (
-    <div className="flex-1 min-h-0 h-full flex bg-glass-card border border-glass-border rounded-[1.5rem] sm:rounded-[2.5rem] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden mx-0 w-full">
+    <div className="flex-1 min-h-0 h-full flex bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xs overflow-hidden mx-0 w-full">
       {/* Left panel — conversation list */}
-      <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 flex-col border-r border-glass-border bg-glass-card/30`}>
+      <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-80 lg:w-96 flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50`}>
         {/* Panel header */}
-        <div className="p-6 border-b border-glass-border flex items-center justify-between">
-          <h2 className="text-xl font-black text-fg tracking-tight">Inbox</h2>
-          <div className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+        <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
+          <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Conversations</h2>
+          <div className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Live Sync
           </div>
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-glass-border">
+        <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
             <input
               type="text"
               placeholder="Search chats or contacts..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-glass-input border border-glass-border rounded-xl pl-11 pr-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-indigo-500 text-fg placeholder:text-fg/20 transition-all"
+              className="w-full bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/80 rounded-lg pl-9 pr-8 py-1.5 text-xs font-medium focus:outline-none focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-fg/30 hover:text-fg transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -162,9 +160,9 @@ export default function InboxClient({
       </div>
 
       {/* Right panel — chat thread */}
-      <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-glass-input relative`}>
+      <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-zinc-50/30 dark:bg-zinc-950/40 relative`}>
         {/* Wallpaper texture */}
-        <div className="absolute inset-0 bg-[url('/cubes.png')] opacity-[0.22] dark:opacity-[0.15] invert dark:invert-0 pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('/cubes.png')] opacity-[0.08] dark:opacity-[0.05] invert dark:invert-0 pointer-events-none" />
 
         <ChatThread
           activeConversation={activeConversation}

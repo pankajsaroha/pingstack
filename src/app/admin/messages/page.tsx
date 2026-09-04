@@ -238,7 +238,7 @@ export default function AdminMessagesPage() {
                 </tr>
               ) : (
                 businesses.map((b: any) => (
-                  <tr key={b.tenantId} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/40 transition-colors">
+                  <tr key={b.tenantId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                     <td className="py-3 font-semibold text-zinc-900 dark:text-zinc-200">
                       <Link href={`/admin/businesses/${b.tenantId}`} className="hover:text-indigo-600 dark:hover:text-indigo-400">
                         {b.name}

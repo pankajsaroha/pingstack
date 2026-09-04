@@ -125,7 +125,7 @@ export default function AdminBusinessesPage() {
 
         <button
           onClick={fetchBusinesses}
-          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors"
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-indigo-500' : 'text-zinc-400'}`} />
           <span>Refresh Table</span>
@@ -226,7 +226,7 @@ export default function AdminBusinessesPage() {
                 </tr>
               ) : (
                 businesses.map((b) => (
-                  <tr key={b.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/40 transition-colors group">
+                  <tr key={b.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group">
                     {/* Business Name */}
                     <td className="py-3 px-4">
                       <Link

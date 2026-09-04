@@ -137,7 +137,7 @@ export default function AdminSettingsPage() {
 
           <button
             onClick={fetchAuditLogs}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-sm transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-sm transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-indigo-500 dark:text-indigo-400' : 'text-zinc-400'}`} />
             <span>Refresh</span>
@@ -171,7 +171,7 @@ export default function AdminSettingsPage() {
                 </tr>
               ) : (
                 logs.map((log: any) => (
-                  <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/40 transition-colors">
+                  <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                     <td className="py-3">{getActionBadge(log.action)}</td>
                     <td className="py-3 font-semibold text-zinc-900 dark:text-zinc-200">
                       {log.target_tenant_id ? (

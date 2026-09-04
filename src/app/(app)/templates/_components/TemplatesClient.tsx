@@ -194,7 +194,7 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
   };
 
   return (
-    <div>
+    <div className="space-y-6 text-left animate-in fade-in duration-200">
       <SyncPanel
         syncing={syncing}
         selectedCount={selectedIds.size}
@@ -203,44 +203,35 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
         onCreate={() => setShowModal(true)}
       />
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-3.5">
         {loading ? (
-          <div className="text-center py-20 opacity-40">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-fg mb-4" />
-            <p className="text-xs font-black uppercase tracking-widest">Loading Catalog...</p>
+          <div className="p-16 text-center flex flex-col items-center justify-center">
+            <Loader2 className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2" />
+            <p className="text-xs text-zinc-500 font-mono">Loading template catalog...</p>
           </div>
         ) : templates.length === 0 ? (
-          <div className="relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card mt-4 group">
-            <img 
-              src="/images/template_builder.jpg" 
-              alt="WhatsApp Message Template Catalog" 
-              loading="lazy"
-              decoding="async"
-              className="w-full h-[260px] sm:h-[300px] object-cover filter brightness-[0.75] group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 flex flex-col justify-end items-start text-left">
-              <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black uppercase rounded-full tracking-widest mb-3">
-                Meta Message Templates
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Templates Available</h3>
-              <p className="text-xs text-slate-300 font-medium max-w-md mt-1 leading-relaxed">
-                Pull pre-approved templates directly from your Meta Business Account sync, or build your first template draft here.
-              </p>
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => fetchTemplates(true)}
-                  disabled={syncing}
-                  className="px-5 py-2.5 bg-fg text-bg rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-lg"
-                >
-                  {syncing ? 'Syncing...' : 'Sync with Meta'}
-                </button>
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-                >
-                  + Create Template
-                </button>
-              </div>
+          <div className="p-12 text-center flex flex-col items-center justify-center bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl shadow-2xs">
+            <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 mb-3">
+              <LayoutTemplate className="w-5 h-5 text-indigo-500" />
+            </div>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">No Message Templates Found</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mt-1 mb-4 leading-relaxed">
+              Synchronize pre-approved templates directly from your Meta Business Account or create a new template draft.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchTemplates(true)}
+                disabled={syncing}
+                className="px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {syncing ? 'Syncing...' : 'Sync with Meta'}
+              </button>
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-3.5 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-semibold text-zinc-700 dark:text-zinc-300 shadow-2xs transition-colors cursor-pointer"
+              >
+                + Create Template
+              </button>
             </div>
           </div>
         ) : (

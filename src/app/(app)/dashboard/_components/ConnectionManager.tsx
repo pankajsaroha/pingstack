@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 interface ConnectionManagerProps {
   tenant: any;
@@ -105,17 +105,17 @@ export default function ConnectionManager({
   };
 
   return (
-    <div className="lg:col-span-2 bg-glass-card border border-glass-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col justify-between">
+    <div data-tour="tour-whatsapp" className="lg:col-span-2 bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-2xs flex flex-col justify-between">
       {isSwitching ? (
-        <div className="w-full space-y-6">
+        <div className="w-full space-y-4">
           <div>
-            <h3 className="text-xl font-black text-fg tracking-tight">Switch Selected Account</h3>
-            <p className="text-sm text-muted mt-1 font-semibold">Select a different WhatsApp Business Profile or Phone ID.</p>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Switch Selected Account</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Select a different WhatsApp Business Account or Phone ID.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-fg/30 uppercase tracking-widest ml-1">WABA Account</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-mono font-medium text-zinc-500 dark:text-zinc-400 uppercase">WABA Account</label>
               {discovery && discovery.length > 0 ? (
                 <select
                   value={selectedWaba}
@@ -123,244 +123,219 @@ export default function ConnectionManager({
                     const waba = discovery.find((w: any) => w.id === e.target.value);
                     onSelectWaba(e.target.value, waba?.phones?.[0]?.id);
                   }}
-                  className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:border-indigo-500 focus:outline-none transition-colors"
                 >
                   {discovery.map((waba: any) => (
-                    <option key={waba.id} value={waba.id} className="bg-bg text-fg">{waba.name}</option>
+                    <option key={waba.id} value={waba.id}>{waba.name}</option>
                   ))}
                 </select>
               ) : (
-                <div className="text-xs text-muted py-4 ml-1">No WABAs found</div>
+                <div className="text-xs text-zinc-400 py-2">No WABAs found</div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-fg/30 uppercase tracking-widest ml-1">Phone Asset</label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-mono font-medium text-zinc-500 dark:text-zinc-400 uppercase">Phone Asset</label>
               {selectedWaba && discovery?.find((w: any) => w.id === selectedWaba)?.phones?.length > 0 ? (
                 <select
                   value={selectedPhone}
                   onChange={(e) => onSelectPhone(e.target.value)}
-                  className="w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-xs font-bold focus:border-indigo-500 focus:outline-none transition-all cursor-pointer text-fg"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:border-indigo-500 focus:outline-none transition-colors"
                 >
                   {(discovery ?? []).find((w: any) => w.id === selectedWaba)?.phones?.map((phone: any) => (
-                    <option key={phone.id} value={phone.id} className="bg-bg text-fg">
+                    <option key={phone.id} value={phone.id}>
                       {phone.verified_name} ({phone.display_phone_number})
                     </option>
                   ))}
                 </select>
               ) : (
-                <div className="text-xs text-muted py-4 ml-1">No phone assets available</div>
+                <div className="text-xs text-zinc-400 py-2">No phone assets available</div>
               )}
             </div>
           </div>
 
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold flex items-center">
-              <AlertCircle className="w-4 h-4 mr-2" />
-              {error}
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          <div className="flex gap-3 justify-end mt-4">
+          <div className="flex gap-2.5 justify-end pt-2">
             <button
               onClick={onCancelSwitch}
-              className="px-6 h-12 border border-glass-border text-muted hover:text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              className="px-3.5 py-1.5 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={onFinishOnboarding}
               disabled={connecting || !selectedWaba || !selectedPhone}
-              className="px-8 h-12 bg-fg text-bg hover:opacity-90 disabled:opacity-40 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg flex items-center justify-center"
+              className="px-4 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
             >
-              {connecting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Save Selection'}
+              {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              <span>Save Selection</span>
             </button>
           </div>
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-6">
-            <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center">
-              <Settings className="w-6 h-6 text-fg/60" />
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Active WhatsApp Connection</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Meta Cloud API infrastructure link verified.</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-black text-fg tracking-tight">Manage Connection</h3>
-              <p className="text-sm text-muted mt-1 font-semibold">Configure your WhatsApp Business Account link.</p>
+
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                {whatsappAccount?.status || 'Active'}
+              </span>
             </div>
           </div>
 
           {/* Connection status details */}
-          <div className="my-6 grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-glass-border">
-            <div className="space-y-1">
-              <span className="text-[9px] font-black text-fg/30 uppercase tracking-widest">Connection State</span>
-              <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${whatsappAccount?.status === 'PENDING' ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' : 'bg-emerald-500 shadow-[0_0_8px_#10b981]'} animate-pulse`} />
-                <span className="text-xs font-black text-fg capitalize">{whatsappAccount?.status || 'Active & Synced'}</span>
-                {(() => {
-                  const isTest = whatsappAccount?.is_test_number === true || 
-                    Boolean(whatsappAccount?.display_phone_number?.includes('555-01') || whatsappAccount?.display_phone_number?.includes('55501'));
-                  return (
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isTest ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
-                      {isTest ? '🧪 Test Sandbox' : '📱 Live Number'}
-                    </span>
-                  );
-                })()}
+          <div className="my-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60">
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block mb-1">Status</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 capitalize">
+                  {whatsappAccount?.status || 'Active'}
+                </span>
+                {whatsappAccount?.is_test_number && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    Sandbox
+                  </span>
+                )}
               </div>
             </div>
-            <div className="space-y-1">
-              <span className="text-[9px] font-black text-fg/30 uppercase tracking-widest">WhatsApp WABA ID</span>
-              <p className="text-xs font-mono font-bold text-fg/75 truncate select-all">{whatsappAccount?.business_id || 'Not Associated'}</p>
+
+            <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60">
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block mb-1">WABA ID</span>
+              <p className="text-xs font-mono font-semibold text-zinc-800 dark:text-zinc-200 truncate select-all">
+                {whatsappAccount?.business_id || 'Not Associated'}
+              </p>
             </div>
-            <div className="space-y-1">
-              <span className="text-[9px] font-black text-fg/30 uppercase tracking-widest">Phone Asset ID</span>
-              <p className="text-xs font-mono font-bold text-fg/75 truncate select-all">{whatsappAccount?.phone_number_id || 'Not Associated'}</p>
+
+            <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60">
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block mb-1">Phone Asset ID</span>
+              <p className="text-xs font-mono font-semibold text-zinc-800 dark:text-zinc-200 truncate select-all">
+                {whatsappAccount?.phone_number_id || 'Not Associated'}
+              </p>
             </div>
           </div>
-          {/* Required Meta Setup Guidance Notice — Shown only for new users or pending/test accounts */}
+
+          {/* Required Meta Setup Guidance Notice */}
           {isNewOrTestUser && (
-            <div className="my-6 p-5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-blue-500/10 border border-indigo-500/25 rounded-3xl relative overflow-hidden shadow-xl text-left animate-in fade-in duration-300">
-              <div className="flex items-start space-x-3.5">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 mt-0.5 shadow-inner">
-                  <AlertCircle className="w-5 h-5" />
+            <div className="mb-4 p-4 bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/40 rounded-xl text-left animate-in fade-in duration-200">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-indigo-500 shrink-0" />
+                  <h4 className="text-xs font-bold text-zinc-900 dark:text-white">
+                    Required Meta Setup Before First Broadcast
+                  </h4>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h4 className="text-sm font-black text-fg tracking-tight">
-                      Required Meta Setup Before Sending Messages
-                    </h4>
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                        Mandatory Meta Steps
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleDismissNotice}
-                        className="text-muted hover:text-fg p-1 rounded-lg transition-colors border-0 bg-transparent cursor-pointer"
-                        title="Dismiss setup notice"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted font-medium mt-1 leading-relaxed">
-                    After linking with Meta, messages cannot be sent until you configure a real phone number and payment settings. Open Meta Business Manager and set up the two options located at the bottom sidebar:
-                  </p>
+                <button
+                  type="button"
+                  onClick={handleDismissNotice}
+                  className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs cursor-pointer p-0.5"
+                  title="Dismiss notice"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mb-3">
+                Ensure a verified phone number and payment method are configured in Meta Business Manager before sending outbound messages.
+              </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                    {/* Option 1: Payment Settings */}
-                    <div className="p-4 bg-glass-card/80 border border-glass-border rounded-2xl flex flex-col justify-between hover:border-indigo-500/40 transition-all shadow-md">
-                      <div>
-                        <div className="flex items-center space-x-2 mb-1.5 text-fg">
-                          <span className="text-sm">1. 💳</span>
-                          <span className="text-xs font-black">Payment Settings</span>
-                        </div>
-                        <p className="text-[11px] text-muted font-medium leading-normal">
-                          Set your payment method / credit card for WhatsApp WABA message billing.
-                        </p>
-                      </div>
-                      <a
-                        href={paymentSettingsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3.5 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md text-center cursor-pointer border-0"
-                      >
-                        Payment Settings <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <a
+                  href={paymentSettingsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:border-indigo-500 transition-colors shadow-2xs"
+                >
+                  <span>1. Payment Settings</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                </a>
 
-                    {/* Option 2: WhatsApp Manager (Phone Numbers) */}
-                    <div className="p-4 bg-glass-card/80 border border-glass-border rounded-2xl flex flex-col justify-between hover:border-indigo-500/40 transition-all shadow-md">
-                      <div>
-                        <div className="flex items-center space-x-2 mb-1.5 text-fg">
-                          <span className="text-sm">2. 📱</span>
-                          <span className="text-xs font-black">WhatsApp Manager</span>
-                        </div>
-                        <p className="text-[11px] text-muted font-medium leading-normal">
-                          Add and verify your real phone number to activate production broadcasts.
-                        </p>
-                      </div>
-                      <a
-                        href={phoneNumbersUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3.5 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md text-center cursor-pointer border-0"
-                      >
-                        WhatsApp Manager <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
+                <a
+                  href={phoneNumbersUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:border-indigo-500 transition-colors shadow-2xs"
+                >
+                  <span>2. WhatsApp Manager</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                </a>
               </div>
             </div>
           )}
 
           {/* Primary actions row */}
-          <div className="flex flex-wrap items-center gap-3 mt-2">
-            {/* Refresh Account — primary CTA for users checking updated phone numbers / billing / approval */}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             <button
               onClick={onRefreshAccount}
               disabled={refreshing}
-              title="Re-fetch your Meta account status, newly approved phone numbers, and billing"
-              className="flex items-center gap-2 px-5 h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-md disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Refreshing…' : 'Refresh Account'}
+              <span>{refreshing ? 'Refreshing…' : 'Refresh Sync'}</span>
             </button>
 
-            {/* Switch Account button */}
             <button
               onClick={onSwitchAccount}
               disabled={refreshing}
-              className="flex items-center gap-2 px-5 h-11 bg-glass-input hover:bg-white/10 border border-glass-border text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors cursor-pointer"
             >
               Switch Account
             </button>
 
-            {/* Register Number CTA — triggers POST /{phone_number_id}/register */}
             <button
               onClick={handleRegisterPhone}
               disabled={registering}
-              title="Issue Meta API registration request to resolve Pending status in Meta Manager"
-              className="flex items-center gap-2 px-5 h-11 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
             >
-              {registering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              {registering ? 'Registering...' : 'Register Number'}
+              {registering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              <span>Register Number</span>
             </button>
 
-            {/* Open Meta Business Manager to add phone / billing */}
             <a
               href={metaManagerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              title="Open Meta Business Manager to add a phone number or payment method"
-              className="flex items-center gap-2 px-5 h-11 bg-glass-input hover:bg-white/10 border border-glass-border text-fg/70 hover:text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Meta Manager
+              <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Meta Hub</span>
             </a>
 
-            {/* More options toggle */}
             <button
               onClick={() => setShowMore(v => !v)}
-              className="ml-auto flex items-center gap-1.5 px-4 h-11 border border-glass-border text-muted hover:text-fg rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              className="ml-auto flex items-center gap-1 px-2.5 py-1.5 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
             >
-              More
+              <span>More</span>
               <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showMore ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
           {/* Expanded more options */}
           {showMore && (
-            <div className="mt-3 flex flex-wrap gap-3 pt-4 border-t border-glass-border animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="mt-3 flex flex-wrap items-center gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 animate-in fade-in duration-150">
               <button
                 onClick={() => setShowRecipientGuideModal(true)}
-                className="px-5 h-10 border border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                className="px-3 py-1.5 border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 rounded-lg text-xs font-medium transition-colors cursor-pointer"
               >
-                Test Sandbox Help ❓
+                Sandbox Help ❓
               </button>
               <button
                 onClick={onResetConnection}
-                className="px-5 h-10 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ml-auto"
+                className="px-3 py-1.5 border border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-lg text-xs font-medium transition-colors cursor-pointer ml-auto"
               >
                 Reset Connection
               </button>
@@ -371,77 +346,53 @@ export default function ConnectionManager({
 
       {/* Test Sandbox Recipient Guide Modal */}
       {showRecipientGuideModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-glass-card border border-glass-border max-w-xl w-full rounded-[2rem] p-6 sm:p-8 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-glass-border pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                  <span className="text-xl">🧪</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 max-w-lg w-full rounded-2xl p-6 shadow-2xl space-y-5 relative max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600">
+                  <span className="text-base">🧪</span>
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-fg tracking-tight">How to Add Recipient Numbers for Test Sandbox</h3>
-                  <p className="text-xs text-muted font-semibold">Exact location in Meta Developer App Console.</p>
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Sandbox Recipient Setup</h3>
+                  <p className="text-[11px] text-zinc-500">Adding recipient numbers in Meta Developer Console.</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowRecipientGuideModal(false)}
-                className="w-8 h-8 rounded-xl bg-glass-input border border-glass-border flex items-center justify-center text-muted hover:text-fg transition-all cursor-pointer"
+                className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-4 text-xs font-medium text-fg/80 leading-relaxed">
-              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-2">
-                <p className="font-bold text-amber-400">📌 Direct Meta App Setup URL:</p>
+            <div className="space-y-3.5 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1.5">
+                <p className="font-semibold text-amber-700 dark:text-amber-400">Meta API Setup Console:</p>
                 <a
                   href={`https://developers.facebook.com/apps/${process.env.NEXT_PUBLIC_FB_APP_ID || '1459794049184876'}/whatsapp-business/setup/`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold transition-all text-xs"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-md font-semibold transition-colors text-xs"
                 >
-                  Open Meta API Setup Console <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open API Setup Console</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
 
-              <div className="space-y-3 pt-2">
-                <div className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">1</span>
-                  <p>In the left sidebar of Meta Developer Portal, click <strong>WhatsApp → API Setup</strong> (or <strong>Getting Started</strong>).</p>
-                </div>
-
-                <div className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">2</span>
-                  <p>Scroll down to <strong>Step 1: Select phone numbers</strong>.</p>
-                </div>
-
-                <div className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">3</span>
-                  <div>
-                    <p>Look directly below <strong>From: Test Number</strong> box. You will see a dropdown field labeled <strong>"To"</strong> (or <strong>"Recipient phone number"</strong>).</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-black flex items-center justify-center shrink-0 text-xs">4</span>
-                  <p>Click the <strong>"To"</strong> dropdown list, select <strong>"Manage phone number list"</strong>, enter your mobile WhatsApp phone number (with country code e.g. +91), and enter the 6-digit WhatsApp verification OTP sent to your phone.</p>
-                </div>
-              </div>
-
-              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl mt-4">
-                <p className="font-bold text-indigo-400 mb-1">💡 Want to send messages to ANY customer without adding numbers?</p>
-                <p className="text-muted">
-                  Click <strong>Switch Asset</strong> or <strong>Meta Manager</strong> to link a real custom phone number for production messaging.
-                </p>
+              <div className="space-y-2 pt-1">
+                <p>1. In Meta Developer Console, go to <strong>WhatsApp &rarr; API Setup</strong>.</p>
+                <p>2. Under <strong>Step 1: Select phone numbers</strong>, find the <strong>"To"</strong> recipient field.</p>
+                <p>3. Select <strong>"Manage phone number list"</strong> and verify your test destination WhatsApp number with OTP.</p>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-glass-border flex justify-end">
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
               <button
                 onClick={() => setShowRecipientGuideModal(false)}
-                className="px-6 py-2.5 bg-fg text-bg hover:opacity-90 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
               >
-                Got It
+                Understood
               </button>
             </div>
           </div>

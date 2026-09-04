@@ -224,55 +224,44 @@ export default function CampaignsClient({
   };
 
   return (
-    <div>
+    <div className="space-y-6 text-left animate-in fade-in duration-200">
       {/* Header Panel */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800/60">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-fg text-left">Campaigns</h1>
-          <p className="text-muted text-sm font-semibold mt-1">Manage bulk messaging workflows and logs.</p>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Broadcast Campaigns</h1>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Manage bulk messaging workflows, real-time dispatching, and delivery logs.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center px-5 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-white/5 border-0"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Launch Campaign
+          <Plus className="h-3.5 w-3.5" />
+          <span>Launch Campaign</span>
         </button>
       </div>
 
       {/* Campaigns Listing */}
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-3.5">
         {loading ? (
-          <div className="text-center py-20 opacity-40">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-fg mb-4" />
-            <p className="text-xs font-black uppercase tracking-widest">Loading Campaigns...</p>
+          <div className="p-16 text-center flex flex-col items-center justify-center">
+            <Loader2 className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2" />
+            <p className="text-xs text-zinc-500 font-mono">Loading campaigns...</p>
           </div>
         ) : campaigns.length === 0 ? (
-          <div className="relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card mt-4 group">
-            <img 
-              src="/images/analytics_insights.jpg" 
-              alt="Broadcast Campaign Engine" 
-              loading="lazy"
-              decoding="async"
-              className="w-full h-[260px] sm:h-[300px] object-cover filter brightness-[0.75] group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 flex flex-col justify-end items-start text-left">
-              <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black uppercase rounded-full tracking-widest mb-3">
-                Bulk Broadcast Engine
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Active Campaigns</h3>
-              <p className="text-xs text-slate-300 font-medium max-w-md mt-1 leading-relaxed">
-                Launch your first targeted WhatsApp broadcast campaign to engage audience segments with real-time delivery logs.
-              </p>
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="px-5 py-2.5 bg-fg text-bg rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-lg"
-                >
-                  + Launch Campaign
-                </button>
-              </div>
+          <div className="p-12 text-center flex flex-col items-center justify-center bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl shadow-2xs">
+            <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 mb-3">
+              <Send className="w-5 h-5 text-indigo-500" />
             </div>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">No Campaigns Launched Yet</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mt-1 mb-4 leading-relaxed">
+              Launch targeted WhatsApp broadcast campaigns to engage audience segments with real-time delivery logs.
+            </p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              + Launch First Campaign
+            </button>
           </div>
         ) : (
           <>
@@ -291,15 +280,15 @@ export default function CampaignsClient({
 
             {/* Load More */}
             {hasMore && (
-              <div className="flex justify-center pt-4">
+              <div className="flex justify-center pt-2">
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="flex items-center gap-2 px-6 py-3 bg-glass-card border border-glass-border hover:border-fg/20 rounded-2xl font-black text-xs uppercase tracking-widest text-muted hover:text-fg transition-all cursor-pointer disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer disabled:opacity-40 shadow-2xs"
                 >
                   {loadingMore
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading...</>
-                    : <><ChevronDown className="w-4 h-4" /> Load More</>
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...</>
+                    : <><ChevronDown className="w-3.5 h-3.5" /> Load More</>
                   }
                 </button>
               </div>

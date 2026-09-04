@@ -330,51 +330,51 @@ export default function ContactsClient({
   };
 
   return (
-    <div className="pb-10 text-left">
+    <div className="space-y-6 text-left animate-in fade-in duration-200">
       {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800/60">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-fg text-left">Contacts</h1>
-          <p className="text-muted text-sm font-semibold mt-1">Manage, import, and sync your outreach contacts directories.</p>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Contacts Directory</h1>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Manage, import, and sync your WhatsApp audience directory.</p>
         </div>
 
-        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           {selectedIds.size > 0 && (
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={handleDeleteSelected}
                 disabled={isDeleting}
-                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
               >
                 {isDeleting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    <span>Deleting ({selectedIds.size})...</span>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Deleting...</span>
                   </>
                 ) : (
                   <>
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                     <span>Delete ({selectedIds.size})</span>
                   </>
                 )}
               </button>
               <button
                 onClick={() => setShowSendModal(true)}
-                className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg border-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
               >
-                <Send className="mr-2 h-4 w-4" />
-                <span>Send template</span>
+                <Send className="h-3.5 w-3.5" />
+                <span>Send Template</span>
               </button>
             </div>
           )}
 
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex-1 sm:flex-none flex items-center justify-center px-5 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg border-0"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Contact
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Contact</span>
             </button>
 
             <ImportContacts
@@ -387,14 +387,15 @@ export default function ContactsClient({
         </div>
       </div>
 
-      {/* Search and Table Grid */}
-      <div className="bg-glass-card border border-glass-border shadow-2xl rounded-[2.5rem] overflow-hidden">
-        <div className="p-6 border-b border-glass-border flex justify-between items-center">
-          <div className="relative rounded-2xl w-64 group">
+      {/* Search and Table Container */}
+      <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl overflow-hidden shadow-2xs">
+        {/* Filters Header */}
+        <div className="p-3.5 border-b border-zinc-200 dark:border-zinc-800/80 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-950/20">
+          <div className="relative w-72">
             <input
               type="text"
-              className="focus:border-indigo-500 focus:outline-none block w-full pl-4 pr-4 py-3 text-sm font-semibold border border-glass-border rounded-2xl bg-glass-input text-fg placeholder:text-fg/20 transition-all font-sans"
-              placeholder="Search contacts..."
+              className="w-full pl-3 pr-3 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:border-indigo-500 transition-colors"
+              placeholder="Search contacts by name or phone..."
               value={searchInput}
               onChange={e => handleSearchChange(e.target.value)}
             />
@@ -402,36 +403,25 @@ export default function ContactsClient({
         </div>
 
         {loading ? (
-          <div className="p-20 text-center flex flex-col items-center justify-center opacity-40">
-            <Loader2 className="w-8 h-8 animate-spin mb-4 text-fg" />
-            <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading contacts directory...</p>
+          <div className="p-16 text-center flex flex-col items-center justify-center">
+            <Loader2 className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2" />
+            <p className="text-xs text-zinc-500 font-mono">Loading contacts directory...</p>
           </div>
         ) : allContactsPool.length === 0 ? (
-          <div className="relative rounded-b-[2.5rem] overflow-hidden border-t border-glass-border shadow-2xl bg-glass-card group">
-            <img 
-              src="/images/contacts_groups.jpg" 
-              alt="Contacts Directory Management" 
-              loading="lazy"
-              decoding="async"
-              className="w-full h-[260px] sm:h-[300px] object-cover filter brightness-[0.75] group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 flex flex-col justify-end items-start text-left">
-              <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black uppercase rounded-full tracking-widest mb-3">
-                Audience Directory
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Contacts Found</h3>
-              <p className="text-xs text-slate-300 font-medium max-w-md mt-1 leading-relaxed">
-                Import customer phone numbers using CSV spreadsheets or sync your Google Contacts directory.
-              </p>
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="px-5 py-2.5 bg-fg text-bg rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-lg"
-                >
-                  + Add Contact
-                </button>
-              </div>
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 mb-3">
+              <Globe className="w-5 h-5" />
             </div>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">No Contacts Added Yet</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mt-1 mb-4 leading-relaxed">
+              Import customer phone numbers using CSV spreadsheets or sync directly with Google Contacts.
+            </p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              + Add First Contact
+            </button>
           </div>
         ) : (
           <>
@@ -447,39 +437,39 @@ export default function ContactsClient({
             />
 
             {/* Pagination & Rows Per Page Controls */}
-            <div className="p-6 border-t border-glass-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-glass-card/10">
+            <div className="p-3.5 border-t border-zinc-200 dark:border-zinc-800/80 flex flex-col sm:flex-row justify-between items-center gap-3 bg-zinc-50/50 dark:bg-zinc-950/20 text-xs">
               <div className="flex flex-wrap items-center gap-4">
-                <p className="text-xs font-bold text-muted">
+                <p className="text-zinc-500 font-mono text-[11px]">
                   Showing {totalCount === 0 ? 0 : Math.min(totalCount, (page - 1) * pageSize + 1)}–{Math.min(totalCount, page * pageSize)} of {totalCount} contacts
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase text-muted tracking-widest">Rows per page:</span>
+                  <span className="text-[11px] font-mono text-zinc-400">Rows:</span>
                   <select
                     value={pageSize}
                     onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                    className="bg-glass-input border border-glass-border rounded-xl px-3 py-1.5 text-xs font-bold text-fg focus:outline-none cursor-pointer"
+                    className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none cursor-pointer"
                   >
-                    <option value={10} className="bg-bg text-fg">10</option>
-                    <option value={25} className="bg-bg text-fg">25</option>
-                    <option value={50} className="bg-bg text-fg">50</option>
-                    <option value={100} className="bg-bg text-fg">100</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
                   </select>
                 </div>
               </div>
 
               {totalCount > pageSize && (
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="px-4 py-2 bg-glass-input hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-glass-border text-fg rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                    className="px-2.5 py-1 bg-white dark:bg-zinc-900 disabled:opacity-40 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded text-xs font-medium transition-colors cursor-pointer"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))}
                     disabled={page >= Math.ceil(totalCount / pageSize)}
-                    className="px-4 py-2 bg-glass-input hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-glass-border text-fg rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                    className="px-2.5 py-1 bg-white dark:bg-zinc-900 disabled:opacity-40 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded text-xs font-medium transition-colors cursor-pointer"
                   >
                     Next
                   </button>

@@ -14,7 +14,6 @@ interface CampaignCardProps {
 
 export default function CampaignCard({
   campaign,
-  planType,
   isRetrying,
   isDeleting,
   onViewReport,
@@ -35,87 +34,92 @@ export default function CampaignCard({
   const successPct = total > 0 ? Math.round(((delivered + read) / Math.max(1, total)) * 100) : 0;
   const failPct = total > 0 ? Math.round((failed / Math.max(1, total)) * 100) : 0;
 
+  const getStatusBadge = () => {
+    if (campaign.scheduled_at && campaign.status === 'draft') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+          <Calendar className="w-3 h-3" />
+          Scheduled
+        </span>
+      );
+    }
+    if (campaign.status === 'running') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+          Running
+        </span>
+      );
+    }
+    if (campaign.status === 'completed' || campaign.status === 'passed') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <CheckCircle2 className="w-3 h-3" />
+          Passed
+        </span>
+      );
+    }
+    if (campaign.status === 'partial_success' || campaign.status === 'partially_failed') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+          <AlertCircle className="w-3 h-3" />
+          Partial
+        </span>
+      );
+    }
+    if (campaign.status === 'failed') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          <AlertCircle className="w-3 h-3" />
+          Failed
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60">
+        {campaign.status}
+      </span>
+    );
+  };
+
   return (
-    <div className="bg-glass-card border border-glass-border p-6 rounded-[2.5rem] shadow-2xl hover:border-indigo-500/30 transition-all duration-300 relative group overflow-hidden">
-      {/* Subtle Ambient Glow */}
-      <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all pointer-events-none" />
-
+    <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 p-5 rounded-xl shadow-2xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-all text-left">
       {/* Top Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-4 relative z-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
-          <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-            <h3 className="text-xl font-black text-fg tracking-tight">{campaign.name}</h3>
-            
-            {campaign.scheduled_at && campaign.status === 'draft' && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[9px] font-black bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase tracking-widest">
-                <Calendar className="w-3 h-3 mr-1 text-indigo-400" />
-                Scheduled
-              </span>
-            )}
-
-            {campaign.status === 'running' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500/15 text-blue-300 border border-blue-500/30 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5 animate-ping" />
-                Running
-              </span>
-            )}
-
-            {(campaign.status === 'completed' || campaign.status === 'passed') && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-400" />
-                Passed
-              </span>
-            )}
-
-            {(campaign.status === 'partial_success' || campaign.status === 'partially_failed') && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                <AlertCircle className="w-3 h-3 mr-1 text-amber-400" />
-                Partial Success
-              </span>
-            )}
-
-            {campaign.status === 'failed' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-red-500/15 text-red-300 border border-red-500/30">
-                <AlertCircle className="w-3 h-3 mr-1 text-red-400" />
-                Failed
-              </span>
-            )}
-
-            {campaign.status !== 'running' && campaign.status !== 'completed' && campaign.status !== 'passed' && campaign.status !== 'partial_success' && campaign.status !== 'partially_failed' && campaign.status !== 'failed' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-glass-input text-fg/60 border border-glass-border">
-                {campaign.status}
-              </span>
-            )}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">{campaign.name}</h3>
+            {getStatusBadge()}
           </div>
 
-          <div className="flex items-center space-x-3 text-xs text-muted font-medium mt-2">
-            <span className="flex items-center text-fg/70">
-              <FileText className="w-3.5 h-3.5 mr-1 text-indigo-400" />
-              Template: <strong className="ml-1 text-fg font-semibold">{campaign.templates?.name || 'Standard Dispatch'}</strong>
+          <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+            <span className="flex items-center gap-1">
+              <FileText className="w-3 h-3 text-indigo-500" />
+              <span>Template: <strong className="text-zinc-800 dark:text-zinc-200 font-medium">{campaign.templates?.name || 'Standard Dispatch'}</strong></span>
             </span>
-            <span>•</span>
-            <span className="text-fg/50 font-mono text-[11px]">
+            <span>&bull;</span>
+            <span className="font-mono text-[11px]" suppressHydrationWarning>
               {new Date(campaign.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center space-x-2 shrink-0 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
           {/* Retry Failed Messages Button */}
           {isFailedState && onRetryFailed && (
             <button
               type="button"
               disabled={isRetrying}
               onClick={() => onRetryFailed(campaign.id)}
-              className="px-4 py-2 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center shadow-lg active:scale-95 border-0 outline-none"
+              className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
             >
               {isRetrying ? (
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-red-400" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-red-400" />
+                <RotateCcw className="w-3.5 h-3.5" />
               )}
-              {isRetrying ? 'Retrying...' : `Retry (${failedCount || 'Failed'})`}
+              <span>Retry ({failedCount})</span>
             </button>
           )}
 
@@ -123,10 +127,10 @@ export default function CampaignCard({
           <button
             type="button"
             onClick={() => onViewReport(campaign)}
-            className="px-4 py-2 bg-glass-input hover:bg-glass-card border border-glass-border hover:border-indigo-500/40 text-fg rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center shadow-md active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer border border-zinc-200 dark:border-zinc-700/60"
           >
-            <BarChart2 className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
-            Detailed Logs
+            <BarChart2 className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Logs</span>
           </button>
 
           {/* Delete Campaign Button */}
@@ -136,59 +140,60 @@ export default function CampaignCard({
               title="Delete Campaign & Logs"
               disabled={isDeleting}
               onClick={() => onDeleteCampaign(campaign.id)}
-              className="p-2 text-muted hover:text-red-400 hover:bg-red-500/10 border border-glass-border hover:border-red-500/30 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-md active:scale-95 disabled:opacity-40"
+              className="p-1.5 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer disabled:opacity-40"
             >
-              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" /> : <Trash2 className="w-3.5 h-3.5" />}
+              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" /> : <Trash2 className="w-3.5 h-3.5" />}
             </button>
           )}
         </div>
       </div>
 
       {/* Delivery Performance Bar & Stat Grid */}
-      <div className="border-t border-glass-border pt-5 mt-3">
+      <div className="border-t border-zinc-100 dark:border-zinc-800/80 pt-4">
         {/* Progress Bar */}
         {total > 0 && (
-          <div className="mb-4">
-            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-muted mb-1.5">
-              <span className="flex items-center text-fg/60">
-                <Activity className="w-3 h-3 mr-1 text-indigo-400" /> Delivery Health
+          <div className="mb-3">
+            <div className="flex justify-between items-center text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+              <span className="flex items-center gap-1">
+                <Activity className="w-3 h-3 text-indigo-500" />
+                <span>Delivery Health</span>
               </span>
-              <span className="text-fg font-mono">{successPct}% Success</span>
+              <span className="font-mono text-zinc-800 dark:text-zinc-200 font-semibold">{successPct}% Success</span>
             </div>
-            <div className="w-full bg-glass-input h-2 rounded-full overflow-hidden flex">
-              <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${successPct}%` }} title={`Successful: ${delivered + read}`} />
+            <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden flex">
+              <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${successPct}%` }} title={`Delivered: ${delivered + read}`} />
               <div className="bg-blue-500 transition-all duration-500" style={{ width: `${total > 0 ? (sent / total) * 100 : 0}%` }} title={`Sent: ${sent}`} />
-              <div className="bg-red-500 transition-all duration-500" style={{ width: `${failPct}%` }} title={`Failed: ${failed}`} />
+              <div className="bg-rose-500 transition-all duration-500" style={{ width: `${failPct}%` }} title={`Failed: ${failed}`} />
             </div>
           </div>
         )}
 
         {/* 4 Stat Boxes */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          <div className="bg-glass-card border border-glass-border p-3.5 rounded-2xl">
-            <p className="text-[9px] text-fg/40 font-black uppercase tracking-widest mb-1">Sent</p>
-            <p className="text-lg font-black text-fg font-mono">{sent}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+          <div className="bg-zinc-100/70 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 p-2.5 rounded-lg">
+            <p className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 uppercase">Sent</p>
+            <p className="text-base font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-0.5">{sent}</p>
           </div>
 
-          <div className="bg-blue-500/10 border border-blue-500/20 p-3.5 rounded-2xl">
-            <p className="text-[9px] text-blue-300 font-black uppercase tracking-widest mb-1">Delivered</p>
-            <p className="text-lg font-black text-blue-400 font-mono">{delivered}</p>
+          <div className="bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 p-2.5 rounded-lg">
+            <p className="text-[10px] font-mono text-blue-600 dark:text-blue-400 uppercase">Delivered</p>
+            <p className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5">{delivered}</p>
           </div>
 
-          <div className="bg-emerald-500/10 border border-emerald-500/20 p-3.5 rounded-2xl">
-            <p className="text-[9px] text-emerald-300 font-black uppercase tracking-widest mb-1">Read</p>
-            <p className="text-lg font-black text-emerald-400 font-mono">{read}</p>
+          <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/40 p-2.5 rounded-lg">
+            <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 uppercase">Read</p>
+            <p className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{read}</p>
           </div>
 
-          <div className={`p-3.5 rounded-2xl border transition-all ${
+          <div className={`p-2.5 rounded-lg border transition-all ${
             failed > 0
-              ? 'bg-red-500/15 border-red-500/30'
-              : 'bg-glass-card border-glass-border'
+              ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200/80 dark:border-rose-900/40'
+              : 'bg-zinc-100/70 dark:bg-zinc-800/60 border-zinc-200/80 dark:border-zinc-700/60'
           }`}>
-            <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${failed > 0 ? 'text-red-300' : 'text-fg/40'}`}>
+            <p className={`text-[10px] font-mono uppercase ${failed > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
               Failed
             </p>
-            <p className={`text-lg font-black font-mono ${failed > 0 ? 'text-red-400' : 'text-fg'}`}>
+            <p className={`text-base font-bold font-mono mt-0.5 ${failed > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
               {failed}
             </p>
           </div>
