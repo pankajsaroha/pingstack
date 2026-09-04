@@ -99,6 +99,17 @@ export async function middleware(request: NextRequest) {
         );
       }
 
+      // Admin route protection
+      if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+        const isAdmin = payload.role === 'admin' || payload.role === 'superadmin';
+        if (!isAdmin) {
+          if (pathname.startsWith('/api/admin')) {
+            return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+          }
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+      }
+
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-tenant-id', payload.tenantId);
       requestHeaders.set('x-user-id', payload.userId);
