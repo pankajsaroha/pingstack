@@ -98,28 +98,24 @@ export default function ConversationList({
         <div
           key={item.key}
           onClick={() => onSelectContact(conv.contact.id)}
-          className={`p-5 cursor-pointer transition-all relative ${
+          className={`px-4 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 ${
             isActive
-              ? 'bg-fg text-bg shadow-lg z-10 scale-[1.01]'
-              : 'hover:bg-glass-card'
+              ? 'bg-zinc-100 dark:bg-zinc-800 border-l-3 border-l-indigo-600 dark:border-l-indigo-500'
+              : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
           }`}
           style={{ height: 82 }}
         >
-          {isActive && (
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
-          )}
-          <div className="flex justify-between items-start mb-1.5">
+          <div className="flex justify-between items-start mb-1">
             <h3
-              className={`font-black text-sm truncate pr-2 ${
-                isActive ? 'text-bg' : 'text-fg'
+              className={`font-semibold text-xs truncate pr-2 ${
+                isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'
               }`}
             >
               {conv.contact.name || conv.contact.phone_number}
             </h3>
             <span
-              className={`text-[9px] font-black uppercase font-mono ${
-                isActive ? 'text-bg/60' : 'text-fg/30'
-              }`}
+              className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 shrink-0"
+              suppressHydrationWarning
             >
               {new Date(conv.latestMessage.created_at).toLocaleTimeString([], {
                 hour: '2-digit',
@@ -131,22 +127,18 @@ export default function ConversationList({
             <p
               className={`text-xs truncate w-full ${
                 conv.unreadCount > 0
-                  ? isActive
-                    ? 'text-bg font-black'
-                    : 'text-fg font-black'
-                  : isActive
-                  ? 'text-bg/70'
-                  : 'text-muted'
+                  ? 'text-zinc-900 dark:text-zinc-100 font-bold'
+                  : 'text-zinc-500 dark:text-zinc-400'
               }`}
             >
               {conv.latestMessage.direction === 'outbound' && (
-                <span className="mr-1 font-black text-indigo-400">You:</span>
+                <span className="mr-1 font-semibold text-indigo-600 dark:text-indigo-400">You:</span>
               )}
               {conv.latestMessage.content || 'Attachment File'}
             </p>
             {conv.unreadCount > 0 && (
-              <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-lg shadow-indigo-600/10">
-                <span className="text-[10px] font-black text-fg">
+              <div className="w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-2xs">
+                <span className="text-[9px] font-bold text-white">
                   {conv.unreadCount}
                 </span>
               </div>
@@ -160,10 +152,10 @@ export default function ConversationList({
       return (
         <div
           key={item.key}
-          className="bg-glass-input/50 px-5 py-3 border-y border-glass-border backdrop-blur-sm sticky top-0 z-10 text-left"
+          className="bg-zinc-100/80 dark:bg-zinc-800/80 px-4 py-2 border-y border-zinc-200 dark:border-zinc-800 backdrop-blur-sm sticky top-0 z-10 text-left"
           style={{ height: 37 }}
         >
-          <span className="text-[9px] font-black uppercase tracking-widest text-fg/30">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             {item.label}
           </span>
         </div>
@@ -177,38 +169,31 @@ export default function ConversationList({
         <div
           key={item.key}
           onClick={() => onSelectContact(contact.id)}
-          className={`p-5 cursor-pointer transition-all relative ${
+          className={`px-4 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 ${
             isActive
-              ? 'bg-fg text-bg shadow-lg z-10 scale-[1.01]'
-              : 'hover:bg-glass-card'
+              ? 'bg-zinc-100 dark:bg-zinc-800 border-l-3 border-l-indigo-600 dark:border-l-indigo-500'
+              : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
           }`}
           style={{ height: 72 }}
         >
-          {isActive && (
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
-          )}
           <div className="flex justify-between items-center">
-            <div className="min-w-0 flex-1 pr-4">
+            <div className="min-w-0 flex-1 pr-3">
               <h3
-                className={`font-black text-sm truncate ${
-                  isActive ? 'text-bg' : 'text-fg'
+                className={`font-semibold text-xs truncate ${
+                  isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'
                 }`}
               >
                 {contact.name || contact.phone_number}
               </h3>
-              <p
-                className={`text-[9px] font-black uppercase tracking-widest truncate mt-0.5 ${
-                  isActive ? 'text-bg/60' : 'text-fg/30'
-                }`}
-              >
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono truncate mt-0.5">
                 {contact.phone_number}
               </p>
             </div>
             <span
-              className={`text-[8px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-md shrink-0 ${
+              className={`text-[9px] font-bold uppercase tracking-wider border px-2 py-0.5 rounded-md shrink-0 ${
                 isActive
-                  ? 'bg-bg/10 border-bg/20 text-bg'
-                  : 'bg-glass-input border-glass-border text-fg/40'
+                  ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                  : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'
               }`}
             >
               Start Chat
@@ -224,14 +209,14 @@ export default function ConversationList({
   return (
     <div className="flex-1 overflow-hidden relative">
       {conversations.length === 0 && allContacts.length === 0 ? (
-        <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-20">
-          <MessageCircle className="w-12 h-12 text-fg/10 mx-auto mb-4" />
+        <div className="p-8 text-xs text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-center mt-16">
+          <MessageCircle className="w-10 h-10 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
           Inbox is empty
         </div>
       ) : searchQuery &&
         filteredConversationsCount === 0 &&
         matchingNewContactsCount === 0 ? (
-        <div className="p-8 text-xs text-fg/30 font-black uppercase tracking-widest text-center mt-12">
+        <div className="p-8 text-xs text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-center mt-12">
           No matching chats or contacts
         </div>
       ) : (

@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe, Tag, LayoutTemplate, Pencil, Trash2 } from 'lucide-react';
+import { Globe, Tag, Pencil, Trash2 } from 'lucide-react';
 
 interface TemplateCardProps {
   template: any;
@@ -21,45 +21,35 @@ export default function TemplateCard({
 
   return (
     <div
-      className={`bg-glass-card border p-6 rounded-[2.5rem] relative shadow-2xl hover:border-glass-border hover:bg-glass-card transition-all duration-300 cursor-pointer text-left ${
-        isSelected ? 'border-white ring-1 ring-white/10 bg-glass-card' : 'border-glass-border'
+      className={`bg-white dark:bg-zinc-900/60 border p-4 sm:p-5 rounded-xl shadow-2xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-all cursor-pointer text-left ${
+        isSelected ? 'border-indigo-500 ring-1 ring-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-950/10' : 'border-zinc-200 dark:border-zinc-800/80'
       }`}
       onClick={(e) => onToggleSelection(template.id, e)}
     >
-      <div className="absolute top-6 right-6 z-30 flex items-center space-x-2">
-        {onDeleteSingle && (
-          <button
-            type="button"
-            title="Delete template from Meta and local history"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteSingle(template.id);
-            }}
-            className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer border border-transparent"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => {}}
-          className="h-5 w-5 bg-glass-input border-glass-border text-black focus:ring-white rounded cursor-pointer"
-        />
-      </div>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">{template.name}</h3>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4 pr-10">
-        <h3 className="text-xl font-black text-fg tracking-tight">{template.name}</h3>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-            template.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-            template.status === 'REJECTED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-            'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${
+            template.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+            template.status === 'REJECTED' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' :
+            'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
           }`}>
             {template.status || 'PENDING'}
           </span>
 
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60">
+            <Globe className="w-3 h-3" />
+            <span>{template.language || 'en_US'}</span>
+          </span>
+
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+            <Tag className="w-3 h-3" />
+            <span>{template.category || 'UTILITY'}</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
           {template.status !== 'APPROVED' && onEditRejected && (
             <button
               type="button"
@@ -67,31 +57,41 @@ export default function TemplateCard({
                 e.stopPropagation();
                 onEditRejected(template);
               }}
-              className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center shadow-md ml-1"
+              className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/20 rounded-lg text-xs font-medium transition-colors cursor-pointer"
             >
-              <Pencil className="w-3 h-3 mr-1" />
-              Edit & Resubmit
+              <Pencil className="w-3 h-3" />
+              <span>Edit</span>
             </button>
           )}
 
-          <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-glass-input text-fg/50 border border-glass-border">
-            <Globe className="w-3 h-3 mr-1.5" />
-            {template.language || 'en_US'}
-          </span>
+          {onDeleteSingle && (
+            <button
+              type="button"
+              title="Delete template"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteSingle(template.id);
+              }}
+              className="p-1 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
 
-          <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <Tag className="w-3 h-3 mr-1.5" />
-            {template.category || 'UTILITY'}
-          </span>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => {}}
+            className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+          />
         </div>
       </div>
 
-      <p className="text-[10px] text-fg/30 font-black uppercase tracking-wider mb-4">Meta ID: <span className="font-mono text-fg/50">{template.template_id}</span></p>
+      <div className="text-[11px] font-mono text-zinc-400 mb-2">
+        Meta ID: <span className="text-zinc-600 dark:text-zinc-300 select-all">{template.template_id || 'Pending Meta Sync'}</span>
+      </div>
 
-      <div className="bg-glass-card/20 p-5 rounded-2xl border border-glass-border text-sm text-fg/70 whitespace-pre-wrap leading-relaxed relative">
-        <div className="absolute top-0 right-0 p-2 opacity-5">
-          <LayoutTemplate className="w-8 h-8 text-fg" />
-        </div>
+      <div className="bg-zinc-50 dark:bg-zinc-950/40 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800/60 text-xs text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
         {template.content}
       </div>
     </div>

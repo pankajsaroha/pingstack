@@ -139,7 +139,7 @@ export default function AdminSubscriptionsPage() {
                   <span>Share of Platform</span>
                   <span>{p.percentage}%</span>
                 </div>
-                <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-850 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-indigo-500 rounded-full"
                     style={{ width: `${Math.max(4, p.percentage)}%` }}
@@ -178,7 +178,7 @@ export default function AdminSubscriptionsPage() {
                 </tr>
               ) : (
                 recentPlanChanges.map((log: any) => (
-                  <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/40 transition-colors">
+                  <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                     <td className="py-3 font-semibold text-zinc-900 dark:text-zinc-200">
                       <Link href={`/admin/businesses/${log.businessId}`} className="hover:text-indigo-600 dark:hover:text-indigo-400">
                         {log.businessName}

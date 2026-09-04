@@ -104,7 +104,7 @@ export default function AdminAnalyticsPage() {
                 </div>
 
                 {/* Progress bar */}
-                <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-850 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-indigo-500 rounded-full transition-all duration-500"
                     style={{ width: `${Math.max(2, step.percentageOfTotal)}%` }}
@@ -190,7 +190,7 @@ export default function AdminAnalyticsPage() {
                 </tr>
               ) : (
                 segments[activeSegment].items.map((b: any) => (
-                  <tr key={b.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/40 transition-colors">
+                  <tr key={b.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                     <td className="py-3 font-semibold text-zinc-900 dark:text-zinc-200">
                       <Link href={`/admin/businesses/${b.id}`} className="hover:text-indigo-600 dark:hover:text-indigo-400">
                         {b.name}

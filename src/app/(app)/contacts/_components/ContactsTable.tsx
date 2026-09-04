@@ -16,100 +16,104 @@ interface ContactsTableProps {
 export default function ContactsTable({
   contacts,
   selectedIds,
-  searchQuery,
   deletingId,
   onToggleSelection,
   onToggleAll,
   onEditContact,
   onDeleteSingle,
 }: ContactsTableProps) {
-  const filteredContacts = contacts;
-
-  const isAllSelected = filteredContacts.length > 0 && selectedIds.size >= filteredContacts.length;
+  const isAllSelected = contacts.length > 0 && selectedIds.size >= contacts.length;
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
   return (
     <>
       {/* Desktop Table */}
       <div className="hidden sm:block overflow-x-auto text-left">
-        <table className="w-full text-left">
+        <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-glass-border text-[10px] uppercase font-black tracking-widest text-muted">
-              <th className="px-6 py-4 w-12">
+            <tr className="border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950/40 text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
+              <th className="py-3 px-4 w-10">
                 <button
                   type="button"
                   onClick={onToggleAll}
-                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                  className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
                     isAllSelected
-                      ? 'bg-indigo-600 border-indigo-600 shadow-sm'
-                      : 'border-fg/30 bg-glass-input hover:border-fg/60'
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                   }`}
+                  aria-label="Select all contacts"
                 >
-                  {isAllSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                  {isAllSelected && <Check className="w-3 h-3 stroke-[3]" />}
                 </button>
               </th>
-              <th className="px-6 py-4">Name</th>
-              <th className="px-6 py-4">Phone Number</th>
-              <th className="px-6 py-4">Contact Added On</th>
-              <th className="px-6 py-4 text-right">Actions</th>
+              <th className="py-3 px-4 font-medium">Name</th>
+              <th className="py-3 px-4 font-medium">WhatsApp Phone</th>
+              <th className="py-3 px-4 font-medium">Added On</th>
+              <th className="py-3 px-4 font-medium text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
-            {filteredContacts.map((contact) => (
+          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/40">
+            {contacts.map((contact) => (
               <tr
                 key={contact.id}
-                className={`group hover:bg-white/[0.02] transition-colors ${
-                  selectedIds.has(contact.id) ? 'bg-indigo-500/10' : ''
+                className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group ${
+                  selectedIds.has(contact.id) ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''
                 }`}
               >
-                <td className="px-6 py-4">
+                <td className="py-3 px-4">
                   <button
                     type="button"
                     onClick={() => onToggleSelection(contact.id)}
-                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
                       selectedIds.has(contact.id)
-                        ? 'bg-indigo-600 border-indigo-600 shadow-sm'
-                        : 'border-fg/30 bg-glass-input hover:border-fg/60'
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 group-hover:border-zinc-400'
                     }`}
+                    aria-label={`Select ${contact.name || 'contact'}`}
                   >
-                    {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    {selectedIds.has(contact.id) && <Check className="w-3 h-3 stroke-[3]" />}
                   </button>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <p className="text-sm font-bold text-fg">{contact.name || 'Anonymous'}</p>
+                <td className="py-3 px-4 font-semibold text-zinc-900 dark:text-zinc-200">
+                  {contact.name || 'Anonymous'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-fg/50 font-mono tracking-tight">{contact.phone_number}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-[11px] font-bold text-fg/40 tracking-tight font-mono">{formatDate(contact.created_at)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-xs">
-                  <div className="flex items-center justify-end space-x-2">
+                <td className="py-3 px-4 font-mono text-[11px] text-zinc-600 dark:text-zinc-400">
+                  {contact.phone_number}
+                </td>
+                <td className="py-3 px-4 font-mono text-[11px] text-zinc-500">
+                  {formatDate(contact.created_at)}
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <div className="flex items-center justify-end gap-1">
                     <button
                       type="button"
                       title="Edit Contact"
                       onClick={() => onEditContact(contact)}
-                      className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+                      className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors cursor-pointer"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       title="Delete Contact"
                       disabled={deletingId === contact.id}
                       onClick={() => onDeleteSingle(contact.id)}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-50"
+                      className="p-1.5 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {deletingId === contact.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-red-400" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
                       ) : (
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>
@@ -120,69 +124,67 @@ export default function ContactsTable({
         </table>
       </div>
 
-      {/* Mobile View */}
-      <div className="sm:hidden divide-y divide-white/5 text-left">
-        <div className="p-4 bg-glass-input/40 border-b border-glass-border flex items-center justify-between">
+      {/* Mobile Card List View */}
+      <div className="sm:hidden divide-y divide-zinc-100 dark:divide-zinc-800/50 text-left">
+        <div className="p-3 bg-zinc-50 dark:bg-zinc-950/40 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
           <button
             type="button"
             onClick={onToggleAll}
-            className="flex items-center space-x-3 cursor-pointer text-left border-0 bg-transparent"
+            className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300"
           >
-            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
               isAllSelected
-                ? 'bg-indigo-600 border-indigo-600 shadow-sm'
-                : 'border-fg/30 bg-glass-input hover:border-fg/60'
+                ? 'bg-indigo-600 border-indigo-600 text-white'
+                : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
             }`}>
-              {isAllSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+              {isAllSelected && <Check className="w-3 h-3 stroke-[3]" />}
             </div>
-            <span className="text-xs font-black uppercase tracking-widest text-fg/80">
-              {isAllSelected ? 'Deselect All (This Page)' : 'Select All (This Page)'}
-            </span>
+            <span>{isAllSelected ? 'Deselect Page' : 'Select Page'}</span>
           </button>
-          <span className="text-[10px] font-mono text-muted font-bold">
+          <span className="text-[10px] font-mono text-zinc-500">
             {selectedIds.size} Selected
           </span>
         </div>
 
-        {filteredContacts.map((contact) => (
+        {contacts.map((contact) => (
           <div
             key={contact.id}
-            className={`p-5 flex items-center justify-between transition-colors ${
-              selectedIds.has(contact.id) ? 'bg-indigo-500/10' : ''
+            className={`p-4 flex items-center justify-between transition-colors ${
+              selectedIds.has(contact.id) ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''
             }`}
           >
-            <div className="flex items-center" onClick={() => onToggleSelection(contact.id)}>
-              <div className={`w-5 h-5 rounded-md border flex items-center justify-center mr-4 transition-all ${
+            <div className="flex items-center gap-3" onClick={() => onToggleSelection(contact.id)}>
+              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                 selectedIds.has(contact.id)
-                  ? 'bg-indigo-600 border-indigo-600 shadow-sm'
-                  : 'border-fg/30 bg-glass-input hover:border-fg/60'
+                  ? 'bg-indigo-600 border-indigo-600 text-white'
+                  : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
               }`}>
-                {selectedIds.has(contact.id) && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                {selectedIds.has(contact.id) && <Check className="w-3 h-3 stroke-[3]" />}
               </div>
               <div>
-                <p className="font-bold text-fg text-sm">{contact.name || 'Anonymous'}</p>
-                <p className="text-[10px] text-muted font-semibold tracking-wide mt-0.5 font-mono">{contact.phone_number}</p>
-                <p className="text-[9px] text-fg/30 font-bold tracking-tight font-mono mt-0.5">{formatDate(contact.created_at)}</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs">{contact.name || 'Anonymous'}</p>
+                <p className="text-[11px] text-zinc-500 font-mono mt-0.5">{contact.phone_number}</p>
+                <p className="text-[10px] text-zinc-400 font-mono">{formatDate(contact.created_at)}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => onEditContact(contact)}
-                className="p-2 text-indigo-400 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+                className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors cursor-pointer"
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
                 disabled={deletingId === contact.id}
                 onClick={() => onDeleteSingle(contact.id)}
-                className="p-2 text-red-400 hover:bg-glass-input rounded-xl transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-50"
+                className="p-1.5 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md transition-colors cursor-pointer disabled:opacity-50"
               >
                 {deletingId === contact.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-red-400" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
                 ) : (
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 )}
               </button>
             </div>

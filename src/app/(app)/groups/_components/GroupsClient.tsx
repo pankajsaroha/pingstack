@@ -198,66 +198,55 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
   };
 
   return (
-    <div className="text-left">
+    <div className="space-y-6 text-left animate-in fade-in duration-200">
       {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 text-left">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800/60">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-fg text-left">Groups</h1>
-          <p className="text-muted text-sm font-semibold mt-1">Organize and segment contacts into distribution lists.</p>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Audience Groups</h1>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Organize and segment contacts into targeted distribution lists.</p>
         </div>
-        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           {selectedIds.size > 0 && (
             <button
               onClick={handleDeleteSelected}
-              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-3 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete ({selectedIds.size})
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete ({selectedIds.size})</span>
             </button>
           )}
           <button
             onClick={() => setShowModal(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 cursor-pointer border-0"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Group
+            <Plus className="h-3.5 w-3.5" />
+            <span>Create Group</span>
           </button>
         </div>
       </div>
 
       {/* Grid view */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {loading ? (
-          <div className="col-span-full text-center py-20 opacity-40">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-fg mb-4" />
-            <p className="text-xs font-black uppercase tracking-widest text-fg/50">Loading groups directory...</p>
+          <div className="col-span-full p-16 text-center flex flex-col items-center justify-center">
+            <Loader2 className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2" />
+            <p className="text-xs text-zinc-500 font-mono">Loading groups directory...</p>
           </div>
         ) : groups.length === 0 ? (
-          <div className="col-span-full relative rounded-[2.5rem] overflow-hidden border border-glass-border shadow-2xl bg-glass-card mt-4 group">
-            <img 
-              src="/images/contacts_groups.jpg" 
-              alt="Group Audience Segmentation" 
-              loading="lazy"
-              decoding="async"
-              className="w-full h-[260px] sm:h-[300px] object-cover filter brightness-[0.75] group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 flex flex-col justify-end items-start text-left">
-              <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black uppercase rounded-full tracking-widest mb-3">
-                Audience Segmentation
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">No Active Groups</h3>
-              <p className="text-xs text-slate-300 font-medium max-w-md mt-1 leading-relaxed">
-                Create contact distribution groups to segment your outreach campaigns by customer tier or tags.
-              </p>
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="px-5 py-2.5 bg-fg text-bg rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-lg"
-                >
-                  + Create Group
-                </button>
-              </div>
+          <div className="col-span-full p-12 text-center flex flex-col items-center justify-center bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl shadow-2xs">
+            <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 mb-3">
+              <Folder className="w-5 h-5 text-indigo-500" />
             </div>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">No Audience Groups Found</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mt-1 mb-4 leading-relaxed">
+              Create contact distribution groups to segment outreach campaigns by customer tier or tags.
+            </p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              + Create First Group
+            </button>
           </div>
         ) : (
           groups.map((group) => (
@@ -279,7 +268,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
       {exportingGroup && (
         <Suspense fallback={
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <Loader2 className="w-8 h-8 animate-spin text-fg" />
+            <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
           </div>
         }>
           <ExportFormatModal

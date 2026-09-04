@@ -185,7 +185,7 @@ export default function AdminCampaignsPage() {
                 </tr>
               ) : (
                 campaigns.map((c: any) => (
-                  <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/40 transition-colors">
+                  <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                     <td className="py-3 px-4 font-semibold text-zinc-900 dark:text-zinc-200">
                       <div>{c.name}</div>
                       <div className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{c.publicId || c.id}</div>

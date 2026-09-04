@@ -183,11 +183,11 @@ export default function ChatThread({
 
   if (!activeConversation) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-fg/30 space-y-4 opacity-40">
-        <div className="w-20 h-20 bg-glass-input rounded-full flex items-center justify-center">
-          <MessageCircle className="w-10 h-10" />
+      <div className="h-full flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 space-y-3">
+        <div className="w-14 h-14 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 rounded-xl flex items-center justify-center">
+          <MessageCircle className="w-7 h-7 text-zinc-400" />
         </div>
-        <p className="font-black text-xs uppercase tracking-widest">Select a thread to begin chatting</p>
+        <p className="font-bold text-xs uppercase tracking-wider">Select a conversation to begin chatting</p>
       </div>
     );
   }
@@ -236,23 +236,23 @@ export default function ChatThread({
   return (
     <>
       {/* Header */}
-      <div className="h-16 sm:h-20 px-3.5 sm:px-6 border-b border-glass-border flex items-center bg-bg/85 backdrop-blur-md z-10 sticky top-0 justify-between">
+      <div className="h-14 sm:h-16 px-4 sm:px-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md z-10 sticky top-0 justify-between">
         <div className="flex items-center min-w-0">
           <button
             onClick={onBackMobile}
-            className="md:hidden p-2 -ml-2 mr-2 hover:bg-glass-input rounded-lg transition-colors cursor-pointer text-fg/50 hover:text-fg"
+            className="md:hidden p-1.5 -ml-1.5 mr-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-glass-input border border-glass-border text-fg rounded-xl flex items-center justify-center mr-2.5 sm:mr-3 shadow-lg shrink-0">
-            <User className="w-4 h-4 sm:w-5 sm:h-5" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center justify-center mr-3 shadow-2xs shrink-0">
+            <User className="w-4 h-4" />
           </div>
           <div className="truncate">
-            <h3 className="font-black text-fg tracking-tight truncate text-sm sm:text-base">
+            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 tracking-tight truncate text-xs sm:text-sm">
               {activeConversation.contact.name || 'Anonymous Client'}
             </h3>
-            <p className="text-[9px] text-fg/30 font-black tracking-widest uppercase truncate mt-0.5">
-              Mobile: {activeConversation.contact.phone_number}
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono truncate mt-0.5">
+              {activeConversation.contact.phone_number}
             </p>
           </div>
         </div>
@@ -260,16 +260,16 @@ export default function ChatThread({
         {/* Bulk-delete toolbar */}
         {selectedMessageIds.size > 0 && (
           <div className="flex items-center space-x-2 sm:space-x-3">
-            <span className="text-[10px] sm:text-xs font-bold text-muted">{selectedMessageIds.size} Selected</span>
+            <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">{selectedMessageIds.size} Selected</span>
             <button
               onClick={onClearSelection}
-              className="text-[10px] sm:text-xs font-black uppercase text-fg/30 hover:text-fg tracking-wider cursor-pointer"
+              className="text-[10px] font-bold uppercase text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 tracking-wider cursor-pointer"
             >
               Clear
             </button>
             <button
               onClick={onBulkDelete}
-              className="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest cursor-pointer"
+              className="flex items-center px-3 py-1.5 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1" />
               <span className="hidden sm:inline">Delete selected</span>
@@ -283,11 +283,11 @@ export default function ChatThread({
       <div
         ref={chatContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 relative custom-scrollbar bg-transparent overflow-x-hidden"
+        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4 relative custom-scrollbar bg-transparent overflow-x-hidden"
       >
         {loadingMore && (
           <div className="flex justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-fg/30" />
+            <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
           </div>
         )}
 
@@ -306,14 +306,14 @@ export default function ChatThread({
               transform: `translateY(${-pushY}px)`
             }}
           >
-            <span className="bg-bg/95 backdrop-blur-md border border-glass-border px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-fg/50 shadow-md">
+            <span className="bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 rounded-full text-[10px] font-mono text-zinc-600 dark:text-zinc-300 shadow-2xs">
               {formatSeparatorDate(activeDateHeader.dateString)}
             </span>
           </div>
         )}
 
         {messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-fg/20 text-xs font-black uppercase tracking-[0.2em]">
+          <div className="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xs font-bold uppercase tracking-widest">
             Session initialized
           </div>
         ) : (

@@ -6,9 +6,11 @@ import { AssistantPanel } from './AssistantPanel';
 import { Sparkles, X } from 'lucide-react';
 
 export function PingstackAssistant({
-  onOpenFeedback
+  onOpenFeedback,
+  onStartTour,
 }: {
   onOpenFeedback?: () => void;
+  onStartTour?: () => void;
 } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
@@ -31,13 +33,13 @@ export function PingstackAssistant({
   return (
     <>
       {/* Floating Assistant Trigger Button */}
-      <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-2">
+      <div className="fixed bottom-5 right-5 z-[80] flex items-center gap-2">
         <button
           onClick={() => setIsOpen((prev) => !prev)}
-          className={`group relative flex items-center gap-2 px-3.5 py-2.5 rounded-2xl transition-all duration-300 shadow-xl cursor-pointer select-none active:scale-95 ${
+          className={`group relative flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 shadow-lg cursor-pointer select-none active:scale-95 ${
             isOpen
-              ? 'bg-fg text-bg border border-fg/20'
-              : 'bg-glass-card/90 hover:bg-glass-card text-fg border border-glass-border hover:border-fg/30 hover:shadow-2xl backdrop-blur-xl'
+              ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border border-zinc-700 dark:border-zinc-200'
+              : 'bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
           }`}
           aria-expanded={isOpen}
           aria-label="Toggle Pingstack Assistant"
@@ -47,23 +49,23 @@ export function PingstackAssistant({
             {isOpen ? (
               <X className="w-4 h-4" />
             ) : (
-              <Sparkles className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform duration-200" />
+              <Sparkles className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition-transform duration-200" />
             )}
           </div>
 
-          <span className="text-xs font-bold tracking-tight pr-1">
+          <span className="text-xs font-semibold tracking-tight pr-0.5">
             {isOpen ? 'Close' : 'Assistant'}
           </span>
 
-          <span className="hidden sm:inline-block text-[9px] font-mono px-1 py-0.2 rounded bg-glass-input text-muted border border-glass-border opacity-70 group-hover:opacity-100 transition-opacity">
+          <span className="hidden sm:inline-block text-[9px] font-mono px-1 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60">
             ⌘/
           </span>
 
-          {/* Pulse notification dot */}
+          {/* Notification dot */}
           {!isOpen && (
-            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
           )}
         </button>
@@ -76,6 +78,7 @@ export function PingstackAssistant({
         onClose={() => setIsOpen(false)}
         onMinimize={() => setIsOpen(false)}
         onOpenFeedback={onOpenFeedback}
+        onStartTour={onStartTour}
       />
     </>
   );

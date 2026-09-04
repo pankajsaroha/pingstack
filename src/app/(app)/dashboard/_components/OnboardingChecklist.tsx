@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { 
-  CheckCircle2, XCircle, ArrowRight, Sparkles, ChevronDown, ChevronUp, X 
+  CheckCircle2, AlertCircle, ArrowRight, Sparkles, ChevronDown, ChevronUp, X 
 } from 'lucide-react';
 
 interface OnboardingChecklistProps {
@@ -12,7 +12,7 @@ interface OnboardingChecklistProps {
   isConnected: boolean;
 }
 
-export default function OnboardingChecklist({ tenant, stats, isConnected }: OnboardingChecklistProps) {
+export default function OnboardingChecklist({ stats, isConnected }: OnboardingChecklistProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
@@ -24,7 +24,7 @@ export default function OnboardingChecklist({ tenant, stats, isConnected }: Onbo
   const steps = [
     {
       id: 'account',
-      title: 'Create your PingStack account',
+      title: 'Create PingStack account',
       completed: true,
       href: '#',
       actionText: 'Completed'
@@ -33,33 +33,33 @@ export default function OnboardingChecklist({ tenant, stats, isConnected }: Onbo
       id: 'whatsapp',
       title: 'Connect WhatsApp Business',
       completed: isConnected,
-      href: '/dashboard?tab=whatsapp',
-      actionText: isConnected ? 'Connected' : 'Connect now'
+      href: '/dashboard',
+      actionText: isConnected ? 'Connected' : 'Connect'
     },
     {
       id: 'contacts',
-      title: 'Add your contacts',
+      title: 'Add outreach contacts',
       completed: hasContacts,
       href: '/contacts',
       actionText: hasContacts ? 'Done' : 'Add contacts'
     },
     {
       id: 'template',
-      title: 'Create your first template',
+      title: 'Sync/Create message template',
       completed: hasTemplates,
       href: '/templates',
       actionText: hasTemplates ? 'Done' : 'Create template'
     },
     {
       id: 'message',
-      title: 'Send your first message',
+      title: 'Send first customer chat',
       completed: hasSentMessage,
       href: '/inbox',
       actionText: hasSentMessage ? 'Done' : 'Open Inbox'
     },
     {
       id: 'campaign',
-      title: 'Create your first campaign',
+      title: 'Launch broadcast campaign',
       completed: hasCampaign,
       href: '/campaigns',
       actionText: hasCampaign ? 'Done' : 'New campaign'
@@ -74,40 +74,42 @@ export default function OnboardingChecklist({ tenant, stats, isConnected }: Onbo
   if (isDismissed || isAllCompleted) return null;
 
   return (
-    <div className="mb-8 bg-glass-card/40 border border-glass-border/40 rounded-2xl p-5 shadow-sm backdrop-blur-md antialiased transform-gpu relative overflow-hidden transition-all duration-300">
+    <div className="mb-8 bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 sm:p-5 shadow-2xs relative overflow-hidden transition-all duration-200">
       {/* Top Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-base font-black text-fg tracking-tight flex items-center gap-2">
-              Get started with PingStack
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
-                {completedCount} of {totalCount} completed
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+                Getting Started Checklist
+              </h3>
+              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                {completedCount}/{totalCount} Completed
               </span>
-            </h3>
-            <p className="text-xs text-muted font-semibold mt-0.5">
-              Complete these setup steps to start messaging your customers effectively.
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Complete these initial milestones to set up your WhatsApp messaging engine.
             </p>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center space-x-2 self-end sm:self-auto">
+        <div className="flex items-center gap-1.5 self-end sm:self-auto">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="px-3 py-1.5 bg-glass-input border border-glass-border/40 hover:bg-glass-card/60 text-fg rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
             title={isCollapsed ? "Expand checklist" : "Collapse checklist"}
           >
-            <span className="text-[10px] uppercase tracking-wider font-black">{isCollapsed ? 'Show Steps' : 'Minimize'}</span>
+            <span>{isCollapsed ? 'Show' : 'Minimize'}</span>
             {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => setIsDismissed(true)}
-            className="p-1.5 text-muted hover:text-fg hover:bg-glass-input rounded-lg transition-colors cursor-pointer"
-            title="Dismiss onboarding checklist"
+            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+            title="Dismiss checklist"
           >
             <X className="w-4 h-4" />
           </button>
@@ -115,48 +117,48 @@ export default function OnboardingChecklist({ tenant, stats, isConnected }: Onbo
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full h-1.5 bg-glass-input rounded-full overflow-hidden border border-glass-border/40 my-3.5">
+      <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden my-3">
         <div 
-          className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 rounded-full transition-all duration-500"
+          className="h-full bg-indigo-500 rounded-full transition-all duration-500"
           style={{ width: `${(completedCount / totalCount) * 100}%` }}
         />
       </div>
 
-      {/* Step Items - Green cards for completed steps, Red cards for incomplete steps */}
+      {/* Step Items */}
       {!isCollapsed && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 pt-2 border-t border-glass-border/40">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
           {steps.map((step) => (
             <div 
               key={step.id} 
-              className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
+              className={`p-2.5 rounded-lg border transition-all flex items-center justify-between ${
                 step.completed 
-                  ? 'bg-emerald-500/10 border-emerald-500/25 dark:bg-emerald-500/15' 
-                  : 'bg-red-500/10 border-red-500/25 dark:bg-red-500/15'
+                  ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/70 dark:border-emerald-900/40' 
+                  : 'bg-zinc-50 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-800'
               }`}
             >
-              <div className="flex items-center space-x-2.5 pr-2 min-w-0">
+              <div className="flex items-center gap-2 pr-2 min-w-0">
                 {step.completed ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 ) : (
-                  <XCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+                  <AlertCircle className="w-4 h-4 text-zinc-400 shrink-0" />
                 )}
-                <span className={`text-xs font-bold truncate ${
+                <span className={`text-xs truncate font-medium ${
                   step.completed 
-                    ? 'text-emerald-800 dark:text-emerald-300' 
-                    : 'text-red-800 dark:text-red-300'
+                    ? 'text-emerald-900 dark:text-emerald-300 font-semibold' 
+                    : 'text-zinc-700 dark:text-zinc-300'
                 }`}>
                   {step.title}
                 </span>
               </div>
 
               {step.completed ? (
-                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0">
+                <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-mono font-medium shrink-0">
                   {step.actionText}
                 </span>
               ) : (
                 <Link
                   href={step.href}
-                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-opacity shrink-0 cursor-pointer shadow-sm"
+                  className="px-2 py-0.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded text-[10px] font-semibold flex items-center gap-1 transition-colors shrink-0 shadow-2xs"
                 >
                   <span>{step.actionText}</span>
                   <ArrowRight className="w-2.5 h-2.5" />

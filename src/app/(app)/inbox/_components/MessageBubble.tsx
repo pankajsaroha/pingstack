@@ -34,15 +34,15 @@ export default function MessageBubble({
   const [showErrorPopover, setShowErrorPopover] = useState(false);
 
   return (
-    <div className={`flex group items-center w-full min-w-0 ${isOutbound ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex group items-center w-full min-w-0 py-1.5 sm:py-2 px-1 ${isOutbound ? 'justify-end' : 'justify-start'}`}>
 
       {/* Checkbox — visible when selection is active or on hover */}
-      <div className={`mr-2.5 sm:mr-3 transition-all shrink-0 ${selectionActive || isSelected ? 'opacity-100 w-5 sm:w-6' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-5 sm:group-hover:w-6 overflow-hidden'}`}>
+      <div className={`mr-2 transition-all shrink-0 ${selectionActive || isSelected ? 'opacity-100 w-4' : 'opacity-0 w-0 group-hover:opacity-40 group-hover:w-4 overflow-hidden'}`}>
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => onToggleSelect(msg.id)}
-          className="h-4 w-4 bg-glass-input border-glass-border text-indigo-500 focus:ring-white rounded cursor-pointer"
+          className="h-3.5 w-3.5 rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
         />
       </div>
 
@@ -50,7 +50,7 @@ export default function MessageBubble({
       {!isOutbound && (
         <button
           onClick={() => onDelete(msg.id)}
-          className="opacity-0 group-hover:opacity-100 p-1.5 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1 cursor-pointer shrink-0"
+          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-opacity self-center mr-1.5 cursor-pointer shrink-0"
           title="Delete message"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -61,7 +61,7 @@ export default function MessageBubble({
       {isOutbound && (
         <button
           onClick={() => onDelete(msg.id)}
-          className="opacity-0 group-hover:opacity-100 p-1.5 text-fg/20 hover:text-red-400 transition-opacity self-center mr-1.5 cursor-pointer shrink-0"
+          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-opacity self-center mr-1.5 cursor-pointer shrink-0"
           title="Delete message"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -69,29 +69,33 @@ export default function MessageBubble({
       )}
 
       {/* Bubble */}
-      <div className={`max-w-[85%] sm:max-w-[70%] min-w-0 rounded-[1.25rem] sm:rounded-[1.5rem] px-3.5 sm:px-5 py-2.5 sm:py-3.5 shadow-xl relative border break-words ${
+      <div className={`max-w-[85%] sm:max-w-[70%] min-w-0 rounded-2xl px-4 py-2.5 sm:px-4.5 sm:py-3 shadow-2xs relative border break-words ${
         isOutbound
-          ? 'bg-fg text-bg border-white rounded-br-sm'
-          : 'bg-glass-card border-glass-border text-fg rounded-bl-sm'
+          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 rounded-br-xs ml-8 sm:ml-12'
+          : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700/80 text-zinc-900 dark:text-zinc-100 rounded-bl-xs mr-8 sm:mr-12'
       }`}>
         {/* Attachment preview */}
         {msg.media_path && (
-          <div className={`mb-2.5 p-2.5 sm:p-3 rounded-xl border flex items-center ${
-            isOutbound ? 'bg-black/5 border-black/10' : 'bg-glass-input border-glass-border'
+          <div className={`mb-2 p-2 rounded-lg border flex items-center ${
+            isOutbound 
+              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20' 
+              : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-700/60'
           }`}>
-            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center mr-2.5 sm:mr-3 shrink-0 ${
-              isOutbound ? 'bg-bg text-fg' : 'bg-indigo-500/10 text-indigo-400'
+            <div className={`w-7 h-7 rounded-md flex items-center justify-center mr-2.5 shrink-0 ${
+              isOutbound 
+                ? 'bg-white/20 dark:bg-black/20 text-white dark:text-zinc-900' 
+                : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
             }`}>
-              {msg.message_type === 'image' && <Image className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-              {msg.message_type === 'video' && <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 rotate-90" />}
-              {msg.message_type === 'document' && <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-              {!['image', 'video', 'document'].includes(msg.message_type || '') && <Paperclip className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              {msg.message_type === 'image' && <Image className="w-3.5 h-3.5" />}
+              {msg.message_type === 'video' && <Send className="w-3.5 h-3.5 rotate-90" />}
+              {msg.message_type === 'document' && <FileText className="w-3.5 h-3.5" />}
+              {!['image', 'video', 'document'].includes(msg.message_type || '') && <Paperclip className="w-3.5 h-3.5" />}
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-[8px] font-black uppercase tracking-widest ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
+              <p className={`text-[8px] font-bold uppercase tracking-wider ${isOutbound ? 'text-white/60 dark:text-zinc-900/60' : 'text-zinc-400 dark:text-zinc-500'}`}>
                 {msg.message_type || 'Media file'}
               </p>
-              <p className={`text-[10px] font-black truncate ${isOutbound ? 'text-bg' : 'text-fg'}`}>
+              <p className={`text-[11px] font-semibold truncate ${isOutbound ? 'text-white dark:text-zinc-900' : 'text-zinc-900 dark:text-zinc-100'}`}>
                 {msg.media_path.split('/').pop()}
               </p>
             </div>
@@ -99,21 +103,21 @@ export default function MessageBubble({
         )}
 
         {/* Text */}
-        <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-medium break-words [overflow-wrap:anywhere] min-w-0">
+        <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-normal break-words [overflow-wrap:anywhere] min-w-0">
           {msg.content || (msg.media_path ? '' : '[Template Message]')}
         </p>
 
         {/* Timestamp + status */}
-        <div className={`flex items-center justify-end mt-1.5 space-x-1 ${isOutbound ? 'text-bg/40' : 'text-fg/30'}`}>
-          <span className="text-[8px] font-black uppercase tracking-wider font-mono">
+        <div className={`flex items-center justify-end mt-1 space-x-1 ${isOutbound ? 'text-white/60 dark:text-zinc-900/60' : 'text-zinc-400 dark:text-zinc-500'}`}>
+          <span className="text-[9px] font-mono" suppressHydrationWarning>
             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           {isOutbound && (
             <span className="ml-1 flex items-center">
               {msg.status === 'pending'   && <Clock className="w-3 h-3" />}
-              {msg.status === 'sent'      && <Check className="w-3.5 h-3.5" />}
-              {msg.status === 'delivered' && <CheckCheck className="w-3.5 h-3.5" />}
-              {msg.status === 'read'      && <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />}
+              {msg.status === 'sent'      && <Check className="w-3 h-3" />}
+              {msg.status === 'delivered' && <CheckCheck className="w-3 h-3" />}
+              {msg.status === 'read'      && <CheckCheck className="w-3 h-3 text-indigo-400 dark:text-indigo-600" />}
               {msg.status === 'failed'    && (
                 <div className="relative group/error">
                   <button
@@ -129,26 +133,26 @@ export default function MessageBubble({
                   </button>
 
                   <div
-                    className={`absolute bottom-full right-0 mb-3 w-64 bg-glass-card/95 backdrop-blur-xl text-fg p-4 rounded-2xl text-[10px] font-black uppercase border border-red-500/30 shadow-2xl transition-all z-50 pointer-events-auto ${
+                    className={`absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 p-3 rounded-xl text-[11px] border border-red-500/30 shadow-lg transition-all z-50 pointer-events-auto ${
                       showErrorPopover
                         ? 'opacity-100 translate-y-0 block'
                         : 'opacity-0 translate-y-2 pointer-events-none hidden sm:group-hover/error:block sm:group-hover/error:opacity-100 sm:group-hover/error:pointer-events-auto'
                     }`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center justify-between mb-1.5 border-b border-glass-border pb-1.5 text-red-400">
+                    <div className="flex items-center justify-between mb-1.5 border-b border-zinc-200 dark:border-zinc-800 pb-1.5 text-red-500 font-bold uppercase text-[10px]">
                       <div className="flex items-center">
-                        <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> META GATEWAY ERROR
+                        <AlertCircle className="w-3.5 h-3.5 mr-1" /> Meta Gateway Error
                       </div>
                       <button
                         type="button"
                         onClick={() => setShowErrorPopover(false)}
-                        className="text-muted hover:text-fg p-0.5 cursor-pointer border-0 bg-transparent"
+                        className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-0.5 cursor-pointer border-0 bg-transparent"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </div>
-                    <div className="leading-relaxed text-fg/70 font-semibold lowercase select-text">
+                    <div className="leading-relaxed text-zinc-600 dark:text-zinc-300 font-normal select-text">
                       {msg.error?.includes('131049')
                         ? 'Meta Per-User Marketing Limit Reached (Code 131049). Meta caps marketing messages sent to this recipient within 24-48h to prevent spam. Use a Utility template or retry in 24-48h.'
                         : msg.error || 'Rejection from WhatsApp endpoint. Verify account balances.'}
