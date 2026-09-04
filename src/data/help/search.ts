@@ -284,8 +284,8 @@ export function getContextualSuggestions(pathname: string, tenant: Record<string
     suggestions.push(
       {
         id: 'free_trial_and_plans',
-        title: 'How does the 15-day trial and plan upgrade work?',
-        description: 'Starter, Growth, and Pro plan details.',
+        title: 'How do Pingstack plans and early access offers work?',
+        description: 'Starter (Free), Growth (₹199/mo), and Pro details.',
         articleId: 'free_trial_and_plans',
         badge: 'Plans'
       },

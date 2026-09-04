@@ -1,10 +1,19 @@
 'use client';
 
+import Link from 'next/link';
 import { Zap, Book } from 'lucide-react';
 import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
 
+interface TenantLimitsData {
+  plan_type?: string | null;
+  subscription_status?: string | null;
+  campaigns_sent_today?: number | null;
+  storage_usage_bytes?: number | null;
+  [key: string]: unknown;
+}
+
 interface PlanLimitsCardProps {
-  tenant: any;
+  tenant: TenantLimitsData | null;
   stats: {
     totalContacts: number;
   };
@@ -12,7 +21,7 @@ interface PlanLimitsCardProps {
 }
 
 export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: PlanLimitsCardProps) {
-  const planType: PlanType = tenant?.plan_type || 'starter';
+  const planType: PlanType = getActivePlanType(tenant?.plan_type);
   const activePlan = PLANS[planType];
   const maxCampaigns = activePlan?.maxCampaignsPerDay;
   const maxContacts = activePlan?.maxContacts;
@@ -24,7 +33,7 @@ export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: 
 
   const campaignPct = Math.min(100, (campaignsUsed / (maxCampaigns || 1)) * 100);
   const contactPct = Math.min(100, (contactsUsed / (maxContacts || 1)) * 100);
-  const storagePct = Math.min(100, (storageMbUsed / (PLANS[getActivePlanType(tenant?.plan_type)].maxStorageMb || 1)) * 100);
+  const storagePct = Math.min(100, (storageMbUsed / (activePlan?.maxStorageMb || 1)) * 100);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
@@ -36,14 +45,16 @@ export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: 
             Plan Limits &amp; Retainers
           </h3>
           <span className="self-start sm:self-auto px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/20">
-            {tenant?.plan_type || 'Starter'} Profile
+            {tenant?.plan_type ? String(tenant.plan_type) : 'Starter'} Profile
           </span>
         </div>
 
         <div className="space-y-6">
           <div>
             <div className="flex justify-between items-end mb-2">
-              <span className="text-xs font-bold text-fg/50">Campaigns Used Today</span>
+              <span className="text-xs font-bold text-fg/50 flex items-center gap-1">
+                <span>Template Sends Today</span>
+              </span>
               <span className="text-[10px] font-black text-fg/30 uppercase">
                 {campaignsUsed} / {maxCampaigns === Infinity ? '∞' : maxCampaigns}
               </span>
@@ -88,10 +99,10 @@ export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: 
         </div>
 
         <div className="mt-8 pt-6 border-t border-glass-border flex items-center justify-between">
-          <a href="/pricing" className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-fg flex items-center uppercase tracking-widest transition-all">
+          <Link href="/pricing" className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-fg flex items-center uppercase tracking-widest transition-all">
             Upgrade subscription &rarr;
-          </a>
-          {tenant?.plan_type && getActivePlanType(tenant.plan_type) !== 'starter' && tenant.subscription_status === 'active' && (
+          </Link>
+          {tenant?.plan_type && getActivePlanType(String(tenant.plan_type)) !== 'starter' && tenant.subscription_status === 'active' && (
             <button
               onClick={onCancelSubscription}
               className="text-[9px] font-black text-fg/20 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer"
@@ -116,9 +127,9 @@ export default function PlanLimitsCard({ tenant, stats, onCancelSubscription }: 
           </p>
         </div>
         <div className="relative z-10 mt-8 pt-6 border-t border-glass-border">
-          <a href="/docs" className="inline-flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95">
+          <Link href="/docs" className="inline-flex items-center px-6 py-3 bg-fg text-bg hover:opacity-90 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95">
             Open Developer Manuals &rarr;
-          </a>
+          </Link>
         </div>
       </div>
     </div>
