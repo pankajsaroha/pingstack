@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
-interface TenantContextValue {
+export interface TenantContextValue {
   tenant: any;
   setTenant: (tenant: any) => void;
   refreshTenant: () => Promise<void>;

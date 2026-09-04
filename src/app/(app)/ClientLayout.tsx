@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/Sidebar';
 import { Menu, X, AlertTriangle, LogOut, Loader2 } from 'lucide-react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { setSupabaseSession } from '@/lib/db';
-import { TenantProvider } from '@/context/tenant-context';
+import { TenantProvider, TenantContextValue } from '@/context/tenant-context';
+import { PingstackAssistant } from '@/components/assistant/PingstackAssistant';
+import { FeedbackModal } from '@/components/feedback/FeedbackModal';
 
 interface ClientLayoutProps {
-  tenant: any;
+  tenant: TenantContextValue['tenant'] | null;
   children: React.ReactNode;
 }
 
@@ -19,7 +21,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [targetPath, setTargetPath] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const router = useRouter();
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -72,8 +74,9 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
       } else {
         alert(data.error || 'Registration failed');
       }
-    } catch (err: any) {
-      alert(err.message || 'Error triggering registration');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Error triggering registration';
+      alert(errorMsg);
     } finally {
       setIsRegistering(false);
     }
@@ -115,7 +118,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
           <h2 className="text-2xl font-black tracking-tight text-fg mb-4">Trial Period Expired</h2>
 
           <p className="text-muted text-sm font-semibold leading-relaxed mb-8">
-            Your 15-day free trial of PingStack's Starter plan has ended. Upgrade to a paid plan now to continue sending WhatsApp campaigns, managing contacts, and using inbox features.
+            Your 15-day free trial of PingStack&apos;s Starter plan has ended. Upgrade to a paid plan now to continue sending WhatsApp campaigns, managing contacts, and using inbox features.
           </p>
 
           <div className="w-full flex flex-col gap-3">
@@ -140,115 +143,145 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-bg text-fg overflow-hidden relative selection:bg-fg selection:text-bg transition-colors duration-300">
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/[0.03] dark:bg-blue-600/5 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/[0.03] dark:bg-indigo-600/5 blur-[120px]" />
-      </div>
+    <TenantProvider initialTenant={tenant}>
+      <div className="flex h-screen bg-bg text-fg overflow-hidden relative selection:bg-fg selection:text-bg transition-colors duration-300">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/[0.03] dark:bg-blue-600/5 blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/[0.03] dark:bg-indigo-600/5 blur-[120px]" />
+        </div>
 
-      <div className="hidden md:block">
-        <Sidebar collapsed={isCollapsed} onToggleCollapse={toggleCollapse} onItemClick={handleNavItemClick} />
-      </div>
+        <div className="hidden md:block">
+          <Sidebar 
+            collapsed={isCollapsed} 
+            onToggleCollapse={toggleCollapse} 
+            onItemClick={handleNavItemClick}
+            onFeedbackClick={() => setIsFeedbackOpen(true)}
+          />
+        </div>
 
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        >
+        {isMobileMenuOpen && (
           <div
-            className="w-64 h-full bg-bg border-r border-glass-border shadow-2xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
           >
-            <div className="flex justify-end p-4 border-b border-glass-border">
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 hover:bg-glass-card rounded-lg cursor-pointer">
-                <X className="w-6 h-6 text-muted hover:text-fg" />
+            <div
+              className="w-64 h-full bg-bg border-r border-glass-border shadow-2xl flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-end p-4 border-b border-glass-border">
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 hover:bg-glass-card rounded-lg cursor-pointer">
+                  <X className="w-6 h-6 text-muted hover:text-fg" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <Sidebar 
+                  collapsed={false} 
+                  onToggleCollapse={() => {}} 
+                  onItemClick={handleNavItemClick}
+                  onFeedbackClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsFeedbackOpen(true);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          <header className="md:hidden h-16 border-b border-glass-border bg-bg/60 backdrop-blur-xl px-6 flex items-center justify-between shrink-0 z-20">
+            <Link href="/" className="flex items-center space-x-2 cursor-pointer group/logo">
+              <div className="bg-fg p-1.5 rounded-lg group-hover/logo:scale-105 transition-transform duration-200">
+                <svg className="w-5 h-5 text-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <span className="font-black text-lg tracking-tight text-fg group-hover/logo:opacity-80 transition-opacity duration-200">PingStack</span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsFeedbackOpen(true)}
+                className="px-2.5 py-1 text-xs font-bold text-muted hover:text-fg bg-glass-card border border-glass-border rounded-lg cursor-pointer"
+              >
+                Feedback
+              </button>
+              <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 hover:bg-glass-card rounded-lg cursor-pointer">
+                <Menu className="w-6 h-6 text-muted hover:text-fg" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <Sidebar collapsed={false} onToggleCollapse={() => {}} onItemClick={handleNavItemClick} />
-            </div>
-          </div>
-        </div>
-      )}
+          </header>
 
-      <div className="flex-1 flex flex-col min-w-0 relative">
-        <header className="md:hidden h-16 border-b border-glass-border bg-bg/60 backdrop-blur-xl px-6 flex items-center justify-between shrink-0 z-20">
-          <Link href="/" className="flex items-center space-x-2 cursor-pointer group/logo">
-            <div className="bg-fg p-1.5 rounded-lg group-hover/logo:scale-105 transition-transform duration-200">
-              <svg className="w-5 h-5 text-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <span className="font-black text-lg tracking-tight text-fg group-hover/logo:opacity-80 transition-opacity duration-200">PingStack</span>
-          </Link>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 hover:bg-glass-card rounded-lg cursor-pointer">
-            <Menu className="w-6 h-6 text-muted hover:text-fg" />
-          </button>
-        </header>
-
-        {tenant && tenant.whatsapp_account && (tenant.whatsapp_account.status === 'PENDING' || tenant.whatsapp_account.status === 'UNVERIFIED' || tenant.whatsapp_account.status === 'LIMITED') && (
-          <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-amber-500 dark:text-amber-400 z-10 shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-              </span>
-              <span>
-                ⏳ <strong>Meta Setup Pending Approval</strong>: Your WhatsApp phone number status is currently <strong>{tenant.whatsapp_account.status}</strong> with Meta. Click "Register Number Now" to complete registration with Meta Cloud API.
-              </span>
-            </div>
-            <button
-              onClick={handleRegisterPhone}
-              disabled={isRegistering}
-              className="px-3.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-amber-600/20 cursor-pointer disabled:opacity-50 shrink-0 ml-4"
-            >
-              {isRegistering ? 'Registering...' : 'Register Number Now'}
-            </button>
-          </div>
-        )}
-
-        {tenant && tenant.is_trial && !tenant.trial_expired && (
-          <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 border-b border-indigo-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-indigo-400 z-10 shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-              </span>
-              <span>Your 15-day free trial has <strong>{tenant.trial_days_left} {tenant.trial_days_left === 1 ? 'day' : 'days'}</strong> left.</span>
-            </div>
-            <a href="/pricing" className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/25">
-              Upgrade Now
-            </a>
-          </div>
-        )}
-
-        <main className={`flex-1 relative ${pathname === '/inbox' ? 'flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
-          {isNavigating && (
-            <div className="absolute inset-0 bg-bg/80 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
-              <div className="p-8 rounded-3xl bg-glass-card/90 border border-glass-border shadow-2xl flex flex-col items-center max-w-sm text-center">
-                <div className="relative mb-5">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                  </div>
-                  <div className="absolute -inset-1 rounded-2xl bg-indigo-500/20 blur-md -z-10 animate-pulse" />
-                </div>
-                <h3 className="text-sm font-black text-fg uppercase tracking-widest">
-                  Loading {targetPath ? targetPath.replace('/', '').toUpperCase() : 'PAGE'}...
-                </h3>
-                <p className="text-[11px] text-muted font-medium mt-1">
-                  Fetching workspace messaging data
-                </p>
+          {tenant && tenant.whatsapp_account && (tenant.whatsapp_account.status === 'PENDING' || tenant.whatsapp_account.status === 'UNVERIFIED' || tenant.whatsapp_account.status === 'LIMITED') && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-amber-500 dark:text-amber-400 z-10 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span>
+                  ⏳ <strong>Meta Setup Pending Approval</strong>: Your WhatsApp phone number status is currently <strong>{tenant.whatsapp_account.status}</strong> with Meta. Click &ldquo;Register Number Now&rdquo; to complete registration with Meta Cloud API.
+                </span>
               </div>
+              <button
+                onClick={handleRegisterPhone}
+                disabled={isRegistering}
+                className="px-3.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-amber-600/20 cursor-pointer disabled:opacity-50 shrink-0 ml-4"
+              >
+                {isRegistering ? 'Registering...' : 'Register Number Now'}
+              </button>
             </div>
           )}
 
-          <div className={`${pathname === '/inbox' ? 'flex-1 flex flex-col min-h-0 w-full p-2 sm:p-6 md:p-8' : 'p-4 sm:p-6 md:p-8 mt-2'} max-w-6xl w-full mx-auto relative`}>
-            <TenantProvider initialTenant={tenant}>
+          {tenant && tenant.is_trial && !tenant.trial_expired && (
+            <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 border-b border-indigo-500/20 px-6 py-2.5 flex items-center justify-between text-xs font-semibold text-indigo-400 z-10 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                <span>Your 15-day free trial has <strong>{tenant.trial_days_left} {tenant.trial_days_left === 1 ? 'day' : 'days'}</strong> left.</span>
+              </div>
+              <a href="/pricing" className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/25">
+                Upgrade Now
+              </a>
+            </div>
+          )}
+
+          <main className={`flex-1 relative ${pathname === '/inbox' ? 'flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
+            {isNavigating && (
+              <div className="absolute inset-0 bg-bg/80 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
+                <div className="p-8 rounded-3xl bg-glass-card/90 border border-glass-border shadow-2xl flex flex-col items-center max-w-sm text-center">
+                  <div className="relative mb-5">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                    </div>
+                    <div className="absolute -inset-1 rounded-2xl bg-indigo-500/20 blur-md -z-10 animate-pulse" />
+                  </div>
+                  <h3 className="text-sm font-black text-fg uppercase tracking-widest">
+                    Loading {targetPath ? targetPath.replace('/', '').toUpperCase() : 'PAGE'}...
+                  </h3>
+                  <p className="text-[11px] text-muted font-medium mt-1">
+                    Fetching workspace messaging data
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className={`${pathname === '/inbox' ? 'flex-1 flex flex-col min-h-0 w-full p-2 sm:p-6 md:p-8' : 'p-4 sm:p-6 md:p-8 mt-2'} max-w-6xl w-full mx-auto relative`}>
               {children}
-            </TenantProvider>
-          </div>
-        </main>
+            </div>
+          </main>
+        </div>
+
+        {/* Global Floating Pingstack Assistant (single button on screen, with integrated Feedback & Feature Requests) */}
+        <PingstackAssistant onOpenFeedback={() => setIsFeedbackOpen(true)} />
+
+        {/* Global Feedback Modal */}
+        <FeedbackModal
+          isOpen={isFeedbackOpen}
+          onClose={() => setIsFeedbackOpen(false)}
+        />
       </div>
-    </div>
+    </TenantProvider>
   );
 }
