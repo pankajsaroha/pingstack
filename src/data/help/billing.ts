@@ -15,13 +15,13 @@ export const billingArticles: HelpArticle[] = [
       'pro plan',
       'enterprise'
     ],
-    summary: 'Pingstack provides a 15-day full-featured Starter trial with no credit card required upfront.',
-    explanation: 'Experience all features including bulk campaigns, multi-agent inbox, and contacts import during your trial.',
-    whatHappened: 'You want to understand subscription plans, trial expiration, or how to upgrade your workspace.',
+    summary: 'Pingstack offers Starter (Free during early access) and Growth (₹199/month early access offer) for WhatsApp business operations.',
+    explanation: 'Experience platform features including broadcast campaigns, shared inbox, contact management, and WhatsApp message templates.',
+    whatHappened: 'You want to understand subscription plans, early access offers, or how to upgrade your workspace.',
     steps: [
-      'Every new workspace receives 15 days of free access on the Starter tier.',
-      'To upgrade at any time, click "Upgrade Now" in the top banner or visit the Pricing page.',
-      'Select between Starter, Growth, or Pro plans depending on your required contact volumes and team seats.',
+      'Starter is completely free during early access with up to 500 contacts and 100 template sends/day.',
+      'Growth unlocks 2,500 contacts, 500 template sends/day, scheduled campaigns, and priority support at ₹199/month during early access.',
+      'Pro (10,000 contacts, team collaboration, developer APIs) is planned on the product roadmap and coming soon.',
       'Payments are processed securely via Razorpay with support for UPI, Cards, NetBanking, and auto-renewals.'
     ],
     action: {

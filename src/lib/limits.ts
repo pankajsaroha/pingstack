@@ -136,7 +136,7 @@ export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts
 }
 
 export async function getContactQuota(tenantId: string) {
-  if (!db) return { maxContacts: 250, currentCount: 0, remainingQuota: 250, planType: 'starter' };
+  if (!db) return { maxContacts: 500, currentCount: 0, remainingQuota: 500, planType: 'starter' };
 
   let { data: tenant } = await db.from('tenants').select('plan_type').eq('id', tenantId).single();
   const planType = (tenant as any)?.plan_type || 'starter';

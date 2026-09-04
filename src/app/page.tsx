@@ -7,6 +7,7 @@ import {
   Calendar, Paperclip, Code2, Webhook, LayoutTemplate, ShieldCheck
 } from 'lucide-react';
 import { LandingFooter } from '@/components/LandingFooter';
+import { PLAN_CONFIGS } from '@/lib/plans';
 import { 
   LandingHeaderNav, 
   HeroActionsSection, 
@@ -183,7 +184,7 @@ export default function Home() {
                       </div>
                       <span className="text-[9px] font-mono text-slate-300">Response: &lt; 30s</span>
                     </div>
-                    <p className="text-xs font-semibold text-slate-100">"PingStack allowed us to respond to customer WhatsApp inquiries 5x faster."</p>
+                    <p className="text-xs font-semibold text-slate-100">&ldquo;PingStack allowed us to respond to customer WhatsApp inquiries 5x faster.&rdquo;</p>
                   </div>
                 </div>
               </div>
@@ -402,76 +403,136 @@ export default function Home() {
       <section className="py-20 px-6 relative z-10">
         <div className="max-w-6xl mx-auto text-center">
           <div className="mb-12">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 mb-3">Transparent Subscriptions</h2>
-            <h3 className="text-3xl sm:text-4xl font-black tracking-tight text-fg">Simple plans for every stage</h3>
-            <p className="text-xs sm:text-sm text-muted font-semibold mt-2">
-              Note: Meta/WhatsApp conversation charges are billed separately by Meta based on messaging volume.
+            <div className="inline-flex items-center space-x-2 px-3.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full mb-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Launch &amp; Early Access Pricing</span>
+            </div>
+            <h3 className="text-3xl sm:text-4xl font-black tracking-tight text-fg">Simple, transparent pricing</h3>
+            <p className="text-xs sm:text-sm text-muted font-semibold mt-2 max-w-2xl mx-auto leading-relaxed">
+              Pingstack software is free on Starter (₹199/mo on Growth). WhatsApp conversation fees are paid directly to Meta via your Meta payment method with 0% platform markup.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            <div className="p-8 rounded-3xl bg-glass-card border border-glass-border flex flex-col justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left items-stretch">
+            {/* STARTER */}
+            <div className="p-8 rounded-3xl bg-glass-card border border-glass-border flex flex-col justify-between relative group hover:border-glass-border/80 transition-all">
               <div>
-                <h4 className="text-xl font-black text-fg mb-1">Starter</h4>
-                <p className="text-xs text-muted mb-6">Ideal for small businesses starting out.</p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-3xl font-black text-fg">₹199</span>
-                  <span className="text-xs text-muted font-bold">/ month</span>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="text-xl font-black text-fg">Starter</h4>
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-black uppercase tracking-wider">
+                    Free during early access
+                  </span>
                 </div>
+                <p className="text-xs text-muted font-medium mb-6">
+                  Everything you need to start managing WhatsApp professionally.
+                </p>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-lg text-muted/60 line-through font-bold">₹199</span>
+                  <span className="text-3xl font-black text-fg tracking-tight">FREE</span>
+                </div>
+                <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-6">
+                  Launch offer &bull; No payment method needed for Pingstack
+                </p>
                 <ul className="space-y-3 text-xs text-muted font-semibold mb-8">
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 1 Campaign/day</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 250 Contacts</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Live Inbox Chat</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> API Access</li>
+                  {PLAN_CONFIGS.starter.highlightFeatures.map((feat) => (
+                    <li key={feat} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
-              <Link href="/pricing" className="w-full py-3 bg-glass-input hover:bg-glass-card border border-glass-border text-fg rounded-xl text-xs font-black uppercase text-center block">
-                View Starter Plan
+              <Link href="/pricing" className="w-full py-3 bg-glass-input hover:bg-glass-card border border-glass-border text-fg rounded-xl text-xs font-black uppercase text-center block transition-all">
+                Get Started
               </Link>
             </div>
 
-            <div className="p-8 rounded-3xl bg-glass-card border border-indigo-500/40 shadow-xl relative flex flex-col justify-between">
-              <span className="absolute top-0 right-6 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[9px] font-black uppercase tracking-widest rounded-full">
-                Popular Choice
+            {/* GROWTH */}
+            <div className="p-8 rounded-3xl bg-glass-card/90 border border-indigo-500/40 shadow-xl relative flex flex-col justify-between">
+              <span className="absolute top-0 right-6 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
+                Most Popular
               </span>
               <div>
-                <h4 className="text-xl font-black text-fg mb-1">Growth</h4>
-                <p className="text-xs text-muted mb-6">For growing teams with daily campaigns.</p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-3xl font-black text-fg">₹499</span>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="text-xl font-black text-fg">Growth</h4>
+                  <span className="px-2.5 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded-full text-[9px] font-black uppercase tracking-wider">
+                    Early Access
+                  </span>
+                </div>
+                <p className="text-xs text-muted font-medium mb-6">
+                  For businesses that need more contacts, campaigns and automation.
+                </p>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-lg text-muted/60 line-through font-bold">₹499</span>
+                  <span className="text-3xl font-black text-fg tracking-tight">₹199</span>
                   <span className="text-xs text-muted font-bold">/ month</span>
                 </div>
+                <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-6">
+                  ₹199/month during early access
+                </p>
                 <ul className="space-y-3 text-xs text-muted font-semibold mb-8">
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 10 Campaigns/day</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 2,500 Contacts</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Group Broadcasts</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Priority Support</li>
+                  {PLAN_CONFIGS.growth.highlightFeatures.map((feat, idx) => (
+                    <li key={feat} className={`flex items-center gap-2 ${idx === 0 ? 'text-[11px] font-black uppercase tracking-wider text-fg/70' : ''}`}>
+                      {idx > 0 && <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />}
+                      <span>{feat}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
-              <Link href="/pricing" className="w-full py-3 bg-fg text-bg rounded-xl text-xs font-black uppercase text-center block shadow-md">
-                View Growth Plan
+              <Link href="/pricing" className="w-full py-3 bg-fg text-bg hover:opacity-90 rounded-xl text-xs font-black uppercase text-center block shadow-md transition-all">
+                Start with Growth
               </Link>
             </div>
 
-            <div className="p-8 rounded-3xl bg-glass-card border border-glass-border flex flex-col justify-between">
+            {/* PRO */}
+            <div className="p-8 rounded-3xl bg-glass-card border border-glass-border/60 flex flex-col justify-between opacity-90 relative">
               <div>
-                <h4 className="text-xl font-black text-fg mb-1">Pro</h4>
-                <p className="text-xs text-muted mb-6">For high volume messaging scaling.</p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-3xl font-black text-fg">₹999</span>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="text-xl font-black text-fg">Pro</h4>
+                  <span className="px-2.5 py-0.5 bg-muted/10 text-muted border border-glass-border rounded-full text-[9px] font-black uppercase tracking-wider">
+                    Coming Soon
+                  </span>
+                </div>
+                <p className="text-xs text-muted font-medium mb-6">
+                  For businesses ready to automate and integrate WhatsApp.
+                </p>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-3xl font-black text-fg tracking-tight">₹999</span>
                   <span className="text-xs text-muted font-bold">/ month</span>
                 </div>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-6">
+                  Roadmap Plan
+                </p>
                 <ul className="space-y-3 text-xs text-muted font-semibold mb-8">
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Unlimited Campaigns</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Unlimited Contacts</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Advanced Analytics</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 1-Year Log Retention</li>
+                  {PLAN_CONFIGS.pro.highlightFeatures.map((feat, idx) => (
+                    <li key={feat} className={`flex items-center gap-2 ${idx === 0 ? 'text-[11px] font-black uppercase tracking-wider text-fg/70' : ''}`}>
+                      {idx > 0 && <CheckCircle2 className="w-4 h-4 text-emerald-500/70 dark:text-emerald-400/70 shrink-0" />}
+                      <span>{feat}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
-              <Link href="/pricing" className="w-full py-3 bg-glass-input hover:bg-glass-card border border-glass-border text-fg rounded-xl text-xs font-black uppercase text-center block">
-                View Pro Plan
-              </Link>
+              <button disabled className="w-full py-3 bg-glass-input text-muted/60 border border-glass-border/40 rounded-xl text-xs font-black uppercase text-center block cursor-not-allowed">
+                Coming Soon
+              </button>
             </div>
+          </div>
+
+          {/* EARLY ACCESS MESSAGE */}
+          <div className="mt-12 p-6 rounded-3xl bg-glass-card/50 border border-glass-border max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-fg mb-1">
+                Pingstack is currently in early access.
+              </h4>
+              <p className="text-xs text-muted font-medium leading-relaxed">
+                Start with our free Starter plan or unlock Growth features at ₹199/month while we&apos;re building the next generation of Pingstack. Your feedback is helping shape what comes next.
+              </p>
+            </div>
+            <Link
+              href="/pricing"
+              className="px-4 py-2.5 bg-glass-input hover:bg-glass-card border border-glass-border text-fg text-[11px] font-black uppercase tracking-wider rounded-xl shrink-0 transition-all"
+            >
+              Explore Plans
+            </Link>
           </div>
         </div>
       </section>
