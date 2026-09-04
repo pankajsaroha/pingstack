@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Home, Users, Folder, LayoutTemplate, Send, LogOut, MessageSquare, ChevronRight } from 'lucide-react';
 import { LogoIcon } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
@@ -21,13 +21,14 @@ export function Sidebar({
   collapsed: isCollapsed, 
   onToggleCollapse,
   onItemClick,
+  onFeedbackClick,
 }: { 
   collapsed: boolean; 
   onToggleCollapse: () => void;
   onItemClick?: (href: string) => void;
+  onFeedbackClick?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const handleLogout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
@@ -94,7 +95,23 @@ export function Sidebar({
       </nav>
 
       {/* Footer Items */}
-      <div className={`px-4 mt-auto mb-2 ${isCollapsed ? 'px-2' : ''}`}>
+      <div className={`px-4 mt-auto mb-2 space-y-1 ${isCollapsed ? 'px-2' : ''}`}>
+        {onFeedbackClick && (
+          <button
+            type="button"
+            onClick={onFeedbackClick}
+            title={isCollapsed ? 'Feedback' : ''}
+            className={`flex items-center w-full py-2.5 text-sm font-bold text-muted rounded-xl hover:bg-glass-card hover:text-fg transition-all cursor-pointer group ${
+              isCollapsed ? 'justify-center px-0' : 'px-3'
+            }`}
+          >
+            <MessageSquare className={`flex-shrink-0 h-4 w-4 text-muted group-hover:text-indigo-400 transition-colors ${
+              isCollapsed ? 'mx-auto' : 'mr-3'
+            }`} />
+            {!isCollapsed && <span className="whitespace-nowrap tracking-wide">Feedback</span>}
+          </button>
+        )}
+
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Logout' : ''}
@@ -109,11 +126,11 @@ export function Sidebar({
         </button>
         
         {!isCollapsed && (
-          <div className="mt-4 px-3 mb-4">
+          <div className="mt-2 px-3 pt-2">
             <Link 
               href="/privacy" 
               onClick={() => onItemClick?.('/privacy')}
-              className={`flex items-center text-[9px] font-black transition-all duration-300 uppercase tracking-widest px-3 py-2 rounded-xl ${
+              className={`flex items-center text-[9px] font-black transition-all duration-300 uppercase tracking-widest px-3 py-1.5 rounded-xl ${
                 pathname === '/privacy' 
                   ? 'bg-fg text-bg shadow-md' 
                   : 'text-muted hover:text-fg hover:bg-glass-card'
