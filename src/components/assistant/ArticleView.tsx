@@ -42,7 +42,7 @@ export function ArticleView({
       </div>
 
       {/* Article Content Scrollable Area */}
-      <div className="flex-1 overflow-y-auto pr-1 space-y-4 text-left">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4 text-left">
         {/* Title & Summary */}
         <div>
           <h2 className="text-base font-bold text-fg tracking-tight leading-snug">
