@@ -15,8 +15,8 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'New WhatsApp message';
     const options = {
       body: payload.body || 'You received a new message.',
-      icon: payload.icon || '/icon.svg',
-      badge: '/icon.svg',
+      icon: payload.icon || '/icons/icon-192x192.png',
+      badge: payload.badge || '/icons/icon-192x192.png',
       tag: payload.tag || 'whatsapp-message',
       renotify: true,
       data: {

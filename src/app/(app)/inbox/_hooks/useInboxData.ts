@@ -62,6 +62,14 @@ export function useInboxData({
   // ── Mark as read helper ──────────────────────────────────────────
   const markAsRead = useCallback(async (contactId: string) => {
     try {
+      // Optimistically clear unread count for this conversation in Inbox list
+      setConversations(prev => prev.map(c => c.contact.id === contactId ? { ...c, unreadCount: 0 } : c));
+
+      // Dispatch global event for Sidebar / TenantContext
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pingstack:conversation-read', { detail: { contactId } }));
+      }
+
       await fetch(`/api/chat/${contactId}/read`, {
         method: 'POST',
         headers: { 'x-tenant-id': tenant?.id || '' },
