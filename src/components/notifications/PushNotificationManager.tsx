@@ -37,42 +37,58 @@ export function PushNotificationManager() {
     }
 
     const sendHeartbeat = () => {
-      fetch('/api/presence/heartbeat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ tabId, action: 'heartbeat' }),
-      }).catch(() => null);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetch('/api/presence/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ tabId, action: 'heartbeat' }),
+        }).catch(() => null);
+      }
     };
 
-    // Immediate initial heartbeat
-    sendHeartbeat();
+    const sendLeave = () => {
+      const payload = JSON.stringify({ tabId, action: 'leave' });
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon('/api/presence/heartbeat', blob);
+      } else {
+        fetch('/api/presence/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          keepalive: true,
+          body: payload,
+        }).catch(() => null);
+      }
+    };
 
-    // Regular 25s heartbeat interval (Redis TTL is 45s)
-    const interval = setInterval(sendHeartbeat, 25000);
+    // Immediate initial heartbeat if visible
+    if (document.visibilityState === 'visible') {
+      sendHeartbeat();
+    }
 
-    // Tab visibility change listener: immediately ping when tab becomes visible
+    // Regular 20s heartbeat interval while visible (Redis TTL is 45s)
+    const interval = setInterval(sendHeartbeat, 20000);
+
+    // Tab visibility change listener: immediately ping when visible, clear on hidden
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         sendHeartbeat();
+      } else {
+        sendLeave();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Unload listener to clear presence on tab close
-    const handleUnload = () => {
-      if (navigator.sendBeacon) {
-        const payload = JSON.stringify({ tabId, action: 'leave' });
-        const blob = new Blob([payload], { type: 'application/json' });
-        navigator.sendBeacon('/api/presence/heartbeat', blob);
-      }
-    };
-    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('beforeunload', sendLeave);
 
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('beforeunload', sendLeave);
+      sendLeave();
     };
   }, []);
 

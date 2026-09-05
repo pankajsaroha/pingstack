@@ -30,13 +30,13 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
   }
 
   try {
-    // Single joined query for tenant + whatsapp_accounts & parallel user name query
+    // Single joined query for tenant + whatsapp_accounts & parallel user lookup
     const [tenantResult, userResult] = await Promise.all([
       db.from('tenants')
         .select('*, whatsapp_accounts(id, provider, status, phone_number_id, business_id)')
         .eq('id', tenantId)
         .single(),
-      userId ? db.from('users').select('name').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
+      userId ? db.from('users').select('name, email, role').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
     ]);
 
     if (tenantResult.error || !tenantResult.data) {
@@ -85,15 +85,22 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
     const trialExpired = isTrial && now > trialExpiresAt;
 
     let userName = 'User';
-    if (userResult.data?.name) {
-      userName = userResult.data.name;
+    let userEmail = '';
+    let userRole = 'user';
+    if (userResult.data) {
+      if (userResult.data.name) userName = userResult.data.name;
+      if (userResult.data.email) userEmail = userResult.data.email;
+      if (userResult.data.role) userRole = userResult.data.role;
     }
 
     const fullTenant: Tenant = {
       ...tenant,
+      name: tenant?.name || 'PingStack Workspace',
       plan_type: planType,
       pending_plan_type: pendingPlanType,
       user_name: userName,
+      user_email: userEmail,
+      user_role: userRole,
       is_trial: isTrial,
       trial_expires_at: trialExpiresAt.toISOString(),
       trial_days_left: trialDaysLeft,

@@ -33,11 +33,15 @@ export async function GET(req: Request) {
     let tenantData: any = null;
     let whatsappAccount: any = null;
     let userName = 'User';
+    let userEmail = '';
+    let userRole = 'user';
 
     if (cachedProfile) {
       tenantData = cachedProfile.tenantData;
       whatsappAccount = cachedProfile.whatsappAccount;
-      userName = cachedProfile.userName;
+      userName = cachedProfile.userName || 'User';
+      userEmail = cachedProfile.userEmail || '';
+      userRole = cachedProfile.userRole || 'user';
     } else {
       // Single joined query for tenant + whatsapp_accounts & parallel user lookup
       const [tenantResult, userResult] = await Promise.all([
@@ -45,7 +49,7 @@ export async function GET(req: Request) {
           .select('*, whatsapp_accounts(id, provider, status, phone_number_id, business_id)')
           .eq('id', tenantId)
           .single(),
-        userId ? db.from('users').select('name').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
+        userId ? db.from('users').select('name, email, role').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
       ]);
 
       if (tenantResult.error) {
@@ -60,15 +64,17 @@ export async function GET(req: Request) {
       // Clean relational key to match original tenants table shape
       delete tenantData.whatsapp_accounts;
 
-      if (userResult.data?.name) {
-        userName = userResult.data.name;
+      if (userResult.data) {
+        if (userResult.data.name) userName = userResult.data.name;
+        if (userResult.data.email) userEmail = userResult.data.email;
+        if (userResult.data.role) userRole = userResult.data.role;
       }
 
       // Cache profile values for 30 seconds
       try {
         await redis.set(
           cacheKey,
-          JSON.stringify({ tenantData, whatsappAccount, userName }),
+          JSON.stringify({ tenantData, whatsappAccount, userName, userEmail, userRole }),
           'EX',
           30
         );
@@ -93,9 +99,12 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ...tenant,
+      name: tenant?.name || 'PingStack Workspace',
       plan_type: planType,
       pending_plan_type: pendingPlanType,
       user_name: userName,
+      user_email: userEmail,
+      user_role: userRole,
       is_trial: isTrial,
       trial_expires_at: trialExpiresAt.toISOString(),
       trial_days_left: trialDaysLeft,

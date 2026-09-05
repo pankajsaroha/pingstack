@@ -88,6 +88,7 @@ export async function sendInboundMessagePushNotification({
     const isActive = await hasActiveWorkspaceSession(tenantId);
     if (isActive) {
       // User is actively in the workspace -> push suppressed, realtime unread badge handles UI
+      console.log(`[WebPush] Push dispatch skipped: Active workspace session detected for tenant ${tenantId}`);
       return;
     }
 
@@ -106,7 +107,6 @@ export async function sendInboundMessagePushNotification({
       }
     }
 
-    // 3. Fetch active subscriptions for this tenant
     // 3. Fetch active subscriptions for this tenant (Database or Redis fallback)
     let activeSubs: Array<{ id?: string; endpoint: string; p256dh: string; auth: string }> = [];
 
@@ -131,8 +131,11 @@ export async function sendInboundMessagePushNotification({
     }
 
     if (!activeSubs || activeSubs.length === 0) {
+      console.log(`[WebPush] Push dispatch skipped: No active subscriptions registered for tenant ${tenantId}`);
       return;
     }
+
+    console.log(`[WebPush] Dispatching push notification to ${activeSubs.length} subscriptions for tenant ${tenantId}`);
 
     const displayName = senderName || senderPhone || 'Customer';
     let title = `New WhatsApp message`;
@@ -148,7 +151,8 @@ export async function sendInboundMessagePushNotification({
     const payload = JSON.stringify({
       title,
       body,
-      icon: '/icon.svg',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-192x192.png',
       tag: `whatsapp-inbound-${contactId || tenantId}`,
       url: contactId ? `/inbox?contactId=${contactId}` : '/inbox',
       contactId,
@@ -174,13 +178,16 @@ export async function sendInboundMessagePushNotification({
             TTL: 60, // Expire notification if device offline after 60 seconds
             urgency: 'high',
           });
+
+          console.log(`[WebPush] Notification sent successfully to endpoint ${sub.endpoint.slice(0, 32)}...`);
         } catch (err: any) {
           // If subscription has expired or is invalid (404/410), mark for removal
           if (err?.statusCode === 404 || err?.statusCode === 410) {
             deadEndpoints.push(sub.endpoint);
             if (sub.id) deadDbIds.push(sub.id);
+            console.log(`[WebPush] Expired subscription detected (${err.statusCode}): ${sub.endpoint.slice(0, 32)}...`);
           } else {
-            console.error('[WebPush] Error sending push to endpoint:', err?.message || err);
+            console.error('[WebPush] Push dispatch failed for endpoint:', err?.message || err);
           }
         }
       })
@@ -193,12 +200,14 @@ export async function sendInboundMessagePushNotification({
           .from('push_subscriptions')
           .delete()
           .in('id', deadDbIds);
-      } catch {
-        // ignore
+        console.log(`[WebPush] Cleaned up ${deadDbIds.length} expired DB push subscriptions`);
+      } catch (dbErr) {
+        console.error('[WebPush] Failed to delete expired DB subscriptions:', dbErr);
       }
     }
     if (deadEndpoints.length > 0) {
       await connection.hdel(`push:subs:${tenantId}`, ...deadEndpoints).catch(() => null);
+      console.log(`[WebPush] Cleaned up ${deadEndpoints.length} expired Redis subscriptions`);
     }
   } catch (err) {
     console.error('[WebPush] Unexpected error in push notification handler:', err);

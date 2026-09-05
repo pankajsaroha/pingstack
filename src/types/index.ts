@@ -8,11 +8,14 @@ export interface WhatsAppAccount {
 
 export interface Tenant {
   id: string;
+  name?: string;
   plan_type: string;
   pending_plan_type: string | null;
   subscription_status?: string;
   created_at?: string;
   user_name: string;
+  user_email?: string;
+  user_role?: string;
   is_trial: boolean;
   trial_expires_at: string;
   trial_days_left: number;
