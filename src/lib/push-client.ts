@@ -77,8 +77,9 @@ export async function subscribeToWebPush(): Promise<{ success: boolean; error?: 
       };
     }
 
-    // 2. Register Service Worker
+    // 2. Register Service Worker & check for updates
     const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await registration.update().catch(() => null);
     await navigator.serviceWorker.ready;
 
     // 3. Get VAPID public key from backend
@@ -126,6 +127,27 @@ export async function subscribeToWebPush(): Promise<{ success: boolean; error?: 
 }
 
 /**
+ * Update the Home Screen / PWA App Icon Badge using the standard Badging API
+ */
+export function updateAppBadge(count: number): void {
+  if (typeof navigator === 'undefined') return;
+
+  try {
+    if (count > 0) {
+      if ('setAppBadge' in navigator && typeof (navigator as any).setAppBadge === 'function') {
+        (navigator as any).setAppBadge(count).catch(() => null);
+      }
+    } else {
+      if ('clearAppBadge' in navigator && typeof (navigator as any).clearAppBadge === 'function') {
+        (navigator as any).clearAppBadge().catch(() => null);
+      }
+    }
+  } catch {
+    // Badging API is not supported or permission denied — safely ignore
+  }
+}
+
+/**
  * Unsubscribe from Web Push
  */
 export async function unsubscribeFromWebPush(): Promise<boolean> {
@@ -154,3 +176,4 @@ export async function unsubscribeFromWebPush(): Promise<boolean> {
     return false;
   }
 }
+

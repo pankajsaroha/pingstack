@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { dbPublic } from '@/lib/db';
+import { updateAppBadge } from '@/lib/push-client';
 
 export interface TenantContextValue {
   tenant: any;
@@ -23,6 +24,11 @@ export function TenantProvider({
   const [tenant, setTenant] = useState<any>(initialTenant);
   const [unreadConversationsCount, setUnreadConversationsCount] = useState<number>(0);
   const unreadContactIdsRef = useRef<Set<string>>(new Set());
+
+  // Synchronize the Home Screen / PWA App Icon Badge with authoritative unread count
+  useEffect(() => {
+    updateAppBadge(unreadConversationsCount);
+  }, [unreadConversationsCount]);
 
   const refreshTenant = useCallback(async () => {
     try {

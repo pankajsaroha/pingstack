@@ -1,4 +1,4 @@
-// PingStack Web Push Service Worker
+// PingStack Web Push Service Worker v2.1
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -11,7 +11,13 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
 
   try {
-    const payload = event.data.json();
+    let payload = {};
+    try {
+      payload = event.data.json();
+    } catch {
+      payload = { title: 'PingStack Notification', body: event.data.text() };
+    }
+
     const title = payload.title || 'New WhatsApp message';
     const options = {
       body: payload.body || 'You received a new message.',
@@ -23,16 +29,39 @@ self.addEventListener('push', (event) => {
         url: payload.url || '/inbox',
         contactId: payload.contactId,
         tenantId: payload.tenantId,
-        timestamp: Date.now(),
+        timestamp: payload.timestamp || Date.now(),
       },
-      actions: [
-        { action: 'open_inbox', title: 'Open Inbox' },
-      ],
     };
 
-    event.waitUntil(self.registration.showNotification(title, options));
+    // Update app icon badge if Badging API is supported and unreadConversationCount is present
+    if (typeof payload.unreadConversationCount === 'number') {
+      try {
+        if (payload.unreadConversationCount > 0) {
+          if ('setAppBadge' in self.navigator && typeof self.navigator.setAppBadge === 'function') {
+            self.navigator.setAppBadge(payload.unreadConversationCount).catch(() => null);
+          }
+        } else {
+          if ('clearAppBadge' in self.navigator && typeof self.navigator.clearAppBadge === 'function') {
+            self.navigator.clearAppBadge().catch(() => null);
+          }
+        }
+      } catch {
+        // Badging API unsupported - safely ignore
+      }
+    }
+
+    event.waitUntil(
+      self.registration.showNotification(title, options).catch((err) => {
+        console.error('[SW] showNotification failed with options:', err);
+        // Fallback with minimal options if complex options failed
+        return self.registration.showNotification(title, {
+          body: payload.body || 'You received a new message.',
+          icon: '/icons/icon-192x192.png',
+        });
+      })
+    );
   } catch (err) {
-    console.error('[Service Worker] Push notification parse error:', err);
+    console.error('[Service Worker] Push event handler error:', err);
   }
 });
 
