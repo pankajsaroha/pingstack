@@ -148,7 +148,24 @@ export async function sendInboundMessagePushNotification({
       body = `${displayName}: ${messageText.slice(0, 87)}...`;
     }
 
+    // Authoritative workspace unread conversation count
+    let unreadConversationCount = 1;
+    if (db) {
+      try {
+        const { data: unreadRows } = await db
+          .from('unread_counts_view')
+          .select('contact_id, unread_count')
+          .eq('tenant_id', tenantId);
+        if (unreadRows && unreadRows.length > 0) {
+          unreadConversationCount = unreadRows.filter((r: any) => (r.unread_count || 0) > 0).length;
+        }
+      } catch (countErr) {
+        console.warn('[WebPush] Error fetching unread count for badge:', countErr);
+      }
+    }
+
     const payload = JSON.stringify({
+      type: 'incoming_message',
       title,
       body,
       icon: '/icons/icon-192x192.png',
@@ -157,6 +174,7 @@ export async function sendInboundMessagePushNotification({
       url: contactId ? `/inbox?contactId=${contactId}` : '/inbox',
       contactId,
       tenantId,
+      unreadConversationCount,
     });
 
     // 4. Dispatch to all devices/subscriptions
