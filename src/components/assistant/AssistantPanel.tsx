@@ -99,7 +99,7 @@ export function AssistantPanel({
 
       {/* Main Panel Box */}
       <div 
-        className="w-full sm:w-[400px] h-[85vh] sm:h-[600px] sm:max-h-[calc(100vh-120px)] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-3 sm:zoom-in-95 duration-200"
+        className="w-full sm:w-[400px] h-[85dvh] max-h-[85dvh] sm:h-[600px] sm:max-h-[calc(100vh-120px)] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-3 sm:zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="assistant-panel-title"
@@ -162,7 +162,7 @@ export function AssistantPanel({
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 scroll-smooth">
           {/* 1. Article View */}
           {activeArticle ? (
             <ArticleView

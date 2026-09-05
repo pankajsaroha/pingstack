@@ -11,6 +11,7 @@ import { PingstackAssistant } from '@/components/assistant/PingstackAssistant';
 import { FeedbackModal } from '@/components/feedback/FeedbackModal';
 import { SiteTour } from '@/components/tour/SiteTour';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { PushNotificationManager } from '@/components/notifications/PushNotificationManager';
 
 interface ClientLayoutProps {
   tenant: TenantContextValue['tenant'] | null;
@@ -323,6 +324,9 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
           onClose={() => setIsTourOpen(false)}
           isConnected={isConnected}
         />
+
+        {/* Web Push Notification Manager & Presence Heartbeat */}
+        <PushNotificationManager />
       </div>
     </TenantProvider>
   );

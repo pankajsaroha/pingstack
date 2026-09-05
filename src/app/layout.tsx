@@ -7,12 +7,23 @@ const font = Outfit({ subsets: ['latin'], variable: '--font-outfit', display: 's
 export const metadata: Metadata = {
   title: 'PingStack | Enterprise WhatsApp Notifications',
   description: 'Send WhatsApp notifications reliably at scale with the PingStack API and Dashboard.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'PingStack',
+  },
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
     ],
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    shortcut: '/icons/icon-192x192.png',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
 };
 
@@ -26,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="theme-color" content="#09090b" />
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {

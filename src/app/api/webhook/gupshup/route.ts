@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { sendInboundMessagePushNotification } from '@/lib/server/push-notifications';
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
 
         let contactId;
         const { data: existingContact } = await db.from('contacts')
-          .select('id')
+          .select('id, name')
           .eq('tenant_id', tenant.id)
           .eq('phone_number', fromPhone)
           .single();
@@ -65,6 +66,14 @@ export async function POST(req: Request) {
             status: 'received',
             provider_message_id: payload.id
           });
+
+          sendInboundMessagePushNotification({
+            tenantId: tenant.id,
+            contactId,
+            senderName: payload.sender?.name || fromPhone,
+            senderPhone: fromPhone,
+            messageText: textContext,
+          }).catch((err) => console.error('[Gupshup Webhook Push Error]:', err));
         }
       }
     }

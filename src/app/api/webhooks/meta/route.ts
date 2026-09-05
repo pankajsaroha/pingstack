@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import crypto from 'crypto';
+import { sendInboundMessagePushNotification } from '@/lib/server/push-notifications';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -122,7 +123,7 @@ export async function POST(req: Request) {
               let contactId: string | undefined;
               const { data: existingContact } = await db!
                 .from('contacts')
-                .select('id')
+                .select('id, name')
                 .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${cleanPhone}`)
                 .eq('tenant_id', tenantId)
                 .maybeSingle();
@@ -157,6 +158,15 @@ export async function POST(req: Request) {
                     .update({ last_received_at: new Date().toISOString() })
                     .eq('id', contactId)
                 ]);
+
+                // Asynchronously dispatch push notification (suppressed if user has any active PingStack tab)
+                sendInboundMessagePushNotification({
+                  tenantId,
+                  contactId,
+                  senderName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
+                  senderPhone: fromPhone,
+                  messageText: textContext,
+                }).catch((err) => console.error('[Meta Webhook Push Error]:', err));
               }
             }
           });

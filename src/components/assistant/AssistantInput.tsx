@@ -23,7 +23,8 @@ export function AssistantInput({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (autoFocus && inputRef.current) {
+    // Only auto-focus on desktop/tablet to prevent virtual keyboard from popping up and obstructing topics on mobile
+    if (autoFocus && inputRef.current && typeof window !== 'undefined' && window.innerWidth >= 640) {
       inputRef.current.focus();
     }
   }, [autoFocus]);

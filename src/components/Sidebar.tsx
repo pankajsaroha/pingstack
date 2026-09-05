@@ -57,7 +57,7 @@ export function Sidebar({
       {/* Collapse/Expand Floating Button */}
       <button 
         onClick={onToggleCollapse}
-        className="absolute top-4 -right-3 hidden md:flex w-6 h-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-full items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:scale-110 active:scale-95 shadow-xs transition-all z-50 cursor-pointer opacity-0 group-hover/sidebar:opacity-100"
+        className="absolute top-4 -right-3 hidden md:flex w-6 h-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-full items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:scale-110 active:scale-95 shadow-xs transition-all z-50 cursor-pointer md:opacity-100 lg:opacity-0 lg:group-hover/sidebar:opacity-100"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${
