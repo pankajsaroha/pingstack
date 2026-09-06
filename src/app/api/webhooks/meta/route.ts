@@ -71,9 +71,57 @@ export async function POST(req: Request) {
 
       const entryPromises = (body.entry || []).map(async (entry: any) => {
         const changePromises = (entry.changes || []).map(async (change: any) => {
+          const field = change.field;
           const value = change.value;
-          const phoneId = value.metadata?.phone_number_id;
 
+          // 1. Handle Meta Template Status Update Webhook Events (APPROVED, REJECTED, PAUSED, etc.)
+          if (field === 'message_template_status_update' || value?.message_template_id) {
+            const metaTemplateId = String(value.message_template_id || '');
+            const metaTemplateName = value.message_template_name;
+            const statusEvent = String(value.event || '').toUpperCase();
+            const rawReason = value.reason;
+            const rejectionReason = (rawReason && rawReason !== 'NONE') ? rawReason : null;
+
+            try {
+              // Locate matching template by Meta ID or name
+              let query = db!.from('templates').select('id, tenant_id, metadata');
+              if (metaTemplateId) {
+                query = query.eq('template_id', metaTemplateId);
+              } else if (metaTemplateName) {
+                query = query.eq('name', metaTemplateName);
+              }
+
+              const { data: matchedTemplate } = await query.maybeSingle();
+
+              if (matchedTemplate) {
+                const updatedMetadata = {
+                  ...(matchedTemplate.metadata || {}),
+                  rejected_reason: statusEvent === 'APPROVED' ? null : rejectionReason,
+                  rejection_reason_code: statusEvent === 'APPROVED' ? null : rejectionReason,
+                  last_meta_status_update: new Date().toISOString()
+                };
+
+                await db!.from('templates')
+                  .update({
+                    status: statusEvent,
+                    metadata: updatedMetadata
+                  })
+                  .eq('id', matchedTemplate.id);
+
+                if (matchedTemplate.tenant_id) {
+                  const { invalidateTemplatesCache } = await import('@/lib/server/templates');
+                  await invalidateTemplatesCache(matchedTemplate.tenant_id);
+                }
+
+                console.log(`[Webhook/Meta] Successfully updated template "${metaTemplateName || metaTemplateId}" to status ${statusEvent} (Reason: ${rejectionReason || 'None'})`);
+              }
+            } catch (tplErr) {
+              console.error('[Webhook/Meta] Error processing template status update:', tplErr);
+            }
+            return;
+          }
+
+          const phoneId = value.metadata?.phone_number_id;
           if (!phoneId) return;
 
           // Lookup tenantId (using request-level in-memory cache to eliminate duplicate DB queries)

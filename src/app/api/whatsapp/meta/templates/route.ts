@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { decrypt } from '@/lib/encryption';
+import { generateVariableExamples } from '@/lib/templates';
+import { invalidateTemplatesCache } from '@/lib/server/templates';
 
 type MetaTemplateComponent = {
   type: string;
   text?: string;
+  example?: any;
 };
 
 type MetaTemplate = {
@@ -14,6 +17,8 @@ type MetaTemplate = {
   category?: string;
   language?: string;
   components?: MetaTemplateComponent[];
+  rejected_reason?: string;
+  quality_score?: any;
 };
 
 export async function GET(req: Request) {
@@ -105,7 +110,7 @@ export async function GET(req: Request) {
     }
 
     console.log(`[Templates Sync] Target WABA IDs for template discovery:`, Array.from(targetWabaIds));
-    const fields = 'name,status,language,components,category';
+    const fields = 'name,status,language,components,category,rejected_reason,quality_score';
     const allFetchedTemplates: MetaTemplate[] = [];
 
     // 2d. Fetch all template pages for each discovered WABA ID
@@ -151,13 +156,22 @@ export async function GET(req: Request) {
     for (const mt of templates) {
       const bodyComponent = mt.components?.find((component) => component.type.toUpperCase() === 'BODY');
       const bodyText = bodyComponent?.text || '';
+      const rejectedReason = mt.rejected_reason && mt.rejected_reason !== 'NONE' ? mt.rejected_reason : null;
 
       const { data: existing } = await db
         .from('templates')
-        .select('id')
+        .select('id, metadata')
         .eq('tenant_id', tenantId)
         .eq('name', mt.name)
         .maybeSingle();
+
+      const metaMetadata = {
+        ...(existing?.metadata || {}),
+        rejected_reason: mt.status === 'APPROVED' ? null : rejectedReason,
+        rejection_reason_code: mt.status === 'APPROVED' ? null : rejectedReason,
+        quality_score: mt.quality_score || null,
+        last_meta_status_update: new Date().toISOString()
+      };
 
       if (existing) {
         await db.from('templates')
@@ -166,7 +180,8 @@ export async function GET(req: Request) {
             category: mt.category,
             language: mt.language,
             content: bodyText,
-            template_id: mt.id
+            template_id: mt.id,
+            metadata: metaMetadata
           })
           .eq('id', existing.id);
       } else {
@@ -178,7 +193,8 @@ export async function GET(req: Request) {
             category: mt.category,
             language: mt.language,
             content: bodyText,
-            template_id: mt.id
+            template_id: mt.id,
+            metadata: metaMetadata
           });
       }
     }
@@ -206,7 +222,6 @@ export async function GET(req: Request) {
 
     // 5. Invalidate template cache
     try {
-      const { invalidateTemplatesCache } = await import('@/lib/server/templates');
       await invalidateTemplatesCache(tenantId);
     } catch (cacheErr) {
       console.warn('Template cache invalidation warning:', cacheErr);
@@ -231,7 +246,21 @@ export async function GET(req: Request) {
   }
 }
 
+/**
+ * Handle in-place template update / resubmission (PUT or POST with templateId)
+ */
+export async function PUT(req: Request) {
+  return handleTemplateEdit(req);
+}
+
 export async function POST(req: Request) {
+  const body = await req.json();
+
+  // If request contains templateId or is an edit action, route to in-place edit handler
+  if (body.templateId || body.oldTemplateId || body.action === 'edit') {
+    return handleTemplateEditWithBody(req, body);
+  }
+
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -239,7 +268,7 @@ export async function POST(req: Request) {
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
-    const { name, language, category, bodyText, oldTemplateId } = await req.json();
+    const { name, language, category, bodyText } = body;
 
     if (!name || !language || !category || !bodyText) {
       return NextResponse.json({ error: 'Missing required fields (name, language, category, bodyText)' }, { status: 400 });
@@ -251,7 +280,7 @@ export async function POST(req: Request) {
       .select('*')
       .eq('tenant_id', tenantId)
       .eq('provider', 'META')
-      .single();
+      .maybeSingle();
 
     if (wError || !whatsappAccount) {
       return NextResponse.json({ error: 'Meta account not connected. Please connect from the Dashboard.' }, { status: 400 });
@@ -261,9 +290,24 @@ export async function POST(req: Request) {
     const wabaId = whatsappAccount.business_id;
 
     const normalizedCategory = String(category).trim().toUpperCase();
+    const sampleValues = generateVariableExamples(bodyText);
 
-    // 1. Call Meta API to create new template FIRST
+    // 2. Call Meta API to create new template
     const metaUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates`;
+
+    const createPayload: any = {
+      name,
+      language,
+      category: normalizedCategory,
+      allow_category_change: false,
+      components: [
+        {
+          type: 'BODY',
+          text: bodyText,
+          ...(sampleValues.length > 0 ? { example: { body_text: [sampleValues] } } : {})
+        }
+      ]
+    };
 
     const metaResponse = await fetch(metaUrl, {
       method: 'POST',
@@ -271,51 +315,16 @@ export async function POST(req: Request) {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        name,
-        language,
-        category: normalizedCategory,
-        allow_category_change: false,
-        components: [
-          {
-            type: 'BODY',
-            text: bodyText
-          }
-        ]
-      })
+      body: JSON.stringify(createPayload)
     });
 
     const metaData = await metaResponse.json();
 
     if (metaData.error) {
-      console.error('Meta Template API Error:', metaData.error);
+      console.error('Meta Template Create Error:', metaData.error);
       return NextResponse.json({
         error: metaData.error.message || 'Meta API Error: Failed to submit template to Meta.'
       }, { status: 400 });
-    }
-
-    // 2. Meta creation SUCCEEDED (metaData.id created on Meta)!
-    // If oldTemplateId is provided, delete old template from Meta WABA & DB
-    if (oldTemplateId) {
-      try {
-        const { data: oldT } = await db.from('templates').select('*').eq('id', oldTemplateId).eq('tenant_id', tenantId).maybeSingle();
-        if (oldT) {
-          if (oldT.template_id) {
-            await fetch(`https://graph.facebook.com/v19.0/${oldT.template_id}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-          }
-          const deleteMetaUrl = `https://graph.facebook.com/v19.0/${wabaId}/message_templates?name=${encodeURIComponent(oldT.name)}`;
-          await fetch(deleteMetaUrl, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-          });
-          await db.from('templates').delete().eq('id', oldTemplateId).eq('tenant_id', tenantId);
-        }
-      } catch (delErr) {
-        console.warn('[Meta Template Resubmit] Warning deleting old template:', delErr);
-      }
     }
 
     // 3. Store new template in local DB with Meta status (defaults to PENDING)
@@ -329,7 +338,11 @@ export async function POST(req: Request) {
         content: bodyText,
         status: initialStatus,
         language,
-        category: normalizedCategory
+        category: normalizedCategory,
+        metadata: {
+          rejected_reason: null,
+          last_meta_status_update: new Date().toISOString()
+        }
       })
       .select()
       .single();
@@ -338,15 +351,172 @@ export async function POST(req: Request) {
       console.error('DB Store Template Error:', dbError);
       return NextResponse.json({
         error: 'Template created on Meta but failed to store locally.',
-        dbError: dbError
+        dbError
       }, { status: 500 });
     }
 
+    await invalidateTemplatesCache(tenantId);
     return NextResponse.json(template);
 
   } catch (err: unknown) {
     console.error('Meta Template Processing Error:', err);
-    const message = err instanceof Error ? err.message : 'Template processing failed';
+    const message = err instanceof Error ? err.message : 'Template creation failed';
     return NextResponse.json({ error: 'INTERNAL_ERROR', message }, { status: 500 });
   }
 }
+
+async function handleTemplateEdit(req: Request) {
+  try {
+    const body = await req.json();
+    return handleTemplateEditWithBody(req, body);
+  } catch (e: any) {
+    return NextResponse.json({ error: 'Invalid JSON payload: ' + e.message }, { status: 400 });
+  }
+}
+
+async function handleTemplateEditWithBody(req: Request, body: any) {
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  const targetId = body.templateId || body.id || body.oldTemplateId;
+  const { category, bodyText, language } = body;
+
+  if (!targetId || !bodyText) {
+    return NextResponse.json({ error: 'Missing target template ID or bodyText' }, { status: 400 });
+  }
+
+  try {
+    // 1. Fetch existing template from local DB
+    const { data: existing, error: findError } = await db
+      .from('templates')
+      .select('*')
+      .eq('id', targetId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    if (findError || !existing) {
+      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+    }
+
+    if (!existing.template_id) {
+      return NextResponse.json({ error: 'Template lacks a valid Meta ID. Please sync with Meta first.' }, { status: 400 });
+    }
+
+    // 2. Fetch Meta credentials
+    const { data: whatsappAccount, error: wError } = await db
+      .from('whatsapp_accounts')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('provider', 'META')
+      .maybeSingle();
+
+    if (wError || !whatsappAccount?.access_token) {
+      return NextResponse.json({ error: 'Meta account credentials not found.' }, { status: 400 });
+    }
+
+    const accessToken = decrypt(whatsappAccount.access_token);
+    const normalizedCategory = (category || existing.category || 'UTILITY').trim().toUpperCase();
+    const sampleValues = generateVariableExamples(bodyText);
+
+    // 3. Perform official in-place Meta Cloud API update: POST https://graph.facebook.com/v19.0/{template_id}
+    const editUrl = `https://graph.facebook.com/v19.0/${existing.template_id}`;
+    const editPayload: any = {
+      category: normalizedCategory,
+      components: [
+        {
+          type: 'BODY',
+          text: bodyText,
+          ...(sampleValues.length > 0 ? { example: { body_text: [sampleValues] } } : {})
+        }
+      ]
+    };
+
+    const metaRes = await fetch(editUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(editPayload)
+    });
+
+    const metaResult = await metaRes.json();
+
+    if (metaResult.error) {
+      console.error('[Meta Template Edit Error]:', metaResult.error);
+      return NextResponse.json({
+        error: metaResult.error.message || 'Unable to update template on Meta.',
+        code: metaResult.error.code,
+        subcode: metaResult.error.error_subcode
+      }, { status: 400 });
+    }
+
+    // 4. Update local DB template record:
+    // Status immediately transitions to PENDING, content and category updated, and previous rejection reason cleared
+    const updatedMetadata = {
+      ...(existing.metadata || {}),
+      rejected_reason: null,
+      rejection_reason_code: null,
+      rejection_reason_message: null,
+      last_meta_status_update: new Date().toISOString()
+    };
+
+    let updatedTemplate: any = null;
+    let updateErr: any = null;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data, error } = await db
+          .from('templates')
+          .update({
+            status: 'PENDING',
+            category: normalizedCategory,
+            content: bodyText,
+            language: language || existing.language || 'en_US',
+            metadata: updatedMetadata
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
+
+        if (!error && data) {
+          updatedTemplate = data;
+          updateErr = null;
+          break;
+        }
+        updateErr = error;
+      } catch (e: any) {
+        updateErr = e;
+      }
+      if (attempt < 3) await new Promise(r => setTimeout(r, 400));
+    }
+
+    if (updateErr || !updatedTemplate) {
+      console.error('[DB Template Update Error]:', updateErr);
+      // Even if local DB write lagged, return successful object with PENDING state
+      return NextResponse.json({
+        id: existing.id,
+        tenant_id: tenantId,
+        name: existing.name,
+        template_id: existing.template_id,
+        content: bodyText,
+        status: 'PENDING',
+        category: normalizedCategory,
+        language: language || existing.language || 'en_US',
+        metadata: updatedMetadata
+      });
+    }
+
+    await invalidateTemplatesCache(tenantId);
+    return NextResponse.json(updatedTemplate);
+
+  } catch (err: unknown) {
+    console.error('Meta Template Edit Handler Error:', err);
+    const message = err instanceof Error ? err.message : 'Template edit failed';
+    return NextResponse.json({ error: 'INTERNAL_ERROR', message }, { status: 500 });
+  }
+}
+

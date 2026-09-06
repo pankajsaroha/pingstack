@@ -103,7 +103,8 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
   };
 
   const handleResubmitRejected = async (formData: {
-    oldTemplateId: string;
+    templateId: string;
+    oldTemplateId?: string;
     name: string;
     language: string;
     category: string;
@@ -115,14 +116,34 @@ export default function TemplatesClient({ tenant, initialTemplates }: TemplatesC
     }
 
     const res = await fetch('/api/whatsapp/meta/templates', {
-      method: 'POST',
+      method: 'PUT',
       credentials: 'include',
       headers,
       body: JSON.stringify(formData)
     });
 
     if (res.ok) {
-      fireToast('Updated template submitted to Meta successfully! Meta can take up to 24 hours to review and approve your template.', 'success');
+      // Optimistically update the template in local list
+      setTemplates(prev => prev.map(t => {
+        if (t.id === formData.templateId || t.name === formData.name) {
+          return {
+            ...t,
+            status: 'PENDING',
+            content: formData.bodyText,
+            category: formData.category,
+            language: formData.language,
+            metadata: {
+              ...(t.metadata || {}),
+              rejected_reason: null,
+              rejection_reason_code: null,
+              last_meta_status_update: new Date().toISOString()
+            }
+          };
+        }
+        return t;
+      }));
+
+      fireToast('Template updated & resubmitted to Meta for review successfully!', 'success');
       setEditingRejectedTemplate(null);
       fetchTemplates(true);
     } else {
