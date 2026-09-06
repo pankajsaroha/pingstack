@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Loader2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 import Toast from '@/components/Toast';
 
 const LANGUAGES = [
@@ -95,6 +95,7 @@ export default function CreateTemplateModal({
   const [aiError, setAiError] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isAiExpandedMobile, setIsAiExpandedMobile] = useState(false);
 
   const handleGenerateAI = async () => {
     if (!aiPrompt.trim()) return;
@@ -270,39 +271,61 @@ export default function CreateTemplateModal({
                   </div>
                 )}
 
-                {/* AI Copilot */}
-                <div className="p-5 bg-indigo-500/[0.03] border border-glass-border/60 rounded-[2rem] space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center">
-                      <Sparkles className="w-3.5 h-3.5 mr-2 animate-pulse text-indigo-400" />
-                      AI Copilot Assist
-                    </span>
-                    {tenant?.plan_type === 'starter' && (
-                      <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
-                        Upgrade Required
+                {/* AI Copilot (Collapsible Accordion on Mobile, Expanded by Default on Desktop) */}
+                <div className="p-3.5 sm:p-5 bg-indigo-500/[0.03] border border-glass-border/60 rounded-2xl md:rounded-[2rem] space-y-3 md:space-y-4">
+                  <div
+                    onClick={() => setIsAiExpandedMobile(!isAiExpandedMobile)}
+                    className="flex items-center justify-between cursor-pointer md:cursor-default select-none"
+                    role="button"
+                    aria-expanded={isAiExpandedMobile}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center">
+                        <Sparkles className="w-3.5 h-3.5 mr-2 animate-pulse text-indigo-400" />
+                        AI Copilot Assist
                       </span>
-                    )}
+                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5 md:hidden">
+                        Generate template with AI
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {tenant?.plan_type === 'starter' && (
+                        <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-black uppercase tracking-wider shrink-0">
+                          Upgrade Required
+                        </span>
+                      )}
+                      <div className="p-1 rounded-lg text-zinc-400 md:hidden shrink-0">
+                        {isAiExpandedMobile ? (
+                          <ChevronDown className="w-4 h-4 text-indigo-400 transition-transform" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-indigo-400 transition-transform" />
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder={tenant?.plan_type === 'starter' ? 'AI generation is locked on Starter plan' : 'Describe the message you want to generate (e.g. order tracking alert)...'}
-                      disabled={tenant?.plan_type === 'starter' || generatingAI}
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      className="flex-1 bg-glass-input border border-glass-border rounded-xl px-4 py-3 text-xs font-semibold text-fg placeholder:text-fg/20 focus:border-indigo-500 focus:outline-none disabled:opacity-50 font-sans"
-                    />
-                    <button
-                      type="button"
-                      disabled={tenant?.plan_type === 'starter' || generatingAI || !aiPrompt.trim()}
-                      onClick={handleGenerateAI}
-                      className="px-5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/30 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center shrink-0 cursor-pointer border-0 outline-none"
-                    >
-                      {generatingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Generate'}
-                    </button>
+                  <div className={`${isAiExpandedMobile ? 'block' : 'hidden md:block'} pt-1 md:pt-0 space-y-3`}>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder={tenant?.plan_type === 'starter' ? 'AI generation is locked on Starter plan' : 'Describe the message you want to generate (e.g. order tracking alert)...'}
+                        disabled={tenant?.plan_type === 'starter' || generatingAI}
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        className="flex-1 bg-glass-input border border-glass-border rounded-xl px-4 py-3 text-xs font-semibold text-fg placeholder:text-fg/20 focus:border-indigo-500 focus:outline-none disabled:opacity-50 font-sans"
+                      />
+                      <button
+                        type="button"
+                        disabled={tenant?.plan_type === 'starter' || generatingAI || !aiPrompt.trim()}
+                        onClick={handleGenerateAI}
+                        className="px-5 py-3 sm:py-0 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/30 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center shrink-0 cursor-pointer border-0 outline-none"
+                      >
+                        {generatingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Generate'}
+                      </button>
+                    </div>
+                    {aiError && <p className="text-[10px] text-red-400 font-bold ml-1">{aiError}</p>}
                   </div>
-                  {aiError && <p className="text-[10px] text-red-400 font-bold ml-1">{aiError}</p>}
                 </div>
               </div>
 
