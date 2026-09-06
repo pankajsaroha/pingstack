@@ -38,6 +38,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="theme-color" content="#09090b" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {

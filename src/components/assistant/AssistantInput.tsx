@@ -41,7 +41,7 @@ export function AssistantInput({
 
   return (
     <div className="relative flex items-center">
-      <div className="absolute left-3.5 pointer-events-none text-muted">
+      <div className="absolute left-3.5 pointer-events-none text-zinc-400">
         <Search className="w-3.5 h-3.5" />
       </div>
 
@@ -52,7 +52,7 @@ export function AssistantInput({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full pl-9 pr-14 py-2.5 bg-glass-input/80 hover:bg-glass-input focus:bg-glass-input border border-glass-border focus:border-fg/30 rounded-xl text-xs text-fg placeholder:text-muted/70 focus:outline-none transition-all shadow-inner"
+        className="w-full pl-9 pr-14 py-2.5 bg-zinc-100/80 dark:bg-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:bg-white dark:focus:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/80 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none transition-all shadow-inner"
       />
 
       <div className="absolute right-2.5 flex items-center gap-1">
@@ -60,13 +60,13 @@ export function AssistantInput({
           <button
             type="button"
             onClick={onClear}
-            className="p-1 text-muted hover:text-fg rounded-md hover:bg-glass-card transition-colors cursor-pointer"
+            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
             aria-label="Clear search"
           >
             <X className="w-3 h-3" />
           </button>
         ) : (
-          <span className="hidden sm:flex items-center text-[10px] text-muted/60 font-mono px-1 py-0.5 rounded bg-glass-card border border-glass-border">
+          <span className="hidden sm:flex items-center text-[10px] text-zinc-400 font-mono px-1 py-0.5 rounded bg-zinc-200/60 dark:bg-zinc-700 border border-zinc-300/40 dark:border-zinc-600">
             <CornerDownLeft className="w-2.5 h-2.5 mr-0.5" />
           </span>
         )}
