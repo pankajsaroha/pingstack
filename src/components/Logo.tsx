@@ -11,7 +11,8 @@ export function Logo({ className = "w-5 h-5" }: { className?: string }) {
 export function LogoIcon({ bgClass = "bg-black", iconClass = "text-white" }: { bgClass?: string; iconClass?: string }) {
   return (
     <div className={`${bgClass} p-1.5 rounded-lg shadow-sm shrink-0 flex items-center justify-center transition-transform`}>
-      <Logo className={`w-4 h-4 ${iconClass}`} />
+      <Logo className={`w-3.5 h-3.5 ${iconClass}`} />
     </div>
   );
 }
+

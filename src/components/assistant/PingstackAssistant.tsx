@@ -30,10 +30,12 @@ export function PingstackAssistant({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
+  const isInbox = pathname?.startsWith('/inbox');
+
   return (
     <>
       {/* Floating Assistant Trigger Button */}
-      <div className="fixed bottom-5 right-5 z-[80] flex items-center gap-2">
+      <div className={`fixed ${isInbox ? 'bottom-20 sm:bottom-5' : 'bottom-5'} right-5 z-[80] flex items-center gap-2 transition-all duration-200`}>
         <button
           onClick={() => setIsOpen((prev) => !prev)}
           className={`group relative flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 shadow-lg cursor-pointer select-none active:scale-95 ${

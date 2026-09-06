@@ -23,10 +23,10 @@ export function ArticleView({
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-3 duration-200">
       {/* Back button & Category Header */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-glass-border">
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-200 dark:border-zinc-800">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-fg transition-colors group cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
           <span>Back to suggestions</span>
@@ -34,37 +34,37 @@ export function ArticleView({
 
         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
           isError 
-            ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-            : 'bg-glass-input text-muted border border-glass-border'
+            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' 
+            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60'
         }`}>
           {isError ? (article.errorCode ? `Meta ${article.errorCode}` : 'Error Diagnostic') : article.category}
         </span>
       </div>
 
       {/* Article Content Scrollable Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4 text-left">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4 text-left overscroll-contain">
         {/* Title & Summary */}
         <div>
-          <h2 className="text-base font-bold text-fg tracking-tight leading-snug">
+          <h2 className="text-base font-bold text-zinc-900 dark:text-white tracking-tight leading-snug">
             {article.title}
           </h2>
-          <p className="text-xs text-fg/75 font-medium mt-1.5 leading-relaxed">
+          <p className="text-xs text-zinc-600 dark:text-zinc-300 font-medium mt-1.5 leading-relaxed">
             {article.summary}
           </p>
         </div>
 
         {/* What Happened Section */}
         {article.whatHappened && (
-          <div className="p-3.5 rounded-xl bg-glass-input/60 border border-glass-border">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-fg mb-1.5">
+          <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-zinc-900 dark:text-white mb-1.5">
               {isError ? (
                 <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
               ) : (
-                <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
+                <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />
               )}
               <span>{isError ? 'Why this happens' : 'Overview'}</span>
             </div>
-            <p className="text-xs text-fg/80 leading-relaxed font-normal">
+            <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed font-normal">
               {article.whatHappened}
             </p>
           </div>
@@ -73,7 +73,7 @@ export function ArticleView({
         {/* Actionable Steps */}
         {article.steps && article.steps.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-xs font-bold text-fg uppercase tracking-wider flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
               <span>Recommended Steps</span>
             </h3>
@@ -82,12 +82,12 @@ export function ArticleView({
               {article.steps.map((step, index) => (
                 <li
                   key={index}
-                  className="flex items-start gap-2.5 p-2.5 rounded-xl bg-glass-card/70 border border-glass-border"
+                  className="flex items-start gap-2.5 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800"
                 >
-                  <span className="flex-shrink-0 w-4 h-4 rounded-full bg-fg/10 text-fg text-[10px] font-bold flex items-center justify-center mt-0.5">
+                  <span className="flex-shrink-0 w-4 h-4 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-[10px] font-bold flex items-center justify-center mt-0.5">
                     {index + 1}
                   </span>
-                  <span className="text-fg/80 leading-relaxed font-normal">
+                  <span className="text-zinc-700 dark:text-zinc-300 leading-relaxed font-normal">
                     {step}
                   </span>
                 </li>
@@ -104,7 +104,7 @@ export function ArticleView({
               onClick={onActionClick}
               target={article.action.external ? '_blank' : undefined}
               rel={article.action.external ? 'noopener noreferrer' : undefined}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-fg text-bg hover:opacity-90 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-98"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-98"
             >
               <span>{article.action.label}</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -114,8 +114,8 @@ export function ArticleView({
 
         {/* Related Articles */}
         {article.relatedArticleIds && article.relatedArticleIds.length > 0 && (
-          <div className="pt-3 border-t border-glass-border">
-            <h4 className="text-[11px] font-bold text-fg/60 uppercase tracking-wider mb-2">
+          <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+            <h4 className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
               Related Topics
             </h4>
             <div className="space-y-1.5">
@@ -126,10 +126,10 @@ export function ArticleView({
                   <button
                     key={relId}
                     onClick={() => onSelectArticle(relId)}
-                    className="w-full text-left p-2 rounded-lg hover:bg-glass-card border border-transparent hover:border-glass-border text-xs font-medium text-fg/75 hover:text-fg transition-all flex items-center justify-between group cursor-pointer"
+                    className="w-full text-left p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-all flex items-center justify-between group cursor-pointer"
                   >
                     <span className="truncate pr-2">{relArticle.title}</span>
-                    <ArrowUpRight className="w-3 h-3 text-fg/40 group-hover:text-fg flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowUpRight className="w-3 h-3 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                 );
               })}
