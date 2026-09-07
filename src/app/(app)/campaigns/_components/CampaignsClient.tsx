@@ -15,6 +15,7 @@ interface CampaignsClientProps {
   initialCampaigns: any[];
   initialTemplates: any[];
   initialGroups: any[];
+  initialContacts?: any[];
 }
 
 export default function CampaignsClient({
@@ -23,10 +24,12 @@ export default function CampaignsClient({
   initialCampaigns,
   initialTemplates,
   initialGroups,
+  initialContacts = [],
 }: CampaignsClientProps) {
   const [campaigns, setCampaigns] = useState<any[]>(initialCampaigns);
   const [templates] = useState<any[]>(initialTemplates);
   const [groups] = useState<any[]>(initialGroups);
+  const [contacts, setContacts] = useState<any[]>(initialContacts);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,15 +100,17 @@ export default function CampaignsClient({
   const handleSavedCampaign = async (campaignData: {
     name: string;
     template_id: string;
-    group_id: string;
+    group_id?: string;
     group_ids?: string[];
+    contact_ids?: string[];
     scheduled_at: string | null;
     excelData: any[] | null;
     groupVarValues?: Record<string, string> | null;
   }) => {
     const targetGroupIds = campaignData.group_ids && campaignData.group_ids.length > 0
       ? campaignData.group_ids
-      : (campaignData.group_id === 'EXCEL' ? [] : [campaignData.group_id]);
+      : (campaignData.group_id && campaignData.group_id !== 'EXCEL' ? [campaignData.group_id] : []);
+    const targetContactIds = campaignData.contact_ids || [];
 
     const cRes = await fetch('/api/campaigns', {
       method: 'POST',
@@ -128,6 +133,7 @@ export default function CampaignsClient({
         body: JSON.stringify({
           campaignId: campaign.id,
           groupIds: targetGroupIds,
+          contactIds: targetContactIds,
           directData: campaignData.excelData,
           templateVariables: campaignData.groupVarValues || undefined
         })
@@ -324,6 +330,7 @@ export default function CampaignsClient({
           <CreateCampaignModal
             templates={templates}
             groups={groups}
+            contacts={contacts}
             planType={planType}
             initialGroupId={initialGroupId}
             onClose={() => setShowModal(false)}

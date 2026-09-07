@@ -5,6 +5,7 @@ import { messageQueue } from '@/lib/queue';
 import { checkLimit, incrementUsage } from '@/lib/limits';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { withCors, corsPreflightResponse } from '@/lib/cors';
+import { renderTemplateBody } from '@/lib/templates';
 
 // Handle CORS preflight for browser-based SDK consumers
 export async function OPTIONS(req: Request) {
@@ -121,7 +122,7 @@ export async function POST(req: Request) {
       contact_id: contactId,
       phone_number: normalizedPhone,
       status: isSandbox ? 'sandbox' : 'pending',
-      content: template.content,
+      content: renderTemplateBody(template.content, parameters),
       direction: 'outbound',
       message_type: 'template',
       variables: parameters

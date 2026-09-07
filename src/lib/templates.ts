@@ -99,3 +99,63 @@ export function generateVariableExamples(text: string): string[] {
   const uniqueIndices = Array.from(new Set(matches.map(m => parseInt(m.replace(/[{}]/g, ''), 10)))).sort((a, b) => a - b);
   return uniqueIndices.map(idx => `SampleValue${idx}`);
 }
+
+/**
+ * Resolves raw template content (e.g. "Hi {{1}}, your appointment is on {{2}}.")
+ * by substituting {{1}}, {{2}} with provided variable values, plus optional named
+ * tokens like {{name}} or {{phone}}.
+ * 
+ * Supports array of values ['Pankaj', 'Monday'] or Record/Object { '1': 'Pankaj', '2': 'Monday' }.
+ */
+export function renderTemplateBody(
+  content?: string | null,
+  variables?: any[] | Record<string, any> | null,
+  contactContext?: { name?: string | null; phone?: string | null }
+): string {
+  if (!content) return '';
+  let rendered = content;
+
+  // 1. Substitute contact context tokens if available
+  if (contactContext) {
+    if (contactContext.name) {
+      rendered = rendered.replace(/\{\{name\}\}/gi, contactContext.name);
+    }
+    if (contactContext.phone) {
+      rendered = rendered.replace(/\{\{phone\}\}/gi, contactContext.phone);
+    }
+  }
+
+  if (!variables) return rendered;
+
+  if (Array.isArray(variables)) {
+    // Array: index 0 maps to {{1}}, index 1 maps to {{2}}, etc.
+    variables.forEach((val, idx) => {
+      const varIndex = idx + 1;
+      let strVal = val !== undefined && val !== null ? String(val) : '';
+      if (contactContext?.name) {
+        strVal = strVal.replace(/\{\{name\}\}/gi, contactContext.name);
+      }
+      if (contactContext?.phone) {
+        strVal = strVal.replace(/\{\{phone\}\}/gi, contactContext.phone);
+      }
+      const regex = new RegExp(`\\{\\{${varIndex}\\}\\}`, 'g');
+      rendered = rendered.replace(regex, strVal);
+    });
+  } else if (typeof variables === 'object') {
+    // Object: keys could be "1", "2" or named
+    Object.entries(variables).forEach(([key, val]) => {
+      let strVal = val !== undefined && val !== null ? String(val) : '';
+      if (contactContext?.name) {
+        strVal = strVal.replace(/\{\{name\}\}/gi, contactContext.name);
+      }
+      if (contactContext?.phone) {
+        strVal = strVal.replace(/\{\{phone\}\}/gi, contactContext.phone);
+      }
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      rendered = rendered.replace(regex, strVal);
+    });
+  }
+
+  return rendered;
+}
+

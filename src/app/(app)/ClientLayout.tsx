@@ -288,7 +288,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
           )}
 
           {/* Main Page Scroll Body */}
-          <main className={`flex-1 min-h-0 ${pathname === '/inbox' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto scroll-smooth'}`}>
+          <main className={`flex-1 min-h-0 ${pathname === '/inbox' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
             {isNavigating && (
               <div className="absolute inset-0 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in duration-150">
                 <div className="p-5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl flex items-center gap-3">

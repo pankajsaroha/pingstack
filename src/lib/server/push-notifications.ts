@@ -83,16 +83,7 @@ export async function sendInboundMessagePushNotification({
   if (!tenantId || !db) return;
 
   try {
-    // 1. WORKSPACE-LEVEL CHECK:
-    // If the user currently has ANY PingStack page open in an active session, SUPPRESS push!
-    const isActive = await hasActiveWorkspaceSession(tenantId);
-    if (isActive) {
-      // User is actively in the workspace -> push suppressed, realtime unread badge handles UI
-      console.log(`[WebPush] Push dispatch skipped: Active workspace session detected for tenant ${tenantId}`);
-      return;
-    }
-
-    // 2. Debounce rapid incoming messages from the same sender to avoid spam
+    // 1. Debounce rapid incoming messages from the same sender to avoid spam
     let debounceCount = 1;
     if (contactId) {
       try {
