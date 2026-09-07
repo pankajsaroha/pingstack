@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { messageQueue } from '@/lib/queue';
+import { renderTemplateBody } from '@/lib/templates';
 
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -8,14 +9,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { contactId } = await params;
-  const { templateName, language } = await req.json();
+  const body = await req.json();
+  const { templateName, language, variables } = body;
 
   if (!templateName) return NextResponse.json({ error: 'Template name required' }, { status: 400 });
 
   try {
     // 1. Get contact info
     const { data: contact } = await db.from('contacts')
-      .select('phone_number')
+      .select('id, name, phone_number')
       .eq('id', contactId)
       .eq('tenant_id', tenantId)
       .single();
@@ -29,19 +31,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
       .eq('tenant_id', tenantId)
       .maybeSingle();
 
-    // 3. Create the message record
+    // 3. Resolve template body variables for exact inbox display
+    const rawContent = template?.content || `[Template: ${templateName}]`;
+    const resolvedContent = renderTemplateBody(rawContent, variables, {
+      name: contact.name,
+      phone: contact.phone_number
+    });
+
+    // 4. Create the message record with the rendered content
     const { data: msg, error } = await db.from('messages').insert({
       tenant_id: tenantId,
       contact_id: contactId,
       phone_number: contact.phone_number,
       direction: 'outbound',
-      content: template?.content || `[Template: ${templateName}]`,
+      content: resolvedContent,
+      message_type: 'template',
+      variables: Array.isArray(variables) ? variables : (variables ? Object.values(variables) : []),
       status: 'pending'
     }).select().single();
 
     if (error) throw error;
 
-    // 4. Queue the job
+    // 5. Format parameters for Meta WhatsApp payload
+    const paramList: string[] = Array.isArray(variables)
+      ? variables
+      : (variables && typeof variables === 'object' ? Object.values(variables) : []);
+    const metaParams = paramList.map(v => ({ type: 'text', text: String(v) }));
+    const components = metaParams.length > 0 ? [{ type: 'body', parameters: metaParams }] : [];
+
+    // 6. Queue the job
     console.log(`[Queue] Adding template message job to Redis for contact ${contactId}...`);
     await messageQueue.add('send-whatsapp', {
       messageId: msg.id,
@@ -49,7 +67,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
       templateId: templateName,
       templateLanguage: language || 'en_US',
       isDirectText: false,
-      components: [] // Simple templates for now, can be extended later for params
+      components,
+      params: metaParams
     });
 
     return NextResponse.json({ success: true, message: msg });
@@ -58,3 +77,4 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

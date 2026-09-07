@@ -25,6 +25,7 @@ const db = _dbAdmin;
 import { decrypt } from './src/lib/encryption';
 import { messageQueue, campaignQueue, deadLetterQueue } from './src/lib/queue';
 import { checkLimit, incrementUsage } from './src/lib/limits';
+import { renderTemplateBody } from './src/lib/templates';
 
 // Helper to record billing transactions for outbound templates
 async function recordBillingIfNecessary(
@@ -492,13 +493,11 @@ cron.schedule('* * * * *', async () => {
 
       // Update messages with rendered content for Inbox display
       for (const contact of validContacts as any[]) {
-        let content = campaign.templates?.content || '';
-        if (content.includes('{{name}}')) {
-          content = content.replace(/{{name}}/g, contact.name || 'Customer');
-        }
+        const rawContent = campaign.templates?.content || '';
+        const resolved = renderTemplateBody(rawContent, [], { name: contact.name, phone: contact.phone_number });
         const msgRecord = insertedMsgs.find((im: any) => im.phone_number === contact.phone_number);
         if (msgRecord) {
-          await db.from('messages').update({ content }).eq('id', msgRecord.id);
+          await db.from('messages').update({ content: resolved }).eq('id', msgRecord.id);
         }
       }
 
@@ -519,7 +518,7 @@ cron.schedule('* * * * *', async () => {
 // 2.5. Campaign Processing Worker (Processes bulk campaign pipelines)
 // ---------------------------------------------------------
 const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
-  const { tenantId, campaignId, groupIds, contactIds, directData } = job.data;
+  const { tenantId, campaignId, groupIds, contactIds, directData, templateVariables } = job.data;
   console.log(`[Campaign Worker] Processing campaign ${campaignId} for tenant ${tenantId}...`);
 
   // 1. Get Campaign and Template
@@ -534,45 +533,82 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
     return;
   }
 
-  let messagesToInsert: any[] = [];
+  // Deduplication map by normalized phone number
+  const recipientsByPhone = new Map<string, {
+    contactId?: string;
+    phone: string;
+    variables: any[];
+  }>();
 
+  // Helper to resolve template variables for a contact
+  const resolveContactVariables = (contact: any): string[] => {
+    if (!templateVariables || typeof templateVariables !== 'object') return [];
+    const sortedKeys = Object.keys(templateVariables).sort((a, b) => Number(a) - Number(b));
+    return sortedKeys.map((key) => {
+      let val = String(templateVariables[key] || '');
+      val = val.replace(/\{\{name\}\}/gi, contact.name || contact.first_name || 'Customer');
+      val = val.replace(/\{\{phone\}\}/gi, contact.phone_number || '');
+      return val;
+    });
+  };
+
+  // A. Process Contacts and Groups
+  let targetContactIds = new Set<string>(contactIds || []);
+  if (groupIds && groupIds.length > 0) {
+    const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
+    gcData?.forEach((gc: any) => targetContactIds.add(gc.contact_id));
+  }
+
+  const uniqueContactIds = Array.from(targetContactIds);
+  if (uniqueContactIds.length > 0) {
+    const { data: contacts } = await db.from('contacts').select('*').in('id', uniqueContactIds).eq('tenant_id', tenantId);
+    (contacts || []).forEach((c: any) => {
+      const cleanPhone = String(c.phone_number || '').replace(/\D/g, '');
+      if (cleanPhone.length >= 7) {
+        recipientsByPhone.set(cleanPhone, {
+          contactId: c.id,
+          phone: cleanPhone,
+          variables: resolveContactVariables(c),
+        });
+      }
+    });
+  }
+
+  // B. Process Direct Excel/CSV Data (if present)
   if (directData && Array.isArray(directData)) {
-    // A. Direct Excel/CSV Data mode
-    messagesToInsert = directData.map((row: any) => ({
+    directData.forEach((row: any) => {
+      const cleanPhone = String(row.phone || '').replace(/\D/g, '');
+      if (cleanPhone.length >= 7 && !recipientsByPhone.has(cleanPhone)) {
+        // If row already has variables from spreadsheet columns, use them; otherwise resolve from templateVariables
+        let rowVars = row.variables || [];
+        if ((!rowVars || rowVars.length === 0) && templateVariables) {
+          const fakeContact = { name: row.name || 'Customer', phone_number: cleanPhone };
+          rowVars = resolveContactVariables(fakeContact);
+        }
+        recipientsByPhone.set(cleanPhone, {
+          phone: cleanPhone,
+          variables: rowVars,
+        });
+      }
+    });
+  }
+
+  const templateRawContent = (campaign.templates as any)?.content || '[Template Message]';
+
+  const messagesToInsert: any[] = Array.from(recipientsByPhone.values()).map((r) => {
+    const resolvedContent = renderTemplateBody(templateRawContent, r.variables);
+    return {
       tenant_id: tenantId,
       campaign_id: campaignId,
-      phone_number: String(row.phone || '').replace(/\D/g, ''),
-      variables: row.variables || [],
+      contact_id: r.contactId || null,
+      phone_number: r.phone,
+      variables: r.variables || [],
       status: 'pending',
       direction: 'outbound',
-      content: (campaign.templates as any).content || '[Template Message]',
-      message_type: 'template'
-    }));
-  } else {
-    // B. Group/Contact mode
-    let targetContactIds = new Set<string>(contactIds || []);
-    if (groupIds && groupIds.length > 0) {
-      const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
-      gcData?.forEach((gc: any) => targetContactIds.add(gc.contact_id));
-    }
-
-    const uniqueContactIds = Array.from(targetContactIds);
-    if (uniqueContactIds.length > 0) {
-      const { data: contacts } = await db.from('contacts').select('*').in('id', uniqueContactIds).eq('tenant_id', tenantId);
-      
-      messagesToInsert = (contacts || []).map((c: any) => ({
-        tenant_id: tenantId,
-        campaign_id: campaignId,
-        contact_id: c.id,
-        phone_number: c.phone_number,
-        variables: [],
-        status: 'pending',
-        direction: 'outbound',
-        content: (campaign.templates as any).content || '[Template Message]',
-        message_type: 'template'
-      }));
-    }
-  }
+      content: resolvedContent,
+      message_type: 'template',
+    };
+  });
 
   if (messagesToInsert.length === 0) {
     console.warn(`[Campaign Worker] Campaign ${campaignId} has no target contacts.`);

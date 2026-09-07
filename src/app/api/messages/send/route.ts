@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { messageQueue } from '@/lib/queue';
 import { checkLimit, incrementUsage } from '@/lib/limits';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { renderTemplateBody } from '@/lib/templates';
 
 type SendMessagesBody = {
   contactIds?: unknown;
@@ -87,7 +88,7 @@ export async function POST(req: Request) {
       contact_id: contact.id,
       phone_number: contact.phone_number,
       status: 'pending',
-      content: template.content,
+      content: renderTemplateBody(template.content, contactVars[contact.id] || []),
       direction: 'outbound',
       message_type: 'template',
       variables: contactVars[contact.id] || [],

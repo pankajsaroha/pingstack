@@ -10,59 +10,73 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
-  try {
-    let payload = {};
+  const handlePush = async () => {
     try {
-      payload = event.data.json();
-    } catch {
-      payload = { title: 'PingStack Notification', body: event.data.text() };
-    }
-
-    const title = payload.title || 'New WhatsApp message';
-    const options = {
-      body: payload.body || 'You received a new message.',
-      icon: payload.icon || '/icons/icon-192x192.png',
-      badge: payload.badge || '/icons/icon-192x192.png',
-      tag: payload.tag || 'whatsapp-message',
-      renotify: true,
-      data: {
-        url: payload.url || '/inbox',
-        contactId: payload.contactId,
-        tenantId: payload.tenantId,
-        timestamp: payload.timestamp || Date.now(),
-      },
-    };
-
-    // Update app icon badge if Badging API is supported and unreadConversationCount is present
-    if (typeof payload.unreadConversationCount === 'number') {
+      let payload = {};
       try {
-        if (payload.unreadConversationCount > 0) {
-          if ('setAppBadge' in self.navigator && typeof self.navigator.setAppBadge === 'function') {
-            self.navigator.setAppBadge(payload.unreadConversationCount).catch(() => null);
-          }
-        } else {
-          if ('clearAppBadge' in self.navigator && typeof self.navigator.clearAppBadge === 'function') {
-            self.navigator.clearAppBadge().catch(() => null);
-          }
-        }
+        payload = event.data.json();
       } catch {
-        // Badging API unsupported - safely ignore
+        payload = { title: 'PingStack Notification', body: event.data.text() };
       }
-    }
 
-    event.waitUntil(
-      self.registration.showNotification(title, options).catch((err) => {
-        console.error('[SW] showNotification failed with options:', err);
-        // Fallback with minimal options if complex options failed
-        return self.registration.showNotification(title, {
+      // 1. Update app icon badge if Badging API is supported and unreadConversationCount is present
+      if (typeof payload.unreadConversationCount === 'number') {
+        try {
+          if (payload.unreadConversationCount > 0) {
+            if ('setAppBadge' in self.navigator && typeof self.navigator.setAppBadge === 'function') {
+              await self.navigator.setAppBadge(payload.unreadConversationCount).catch(() => null);
+            }
+          } else {
+            if ('clearAppBadge' in self.navigator && typeof self.navigator.clearAppBadge === 'function') {
+              await self.navigator.clearAppBadge().catch(() => null);
+            }
+          }
+        } catch {
+          // Badging API unsupported - safely ignore
+        }
+      }
+
+      // 2. Check if any window client on this device is currently foreground AND focused
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const isAppFocused = clientList.some((client) => client.focused && client.visibilityState === 'visible');
+
+      // If user is actively in the foreground and focused on this device, suppress the OS notification banner
+      if (isAppFocused) {
+        console.log('[Service Worker] App is foreground and focused. Suppressing OS notification banner.');
+        return;
+      }
+
+      // 3. Otherwise (backgrounded, in app switcher/recent apps, or app closed), display OS push notification
+      const title = payload.title || 'New WhatsApp message';
+      const options = {
+        body: payload.body || 'You received a new message.',
+        icon: payload.icon || '/icons/icon-192x192.png',
+        badge: payload.badge || '/icons/icon-192x192.png',
+        tag: payload.tag || 'whatsapp-message',
+        renotify: true,
+        data: {
+          url: payload.url || '/inbox',
+          contactId: payload.contactId,
+          tenantId: payload.tenantId,
+          timestamp: payload.timestamp || Date.now(),
+        },
+      };
+
+      try {
+        await self.registration.showNotification(title, options);
+      } catch (err) {
+        console.error('[SW] showNotification failed with options, falling back to minimal options:', err);
+        await self.registration.showNotification(title, {
           body: payload.body || 'You received a new message.',
           icon: '/icons/icon-192x192.png',
         });
-      })
-    );
-  } catch (err) {
-    console.error('[Service Worker] Push event handler error:', err);
-  }
+      }
+    } catch (err) {
+      console.error('[Service Worker] Push event handler error:', err);
+    }
+  };
+
+  event.waitUntil(handlePush());
 });
 
 self.addEventListener('notificationclick', (event) => {
