@@ -36,8 +36,8 @@ export async function GET(req: Request) {
     const totalBusinesses = tenants.length;
 
     // Estimated MRR calculation based on pricing tiers
-    // Starter: ₹0, Growth: ₹199/mo, Pro: ₹999/mo
-    const estimatedMrr = growthCount * 199 + proCount * 999;
+    // Starter: ₹0, Growth: ₹199/mo, Pro: ₹499/mo
+    const estimatedMrr = growthCount * 199 + proCount * 499;
     const estimatedArr = estimatedMrr * 12;
 
     const calcPct = (c: number) => (totalBusinesses > 0 ? Number(((c / totalBusinesses) * 100).toFixed(1)) : 0);
@@ -59,10 +59,10 @@ export async function GET(req: Request) {
       },
       {
         plan: 'Pro',
-        price: '₹999 / mo',
+        price: '₹499 / mo',
         count: proCount,
         percentage: calcPct(proCount),
-        monthlyRevenue: proCount * 999,
+        monthlyRevenue: proCount * 499,
       },
     ];
 

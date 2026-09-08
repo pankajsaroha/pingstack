@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { campaignQueue } from '@/lib/queue';
 import { validatePayloadSize, validateCampaignSendPayload } from '@/lib/validation';
 import { logAuditEvent } from '@/lib/audit';
+import { checkTemplateSendLimit } from '@/lib/limits';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -35,6 +36,15 @@ export async function POST(req: Request) {
 
     if (cErr || !campaign) {
       return NextResponse.json({ error: 'Campaign not found or access denied' }, { status: 404 });
+    }
+
+    // 2.1 Daily Template Send Limit Check
+    const canSend = await checkTemplateSendLimit(tenantId, 1);
+    if (!canSend) {
+      return NextResponse.json({ 
+        error: 'Daily template send limit reached for your plan. Please upgrade to Growth for 500 sends/day.',
+        code: 'LIMIT_EXCEEDED'
+      }, { status: 403 });
     }
 
     // 3. Update campaign status to 'running'

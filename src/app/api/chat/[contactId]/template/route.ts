@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { messageQueue } from '@/lib/queue';
 import { renderTemplateBody } from '@/lib/templates';
+import { checkTemplateSendLimit, incrementTemplateSendUsage } from '@/lib/limits';
 
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -15,6 +16,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   if (!templateName) return NextResponse.json({ error: 'Template name required' }, { status: 400 });
 
   try {
+    // 0. Check daily template send limit
+    const canSend = await checkTemplateSendLimit(tenantId, 1);
+    if (!canSend) {
+      return NextResponse.json({
+        error: 'Daily template send limit reached for your plan. Please upgrade to Growth for 500 sends/day.',
+        code: 'LIMIT_EXCEEDED'
+      }, { status: 403 });
+    }
+
     // 1. Get contact info
     const { data: contact } = await db.from('contacts')
       .select('id, name, phone_number')
@@ -70,6 +80,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
       components,
       params: metaParams
     });
+
+    await incrementTemplateSendUsage(tenantId, 1);
 
     return NextResponse.json({ success: true, message: msg });
   } catch (err: any) {

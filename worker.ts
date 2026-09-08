@@ -667,9 +667,12 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
   console.log(`[Campaign Worker] Queuing ${jobs.length} sending jobs into BullMQ...`);
   await messageQueue.addBulk(jobs);
 
+  // Increment tenant daily template send quota by exact count
+  await incrementUsage(tenantId, 'campaigns', jobs.length);
+
   // Update campaign status to 'completed'
   await db.from('campaigns').update({ status: 'completed' }).eq('id', campaignId);
-  console.log(`[Campaign Worker] Campaign ${campaignId} processed successfully!`);
+  console.log(`[Campaign Worker] Campaign ${campaignId} processed successfully! (Queued ${jobs.length} recipients)`);
 
 }, {
   connection: connection as any,
@@ -807,58 +810,117 @@ console.log(`[Config] Redis: ${redisUrl.split('@')[1] || redisUrl}`);
 import { PLANS, PlanType, getActivePlanType } from './src/lib/plans';
 
 // ---------------------------------------------------------
-// 3. Storage TTL Cleanup (Runs Daily)
+// ---------------------------------------------------------
+// 3. Message History & Storage TTL Data Retention Cleanup (Runs Daily at 03:00 UTC)
 // ---------------------------------------------------------
 cron.schedule('0 3 * * *', async () => {
-  console.log('[Cleanup] Starting hourly storage retention check...');
+  const startTime = Date.now();
+  console.log(`[Data Retention] ========================================`);
+  console.log(`[Data Retention] Starting automated message retention cleanup: ${new Date().toISOString()}`);
   
   try {
-    // 1. Get all tenants to check their plan retention
-    const { data: tenants } = await db.from('tenants').select('id, plan_type');
-    if (!tenants) return;
+    // 1. Get all tenants to evaluate their plan-based retention period
+    const { data: tenants, error: tErr } = await db.from('tenants').select('id, name, plan_type');
+    if (tErr) {
+      console.error('[Data Retention] Failed to fetch tenants for cleanup:', tErr);
+      return;
+    }
+    if (!tenants || tenants.length === 0) return;
 
     for (const tenant of tenants) {
-      const plan = PLANS[getActivePlanType(tenant.plan_type)];
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() - plan.mediaRetentionDays);
+      const tenantStartTime = Date.now();
+      const planType = getActivePlanType(tenant.plan_type);
+      const plan = PLANS[planType];
+      const retentionDays = plan.mediaRetentionDays || 30; // 30 days for Starter, 90 days for Growth
 
-      // 2. Find messages with media that are past their TTL
-      const { data: oldMessages } = await db.from('messages')
-        .select('id, media_path, media_size_bytes')
-        .eq('tenant_id', tenant.id)
-        .not('media_path', 'is', null)
-        .lte('created_at', expiryDate.toISOString());
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+      const cutoffIso = cutoffDate.toISOString();
 
-      if (!oldMessages || oldMessages.length === 0) continue;
+      try {
+        // A. Find and delete expired media storage attachments
+        const { data: oldMediaMessages } = await db.from('messages')
+          .select('id, media_path, media_size_bytes')
+          .eq('tenant_id', tenant.id)
+          .not('media_path', 'is', null)
+          .lte('created_at', cutoffIso);
 
-      console.log(`[Cleanup] Purging ${oldMessages.length} expired files for tenant ${tenant.id}`);
-      
-      const pathsToDelete = oldMessages.map((m: any) => m.media_path);
-      const totalFreedBytes = oldMessages.reduce((acc: number, m: any) => acc + (Number(m.media_size_bytes) || 0), 0);
+        let freedBytes = 0;
+        if (oldMediaMessages && oldMediaMessages.length > 0) {
+          const pathsToDelete = oldMediaMessages.map((m: any) => m.media_path).filter(Boolean);
+          freedBytes = oldMediaMessages.reduce((acc: number, m: any) => acc + (Number(m.media_size_bytes) || 0), 0);
 
-      // 3. Delete from Supabase Storage
-      const { error: storageError } = await db.storage.from('chat-media').remove(pathsToDelete);
-      
-      if (!storageError) {
-        // 4. Clear metadata from DB
-        await db.from('messages')
-          .update({ media_path: null, media_url: null, media_size_bytes: null })
-          .in('id', oldMessages.map((m: any) => m.id));
+          if (pathsToDelete.length > 0) {
+            const { error: storageError } = await db.storage.from('chat-media').remove(pathsToDelete);
+            if (storageError) {
+              console.warn(`[Data Retention] Storage media remove warning for tenant ${tenant.id}:`, storageError.message);
+            }
+          }
 
-        // 5. Update tenant storage tally (Decrement)
-        const { data: t } = await db.from('tenants').select('storage_usage_bytes').eq('id', tenant.id).single();
-        const currentUsage = Number(t?.storage_usage_bytes || 0);
-        await db.from('tenants')
-          .update({ storage_usage_bytes: Math.max(0, currentUsage - totalFreedBytes) })
-          .eq('id', tenant.id);
-          
-        console.log(`[Cleanup] Done. Freed ${Math.round(totalFreedBytes / 1024 / 1024)}MB`);
-      } else {
-        console.error(`[Cleanup] Storage deletion failed for tenant ${tenant.id}:`, storageError);
+          // Decrement tenant storage tally
+          if (freedBytes > 0) {
+            const { data: t } = await db.from('tenants').select('storage_usage_bytes').eq('id', tenant.id).single();
+            const currentUsage = Number(t?.storage_usage_bytes || 0);
+            await db.from('tenants')
+              .update({ storage_usage_bytes: Math.max(0, currentUsage - freedBytes) })
+              .eq('id', tenant.id);
+          }
+        }
+
+        // B. Authoritatively delete expired messages from Supabase messages table in batches
+        let totalDeletedMessages = 0;
+        const BATCH_SIZE = 500;
+        let hasMore = true;
+
+        while (hasMore) {
+          // Select chunk of message IDs older than cutoff
+          const { data: expiredChunk, error: fetchErr } = await db.from('messages')
+            .select('id')
+            .eq('tenant_id', tenant.id)
+            .lte('created_at', cutoffIso)
+            .limit(BATCH_SIZE);
+
+          if (fetchErr) {
+            console.error(`[Data Retention] Error fetching expired message chunk for tenant ${tenant.id}:`, fetchErr);
+            break;
+          }
+
+          if (!expiredChunk || expiredChunk.length === 0) {
+            hasMore = false;
+            break;
+          }
+
+          const chunkIds = expiredChunk.map((m: any) => m.id);
+          const { error: delErr } = await db.from('messages')
+            .delete()
+            .in('id', chunkIds)
+            .eq('tenant_id', tenant.id);
+
+          if (delErr) {
+            console.error(`[Data Retention] Batch deletion error for tenant ${tenant.id}:`, delErr);
+            break;
+          }
+
+          totalDeletedMessages += chunkIds.length;
+          if (expiredChunk.length < BATCH_SIZE) {
+            hasMore = false;
+          }
+        }
+
+        const tenantDurationMs = Date.now() - tenantStartTime;
+        if (totalDeletedMessages > 0 || freedBytes > 0) {
+          console.log(`[Data Retention] Tenant ${tenant.id} (${planType.toUpperCase()} - ${retentionDays}d): Deleted ${totalDeletedMessages} expired messages, freed ${Math.round(freedBytes / 1024 / 1024)}MB media in ${tenantDurationMs}ms (Cutoff: ${cutoffIso})`);
+        }
+      } catch (tenantErr: any) {
+        console.error(`[Data Retention] Error processing retention for tenant ${tenant.id}:`, tenantErr.message || tenantErr);
       }
     }
+
+    const totalDuration = Date.now() - startTime;
+    console.log(`[Data Retention] Retention check complete for ${tenants.length} tenants in ${totalDuration}ms.`);
+    console.log(`[Data Retention] ========================================`);
   } catch (err) {
-    console.error('[Cleanup] Fatal Error:', err);
+    console.error('[Data Retention] Fatal Error during scheduled cleanup:', err);
   }
 });
 

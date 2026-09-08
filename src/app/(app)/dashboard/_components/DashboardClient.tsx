@@ -22,6 +22,8 @@ import OnboardingChecklist from './OnboardingChecklist';
 
 const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
 const DeveloperPortal = lazy(() => import('./DeveloperPortal'));
+const AutomationsManager = lazy(() => import('./AutomationsManager'));
+const AdvancedAnalyticsView = lazy(() => import('./AdvancedAnalyticsView'));
 
 interface DashboardClientProps {
   initialTenant: any;
@@ -33,7 +35,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
   const { tenant, setTenant, refreshTenant } = useTenant();
   const [stats, setStats] = useState<any>(initialStats);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'developer'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'automations' | 'analytics' | 'developer'>('overview');
   const [showBillingModal, setShowBillingModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -435,11 +437,11 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       />
 
       {/* Tab selector */}
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800 gap-6">
+      <div className="flex border-b border-zinc-200 dark:border-zinc-800 gap-6 overflow-x-auto custom-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none ${
+          className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none shrink-0 ${
             activeTab === 'overview' 
               ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' 
               : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
@@ -449,8 +451,31 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
         </button>
         <button
           type="button"
+          onClick={() => setActiveTab('automations')}
+          className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none shrink-0 ${
+            activeTab === 'automations' 
+              ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' 
+              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          Automations
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('analytics')}
+          className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none shrink-0 flex items-center gap-1.5 ${
+            activeTab === 'analytics' 
+              ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' 
+              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <span>Advanced Analytics</span>
+          <span className="px-1.5 py-0.2 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 rounded text-[8px] font-black uppercase">PRO</span>
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab('developer')}
-          className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none ${
+          className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none shrink-0 ${
             activeTab === 'developer' 
               ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' 
               : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
@@ -552,6 +577,34 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
             </p>
           </div>
         </div>
+      )}
+
+      {/* ── Automations Tab ─────────────────────────────────────────── */}
+      {activeTab === 'automations' && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-16 opacity-40">
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+          </div>
+        }>
+          <AutomationsManager
+            tenant={tenant}
+            onToast={fireToast}
+          />
+        </Suspense>
+      )}
+
+      {/* ── Advanced Analytics Tab ───────────────────────────────────── */}
+      {activeTab === 'analytics' && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-16 opacity-40">
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+          </div>
+        }>
+          <AdvancedAnalyticsView
+            tenant={tenant}
+            onToast={fireToast}
+          />
+        </Suspense>
       )}
 
       {/* ── Developer Tab ─────────────────────────────────────────────── */}

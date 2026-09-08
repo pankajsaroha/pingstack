@@ -93,14 +93,7 @@ export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts
 
   // Basic plan check
   if (planType === 'starter') {
-    // Starter trial check: 15 days trial from created_at if subscription is not active
-    if (subStatus !== 'active') {
-      const createdAt = (tenant as any)?.created_at ? new Date((tenant as any).created_at) : new Date();
-      const trialExpiry = new Date(createdAt.getTime() + 15 * 24 * 60 * 60 * 1000);
-      if (new Date() > trialExpiry) {
-        return false; // Trial has ended
-      }
-    }
+    // Starter plan is 100% Free during Early Access - no 15-day trial block
   } else {
     // For paid plans, check subscription status
     const isValidStatus = ['active', 'authenticated', 'cancelled'].includes(subStatus || 'active');
@@ -115,7 +108,8 @@ export async function checkLimit(tenantId: string, type: 'campaigns' | 'contacts
   const plan = PLANS[planType as PlanType] || PLANS.starter;
 
   if (type === 'campaigns') {
-    if (campaignsSentToday >= plan.maxCampaignsPerDay) {
+    const dailyLimit = plan.templateSendsPerDay || plan.maxCampaignsPerDay || 100;
+    if (campaignsSentToday >= dailyLimit) {
       return false;
     }
   }
@@ -159,23 +153,137 @@ export async function getContactQuota(tenantId: string) {
   };
 }
 
-export async function incrementUsage(tenantId: string, type: 'campaigns') {
-  if (type === 'campaigns') {
-    try {
-      if (!db) return;
-      const { data: tenant } = await db
-        .from('tenants')
-        .select('campaigns_sent_today')
-        .eq('id', tenantId)
-        .single();
+export async function getTemplateQuota(tenantId: string) {
+  if (!db) return { maxTemplates: 10, currentCount: 0, remainingQuota: 10, planType: 'starter' };
 
-      if (tenant && (tenant as any).campaigns_sent_today !== undefined) {
-        await db.from('tenants').update({ 
-          campaigns_sent_today: ((tenant as any).campaigns_sent_today || 0) + 1 
-        }).eq('id', tenantId);
-      }
-    } catch (e) {
-      console.warn('Could not increment usage - columns may be missing');
+  let { data: tenant } = await db.from('tenants').select('plan_type').eq('id', tenantId).single();
+  const planType = (tenant as any)?.plan_type || 'starter';
+  const plan = PLANS[planType as PlanType] || PLANS.starter;
+
+  const { count } = await db
+    .from('templates')
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId);
+
+  const currentCount = count || 0;
+  const maxTemplates = plan.maxSavedTemplates;
+  const remainingQuota = Math.max(0, maxTemplates - currentCount);
+
+  return {
+    planType,
+    maxTemplates,
+    currentCount,
+    remainingQuota
+  };
+}
+
+export async function checkTemplateLimit(tenantId: string) {
+  const quota = await getTemplateQuota(tenantId);
+  return quota.remainingQuota > 0;
+}
+
+export async function checkTemplateSendLimit(tenantId: string, count: number = 1) {
+  if (!db) return true;
+  let { data: tenant, error } = await db
+    .from('tenants')
+    .select('*')
+    .eq('id', tenantId)
+    .single();
+
+  if (error || !tenant) return true;
+
+  tenant = await ensureFreshLimits(tenantId, tenant);
+  const planType = (tenant as any)?.plan_type || 'starter';
+  const plan = PLANS[planType as PlanType] || PLANS.starter;
+  const campaignsSentToday = (tenant as any)?.campaigns_sent_today || 0;
+  const dailyLimit = plan.templateSendsPerDay || plan.maxCampaignsPerDay || 100;
+
+  return (campaignsSentToday + count) <= dailyLimit;
+}
+
+export async function incrementTemplateSendUsage(tenantId: string, count: number = 1) {
+  if (!db || count <= 0) return;
+  try {
+    const { data: tenant } = await db
+      .from('tenants')
+      .select('campaigns_sent_today')
+      .eq('id', tenantId)
+      .single();
+
+    if (tenant && (tenant as any).campaigns_sent_today !== undefined) {
+      await db.from('tenants').update({ 
+        campaigns_sent_today: ((tenant as any).campaigns_sent_today || 0) + count 
+      }).eq('id', tenantId);
     }
+  } catch (e) {
+    console.warn('Could not increment template send usage:', e);
+  }
+}
+
+export async function getAutomationQuota(tenantId: string) {
+  if (!db) return { maxRules: 0, currentCount: 0, remainingQuota: 0, planType: 'starter', isAdvanced: false };
+
+  let { data: tenant } = await db.from('tenants').select('plan_type').eq('id', tenantId).single();
+  const planType = (tenant as any)?.plan_type || 'starter';
+  const plan = PLANS[planType as PlanType] || PLANS.starter;
+
+  let currentCount = 0;
+  try {
+    const { count } = await db
+      .from('automation_rules')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    currentCount = count || 0;
+  } catch (e) {
+    // If table doesn't exist yet, fallback to 0
+    currentCount = 0;
+  }
+
+  const maxRules = plan.maxAutomationRules || 0;
+  const remainingQuota = maxRules === Infinity ? Infinity : Math.max(0, maxRules - currentCount);
+
+  return {
+    planType,
+    maxRules,
+    currentCount,
+    remainingQuota,
+    isAdvanced: planType === 'pro'
+  };
+}
+
+export async function checkAutomationLimit(tenantId: string) {
+  const quota = await getAutomationQuota(tenantId);
+  return quota.remainingQuota > 0;
+}
+
+export async function isFeatureAllowed(
+  tenantId: string, 
+  feature: 'scheduled_campaigns' | 'csv_export' | 'pause_resume' | 'custom_fields' | 'automation' | 'advanced_automation' | 'advanced_analytics'
+): Promise<boolean> {
+  if (!db) return true;
+  const { data: tenant } = await db.from('tenants').select('plan_type, subscription_status').eq('id', tenantId).single();
+  const planType = (tenant as any)?.plan_type || 'starter';
+
+  if (feature === 'scheduled_campaigns' || feature === 'csv_export' || feature === 'pause_resume') {
+    return planType === 'growth' || planType === 'pro';
+  }
+  if (feature === 'custom_fields') {
+    return planType === 'growth' || planType === 'pro';
+  }
+  if (feature === 'automation') {
+    return planType === 'growth' || planType === 'pro';
+  }
+  if (feature === 'advanced_automation') {
+    return planType === 'pro';
+  }
+  if (feature === 'advanced_analytics') {
+    return planType === 'pro';
+  }
+  return true;
+}
+
+export async function incrementUsage(tenantId: string, type: 'campaigns', count: number = 1) {
+  if (type === 'campaigns') {
+    await incrementTemplateSendUsage(tenantId, count);
   }
 }

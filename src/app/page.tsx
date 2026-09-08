@@ -495,8 +495,9 @@ export default function Home() {
                 <p className="text-xs text-muted font-medium mb-6">
                   For businesses ready to automate and integrate WhatsApp.
                 </p>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-3xl font-black text-fg tracking-tight">₹999</span>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-lg text-muted/60 line-through font-bold">₹999</span>
+                  <span className="text-3xl font-black text-fg tracking-tight">₹499</span>
                   <span className="text-xs text-muted font-bold">/ month</span>
                 </div>
                 <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-6">

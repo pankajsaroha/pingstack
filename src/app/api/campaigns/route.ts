@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { connection } from '@/lib/queue';
 import { generatePublicId } from '@/lib/utils';
+import { isFeatureAllowed } from '@/lib/limits';
 
 const PAGE_SIZE = 50;
 const CACHE_TTL = 60; // seconds
@@ -128,6 +129,16 @@ export async function POST(req: Request) {
 
   const { name, template_id, scheduled_at } = await req.json() as CreateCampaignBody;
   if (!name || !template_id) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+
+  if (scheduled_at) {
+    const allowed = await isFeatureAllowed(tenantId, 'scheduled_campaigns');
+    if (!allowed) {
+      return NextResponse.json({
+        error: 'Campaign scheduling is a Growth feature. Please upgrade to Growth to schedule campaigns in advance.',
+        code: 'FEATURE_GATED'
+      }, { status: 403 });
+    }
+  }
 
   const publicId = generatePublicId('c');
   const { data, error } = await db.from('campaigns')
