@@ -70,6 +70,7 @@ export async function POST(req: Request) {
           sendInboundMessagePushNotification({
             tenantId: tenant.id,
             contactId,
+            messageId: payload.id,
             senderName: payload.sender?.name || fromPhone,
             senderPhone: fromPhone,
             messageText: textContext,

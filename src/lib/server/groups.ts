@@ -35,18 +35,25 @@ async function fetchGroupsServer(tenantId: string): Promise<Group[]> {
   }
 
   try {
-    const { data, error } = await db
-      .from('groups')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false });
+    const [groupsRes, groupContactsRes] = await Promise.all([
+      db.from('groups').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+      db.from('group_contacts').select('group_id').eq('tenant_id', tenantId)
+    ]);
 
-    if (error) {
-      console.error('[getGroupsServer] query failed:', error);
+    if (groupsRes.error) {
+      console.error('[getGroupsServer] query failed:', groupsRes.error);
       return [];
     }
 
-    const result = data || [];
+    const countMap = new Map<string, number>();
+    (groupContactsRes.data || []).forEach((gc: any) => {
+      countMap.set(gc.group_id, (countMap.get(gc.group_id) || 0) + 1);
+    });
+
+    const result = (groupsRes.data || []).map((g: any) => ({
+      ...g,
+      contacts_count: countMap.get(g.id) || 0
+    }));
 
     // 2. Write to Redis Cache
     if (connection && connection.status === 'ready') {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { invalidateGroupsCache } from '@/lib/server/groups';
 
 export async function GET(
   req: Request,
@@ -58,6 +59,8 @@ export async function DELETE(
       .eq('tenant_id', tenantId);
 
     if (error) throw error;
+
+    await invalidateGroupsCache(tenantId);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

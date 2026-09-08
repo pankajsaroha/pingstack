@@ -9,9 +9,10 @@ interface GroupDetailModalProps {
   group: any;
   onClose: () => void;
   onToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  onUpdated?: () => void;
 }
 
-export default function GroupDetailModal({ group, onClose, onToast }: GroupDetailModalProps) {
+export default function GroupDetailModal({ group, onClose, onToast, onUpdated }: GroupDetailModalProps) {
   const [groupContacts, setGroupContacts] = useState<any[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
@@ -60,6 +61,7 @@ export default function GroupDetailModal({ group, onClose, onToast }: GroupDetai
         setGroupContacts((prev) => prev.filter((c) => !idsToRemove.includes(c.id)));
         setSelectedMemberIds(new Set());
         onToast(`${idsToRemove.length} contact(s) removed`, 'success');
+        onUpdated?.();
       }
     } catch (e) {
       onToast('Failed to remove contacts', 'error');
@@ -76,6 +78,7 @@ export default function GroupDetailModal({ group, onClose, onToast }: GroupDetai
     });
     if (res.ok) {
       fetchGroupContacts(group.id);
+      onUpdated?.();
     } else {
       const data = await res.json();
       onToast(data.error || 'Failed to add contacts', 'error');

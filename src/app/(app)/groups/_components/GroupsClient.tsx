@@ -309,6 +309,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
               await fetchGroups();
             }}
             onToast={fireToast}
+            onUpdated={fetchGroups}
           />
         </Suspense>
       )}

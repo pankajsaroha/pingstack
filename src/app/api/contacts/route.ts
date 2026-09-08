@@ -261,6 +261,8 @@ export async function DELETE(req: Request) {
     }
 
     await invalidateContactsCache(tenantId);
+    const { invalidateGroupsCache } = require('@/lib/server/groups');
+    await invalidateGroupsCache(tenantId);
 
     await logAuditEvent({
       tenantId,

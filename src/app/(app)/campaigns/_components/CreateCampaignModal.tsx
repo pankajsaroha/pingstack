@@ -164,46 +164,44 @@ export default function CreateCampaignModal({
     setPreviewIndex(0);
   }, [varsDetected]);
 
-  // Fetch contacts for selected groups to ensure all group members are resolved into rows
+  // Fetch contacts for selected groups in a single batch operation
   const [groupContactsMap, setGroupContactsMap] = useState<Record<string, any[]>>({});
   const [loadingGroupContacts, setLoadingGroupContacts] = useState(false);
+  const fetchedGroupIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const missingGroupIds = selectedGroupIds.filter((gid) => !groupContactsMap[gid]);
+    const missingGroupIds = selectedGroupIds.filter((gid) => !fetchedGroupIdsRef.current.has(gid));
     if (missingGroupIds.length === 0) return;
+
+    missingGroupIds.forEach((gid) => fetchedGroupIdsRef.current.add(gid));
 
     let isMounted = true;
     setLoadingGroupContacts(true);
 
-    Promise.all(
-      missingGroupIds.map(async (gid) => {
-        try {
-          const res = await fetch(`/api/groups/${gid}/contacts`);
-          if (res.ok) {
-            const data = await res.json();
-            return { gid, contacts: Array.isArray(data) ? data : [] };
+    const fetchBatchGroups = async () => {
+      try {
+        const res = await fetch(`/api/groups/contacts?groupIds=${encodeURIComponent(missingGroupIds.join(','))}`);
+        if (res.ok) {
+          const batchMap = await res.json();
+          if (isMounted && batchMap) {
+            setGroupContactsMap((prev) => ({ ...prev, ...batchMap }));
           }
-        } catch (e) {
-          console.error(`Failed to fetch contacts for group ${gid}:`, e);
         }
-        return { gid, contacts: [] };
-      })
-    ).then((results) => {
-      if (!isMounted) return;
-      setGroupContactsMap((prev) => {
-        const next = { ...prev };
-        results.forEach(({ gid, contacts }) => {
-          next[gid] = contacts;
-        });
-        return next;
-      });
-      setLoadingGroupContacts(false);
-    });
+      } catch (e) {
+        console.error('Failed to batch-fetch group contacts:', e);
+      } finally {
+        if (isMounted) {
+          setLoadingGroupContacts(false);
+        }
+      }
+    };
+
+    fetchBatchGroups();
 
     return () => {
       isMounted = false;
     };
-  }, [selectedGroupIds, groupContactsMap]);
+  }, [selectedGroupIds]);
 
   // Auto-map Excel columns when file is parsed or template changes
   useEffect(() => {
@@ -1261,10 +1259,23 @@ export default function CreateCampaignModal({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                          {resolvedContactsList.length === 0 ? (
+                          {loadingGroupContacts ? (
                             <tr>
-                              <td colSpan={varsDetected.length + 2} className="p-4 text-center text-muted">
-                                Select groups or contacts above to populate recipient phone numbers.
+                              <td colSpan={varsDetected.length + 2} className="py-8 px-4 text-center">
+                                <div className="flex flex-col items-center justify-center space-y-2">
+                                  <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                                  <span className="text-xs font-medium text-fg/70">
+                                    Loading recipients from selected group...
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : resolvedContactsList.length === 0 ? (
+                            <tr>
+                              <td colSpan={varsDetected.length + 2} className="py-6 px-4 text-center text-muted text-xs">
+                                {selectedGroupIds.length > 0 || selectedContactIds.length > 0
+                                  ? 'No contacts found in the selected group(s).'
+                                  : 'Select groups or contacts above to populate recipient phone numbers.'}
                               </td>
                             </tr>
                           ) : (
