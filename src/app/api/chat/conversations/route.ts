@@ -18,25 +18,38 @@ export async function GET(req: Request) {
     
     // Filter out messages that have no associated contact_id (due to deleted contacts)
     const latestMessages = (latestMessagesRes.data || []).filter(m => m.contact_id !== null && m.contact_id !== undefined);
-    const activeContactIds = Array.from(new Set(latestMessages.map(m => m.contact_id).filter(Boolean)));
+    const candidateContactIds = Array.from(new Set(latestMessages.map(m => m.contact_id).filter(Boolean)));
 
-    const [contactsRes, unreadCountsRes] = await Promise.all([
-      activeContactIds.length > 0
-        ? db.from('contacts').select('*').in('id', activeContactIds).eq('tenant_id', tenantId)
+    const [contactsRes, unreadCountsRes, activeInteractionsRes] = await Promise.all([
+      candidateContactIds.length > 0
+        ? db.from('contacts').select('*').in('id', candidateContactIds).eq('tenant_id', tenantId)
         : Promise.resolve({ data: [], error: null }),
-      db.from('unread_counts_view').select('*').eq('tenant_id', tenantId)
+      db.from('unread_counts_view').select('*').eq('tenant_id', tenantId),
+      candidateContactIds.length > 0
+        ? db.from('messages')
+            .select('contact_id')
+            .in('contact_id', candidateContactIds)
+            .eq('tenant_id', tenantId)
+            .or('direction.eq.inbound,campaign_id.is.null')
+        : Promise.resolve({ data: [], error: null })
     ]);
 
     if (contactsRes.error) return NextResponse.json({ error: contactsRes.error.message }, { status: 500 });
 
     const contacts = contactsRes.data || [];
     const unreadCounts = unreadCountsRes.data || [];
+    const activeContactIds = new Set<string>(
+      (activeInteractionsRes.data || []).map((m: any) => m.contact_id)
+    );
+
+    // Keep active conversations: contact replied (inbound) or received direct 1:1 message
+    const visibleMessages = latestMessages.filter((m: any) => activeContactIds.has(m.contact_id));
 
     // Map contacts, latest messages and unread counts for fast O(1) lookup
     const contactMap = new Map<string, any>(contacts.map(c => [c.id, c]));
     const unreadCountMap = new Map<string, number>(unreadCounts.map(c => [c.contact_id, c.unread_count]));
 
-    const conversations = latestMessages.map((message: any) => {
+    const conversations = visibleMessages.map((message: any) => {
       const contact = contactMap.get(message.contact_id) || {
         id: message.contact_id || 'unknown',
         phone_number: '',

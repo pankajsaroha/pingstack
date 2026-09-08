@@ -128,6 +128,8 @@ export async function POST(req: Request) {
           contact_id: c.id
         }));
         await db.from('group_contacts').upsert(groupContacts, { onConflict: 'group_id,contact_id' });
+        const { invalidateGroupsCache } = require('@/lib/server/groups');
+        await invalidateGroupsCache(tenantId);
       }
     }
 

@@ -1,4 +1,4 @@
-// PingStack Web Push Service Worker v2.1
+// PingStack Web Push Service Worker v2.2
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -16,7 +16,7 @@ self.addEventListener('push', (event) => {
       try {
         payload = event.data.json();
       } catch {
-        payload = { title: 'PingStack Notification', body: event.data.text() };
+        payload = { title: 'PingStack', body: event.data.text() };
       }
 
       // 1. Update app icon badge if Badging API is supported and unreadConversationCount is present
@@ -47,12 +47,12 @@ self.addEventListener('push', (event) => {
       }
 
       // 3. Otherwise (backgrounded, in app switcher/recent apps, or app closed), display OS push notification
-      const title = payload.title || 'New WhatsApp message';
+      const title = payload.title || 'PingStack';
       const options = {
         body: payload.body || 'You received a new message.',
         icon: payload.icon || '/icons/icon-192x192.png',
-        badge: payload.badge || '/icons/icon-192x192.png',
-        tag: payload.tag || 'whatsapp-message',
+        badge: '/icons/icon-192x192.png',
+        tag: payload.tag || ('whatsapp-inbound-' + Date.now()),
         renotify: true,
         data: {
           url: payload.url || '/inbox',

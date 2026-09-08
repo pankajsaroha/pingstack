@@ -329,6 +329,17 @@ const worker = new Worker('message-queue', async (job: Job) => {
       .update({ status: 'sent', provider_message_id: result.messageId })
       .eq('id', messageId);
 
+    console.log(JSON.stringify({
+      event: 'message_dispatch_success',
+      tenantId: message.tenant_id,
+      campaignId: message.campaign_id || null,
+      messageId,
+      phone: maskPhone(phone),
+      providerMessageId: result.messageId,
+      provider,
+      timestamp: new Date().toISOString()
+    }));
+
     // Record billing transaction for outbound template messages
     if (!isDirectText && !isMedia) {
       try {
@@ -344,11 +355,23 @@ const worker = new Worker('message-queue', async (job: Job) => {
       }
     }
   } else {
+    const errorString = String(result.error);
     await db.from('messages')
-      .update({ status: 'failed', error: String(result.error) })
+      .update({ status: 'failed', error: errorString })
       .eq('id', messageId);
 
-    throw new Error(String(result.error));
+    console.error(JSON.stringify({
+      event: 'message_dispatch_failed',
+      tenantId: message.tenant_id,
+      campaignId: message.campaign_id || null,
+      messageId,
+      phone: maskPhone(phone),
+      error: errorString,
+      provider,
+      timestamp: new Date().toISOString()
+    }));
+
+    throw new Error(errorString);
   }
 }, {
   connection: connection as any,

@@ -32,7 +32,10 @@ export async function GET(
         id,
         phone_number,
         status,
+        error,
+        provider_message_id,
         created_at,
+        updated_at,
         direction,
         variables,
         contacts (

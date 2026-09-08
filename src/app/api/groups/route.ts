@@ -15,8 +15,23 @@ export async function GET(req: Request) {
     return limitCheck.response;
   }
 
-  const { data, error } = await db.from('groups').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const [groupsRes, groupContactsRes] = await Promise.all([
+    db.from('groups').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+    db.from('group_contacts').select('group_id').eq('tenant_id', tenantId)
+  ]);
+
+  if (groupsRes.error) return NextResponse.json({ error: groupsRes.error.message }, { status: 500 });
+
+  const countMap = new Map<string, number>();
+  (groupContactsRes.data || []).forEach((gc: any) => {
+    countMap.set(gc.group_id, (countMap.get(gc.group_id) || 0) + 1);
+  });
+
+  const data = (groupsRes.data || []).map((g: any) => ({
+    ...g,
+    contacts_count: countMap.get(g.id) || 0
+  }));
+
   return NextResponse.json(data, {
     headers: { 'Cache-Control': 'public, max-age=15, stale-while-revalidate=45' }
   });

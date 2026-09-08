@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { invalidateGroupsCache } from '@/lib/server/groups';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -17,6 +18,8 @@ export async function POST(req: Request) {
 
   const { error } = await db.from('group_contacts').upsert(payload, { onConflict: 'group_id,contact_id' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await invalidateGroupsCache(tenantId);
 
   return NextResponse.json({ success: true });
 }

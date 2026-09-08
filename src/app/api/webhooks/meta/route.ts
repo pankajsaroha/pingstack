@@ -208,10 +208,11 @@ export async function POST(req: Request) {
                     .eq('id', contactId)
                 ]);
 
-                // Asynchronously dispatch push notification (suppressed if user has any active PingStack tab)
+                // Asynchronously dispatch push notification
                 sendInboundMessagePushNotification({
                   tenantId,
                   contactId,
+                  messageId: msgId,
                   senderName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
                   senderPhone: fromPhone,
                   messageText: textContext,
