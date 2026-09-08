@@ -19,6 +19,7 @@ import PerformanceChart from './PerformanceChart';
 import ConnectionManager from './ConnectionManager';
 import BillingModal from './BillingModal';
 import OnboardingChecklist from './OnboardingChecklist';
+import InstallAppCard from './InstallAppCard';
 
 const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
 const DeveloperPortal = lazy(() => import('./DeveloperPortal'));
@@ -550,6 +551,9 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
               />
             </div>
           )}
+
+          {/* Stay Connected / App & Notifications Card */}
+          <InstallAppCard />
 
           {/* Plan limits + API guidebook */}
           <PlanLimitsCard

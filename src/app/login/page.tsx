@@ -50,11 +50,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden selection:bg-blue-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 sm:p-6 relative overflow-hidden selection:bg-blue-100">
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-100/50 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-100/50 blur-[100px] pointer-events-none" />
       
-      <div className="max-w-md w-full space-y-4 p-8 bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] relative z-50">
+      <div className="max-w-md w-full space-y-4 p-6 sm:p-8 bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] relative z-50">
         <div className="flex flex-col items-center mb-2">
           <div className="bg-black p-2 rounded-xl shadow-lg mb-4 ring-4 ring-gray-50">
             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
