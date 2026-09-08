@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { decrypt } from '@/lib/encryption';
 import { generateVariableExamples } from '@/lib/templates';
 import { invalidateTemplatesCache } from '@/lib/server/templates';
+import { getTemplateQuota } from '@/lib/limits';
 
 type MetaTemplateComponent = {
   type: string;
@@ -272,6 +273,15 @@ export async function POST(req: Request) {
 
     if (!name || !language || !category || !bodyText) {
       return NextResponse.json({ error: 'Missing required fields (name, language, category, bodyText)' }, { status: 400 });
+    }
+
+    // 0. Plan Quota Limit Check
+    const quota = await getTemplateQuota(tenantId);
+    if (quota.remainingQuota <= 0) {
+      return NextResponse.json({
+        error: `Template limit reached (${quota.maxTemplates} templates) for your ${quota.planType.toUpperCase()} plan. Please upgrade to Growth to save up to 50 templates.`,
+        code: 'LIMIT_EXCEEDED'
+      }, { status: 403 });
     }
 
     // 1. Get Meta Credentials

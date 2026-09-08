@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { invalidateTemplatesCache } from '@/lib/server/templates';
+import { getTemplateQuota } from '@/lib/limits';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -70,6 +71,14 @@ export async function POST(req: Request) {
     const { name, template_id, content } = await req.json();
     if (!name || !template_id || !content) {
       return NextResponse.json({ error: 'Missing required fields (name, template_id, content)' }, { status: 400 });
+    }
+
+    const quota = await getTemplateQuota(tenantId);
+    if (quota.remainingQuota <= 0) {
+      return NextResponse.json({
+        error: `Template limit reached (${quota.maxTemplates} templates) for your ${quota.planType.toUpperCase()} plan. Please upgrade to Growth to save up to 50 templates.`,
+        code: 'LIMIT_EXCEEDED'
+      }, { status: 403 });
     }
 
     const { data, error } = await db.from('templates')

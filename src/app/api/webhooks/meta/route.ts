@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import crypto from 'crypto';
 import { sendInboundMessagePushNotification } from '@/lib/server/push-notifications';
+import { evaluateAndExecuteAutomations } from '@/lib/automation';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -215,6 +216,16 @@ export async function POST(req: Request) {
                   senderPhone: fromPhone,
                   messageText: textContext,
                 }).catch((err) => console.error('[Meta Webhook Push Error]:', err));
+
+                // Asynchronously evaluate and execute automation rules
+                evaluateAndExecuteAutomations({
+                  tenantId,
+                  contactId,
+                  fromPhone,
+                  messageText: textContext,
+                  contactName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
+                  isFirstMessage: !existingContact,
+                }).catch((err) => console.error('[Meta Webhook Automation Error]:', err));
               }
             }
           });

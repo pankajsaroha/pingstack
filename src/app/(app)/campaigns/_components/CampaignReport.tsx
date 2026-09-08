@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, Loader2, RotateCcw, AlertCircle } from 'lucide-react';
+import { X, Search, Loader2, RotateCcw, AlertCircle, Download } from 'lucide-react';
 
 interface CampaignReportProps {
   campaign: any;
@@ -20,6 +20,7 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
   const [retrying, setRetrying] = useState(false);
   const [retryNotice, setRetryNotice] = useState<string | null>(null);
   const [activeErrorId, setActiveErrorId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const fetchReportData = async (campaignId: string, page: number, search: string) => {
     setReportLoading(true);
@@ -61,6 +62,49 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
       setRetryNotice(`Retry request failed: ${err.message}`);
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    if (!campaign?.id) return;
+    setExporting(true);
+    setRetryNotice(null);
+    try {
+      const res = await fetch(`/api/campaigns/${campaign.id}/report/export`, {
+        headers: {
+          'x-tenant-id': campaign.tenant_id
+        }
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          setRetryNotice('CSV Export is a Growth feature. Please upgrade to Growth to download reports.');
+        } else {
+          setRetryNotice(`Export failed: ${data.error || 'Server error'}`);
+        }
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = res.headers.get('content-disposition');
+      let filename = `campaign_${campaign.id}_report.csv`;
+      if (disposition && disposition.includes('filename=')) {
+        filename = disposition.split('filename=')[1].replace(/["']/g, '');
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setRetryNotice('Export downloaded successfully.');
+    } catch (err: any) {
+      setRetryNotice(`Export failed: ${err.message}`);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -127,7 +171,16 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
                 Retry Failed ({failedCount})
               </button>
             )}
-            <button className="px-6 py-3 bg-glass-input hover:bg-white/10 border border-glass-border text-fg rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer">
+            <button
+              onClick={handleExportCsv}
+              disabled={exporting}
+              className="flex items-center px-6 py-3 bg-glass-input hover:bg-white/10 border border-glass-border text-fg rounded-2xl text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {exporting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Download className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
+              )}
               Export CSV
             </button>
           </div>

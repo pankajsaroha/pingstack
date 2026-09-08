@@ -314,8 +314,9 @@ export default function WorkspacePricingPage() {
               For businesses ready to automate, collaborate and integrate WhatsApp.
             </p>
 
-            <div className="flex items-baseline gap-1 mb-1">
-              <span className="text-3xl font-bold font-mono text-zinc-900 dark:text-zinc-100 tracking-tight">₹999</span>
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-base text-zinc-400 line-through font-bold">₹999</span>
+              <span className="text-3xl font-bold font-mono text-zinc-900 dark:text-zinc-100 tracking-tight">₹499</span>
               <span className="text-xs text-zinc-500 font-medium">/ month</span>
             </div>
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-6">
