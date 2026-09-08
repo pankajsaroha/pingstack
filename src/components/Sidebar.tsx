@@ -15,6 +15,7 @@ import {
   Building2,
   ArrowUpRight,
   MessageCircleQuestion,
+  Settings,
 } from 'lucide-react';
 import { LogoIcon } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
@@ -166,19 +167,32 @@ export function Sidebar({
           </Link>
         )}
 
-        {/* Help / Tour shortcut button */}
-        {onStartTour && !isCollapsed && (
-          <button
-            type="button"
-            onClick={onStartTour}
-            className="flex items-center justify-between px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/60 hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/60 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+        {/* Settings Navigation Item */}
+        {!isCollapsed && (
+          <Link
+            href="/settings"
+            onClick={() => onItemClick?.('/settings')}
+            className={`flex items-center justify-between px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/60 hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/60 rounded-lg text-xs font-medium ${
+              pathname === '/settings'
+                ? 'bg-zinc-900 dark:bg-zinc-800 text-white font-semibold shadow-xs'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+            } transition-colors cursor-pointer`}
           >
             <span className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-              <span>Workspace Tour</span>
+              <Settings className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+              <span>Settings</span>
             </span>
-            <span className="text-[10px] font-mono text-zinc-400">Guide</span>
-          </button>
+          </Link>
+        )}
+        {isCollapsed && (
+          <Link
+            href="/settings"
+            onClick={() => onItemClick?.('/settings')}
+            title="Settings"
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-900/60 hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+          </Link>
         )}
 
         {/* User / Workspace Identity Card */}
@@ -216,13 +230,19 @@ export function Sidebar({
         {!isCollapsed && (
           <div className="flex items-center justify-between px-1 pt-1 text-[10px] text-zinc-400">
             <Link 
+              href="/install" 
+              onClick={() => onItemClick?.('/install')}
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
+            >
+              Install App &amp; Notifications
+            </Link>
+            <Link 
               href="/privacy" 
               onClick={() => onItemClick?.('/privacy')}
               className="hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
               Privacy Policy
             </Link>
-            <span className="font-mono">v2.4</span>
           </div>
         )}
       </div>

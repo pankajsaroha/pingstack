@@ -65,6 +65,7 @@ interface InboundNotificationParams {
   tenantId: string;
   contactId?: string;
   messageId?: string;
+  whatsappMessageId?: string;
   senderName?: string;
   senderPhone?: string;
   messageText?: string;
@@ -78,6 +79,7 @@ export async function sendInboundMessagePushNotification({
   tenantId,
   contactId,
   messageId,
+  whatsappMessageId,
   senderName,
   senderPhone,
   messageText,
@@ -85,6 +87,7 @@ export async function sendInboundMessagePushNotification({
   if (!tenantId || !db) return;
 
   const timestamp = new Date().toISOString();
+  const effectiveMsgId = messageId || whatsappMessageId;
 
   try {
     // 1. Fetch active subscriptions for this tenant (Database or Redis fallback)
@@ -112,12 +115,16 @@ export async function sendInboundMessagePushNotification({
 
     if (!activeSubs || activeSubs.length === 0) {
       console.log(JSON.stringify({
-        event: 'push_dispatch_decision',
+        event: 'push_notification_decision',
         tenantId,
-        contactId,
-        messageId,
-        decision: 'suppressed',
-        reason: 'no_active_subscriptions',
+        messageId: effectiveMsgId || null,
+        conversationId: contactId || null,
+        whatsappMessageId: whatsappMessageId || effectiveMsgId || null,
+        notificationEligible: true,
+        suppressionReason: 'no_active_subscriptions',
+        pushSubscriptionFound: false,
+        dispatchAttempted: false,
+        dispatchResult: 'suppressed',
         timestamp,
       }));
       return;
@@ -147,7 +154,7 @@ export async function sendInboundMessagePushNotification({
     }
 
     // Use a unique notification tag per message so iOS/Android won't silently collapse or suppress subsequent messages
-    const notifTag = `whatsapp-inbound-${messageId || `${contactId || tenantId}-${Date.now()}`}`;
+    const notifTag = `whatsapp-inbound-${effectiveMsgId || `${contactId || tenantId}-${Date.now()}`}`;
 
     const payload = JSON.stringify({
       type: 'incoming_message',
@@ -158,19 +165,24 @@ export async function sendInboundMessagePushNotification({
       tag: notifTag,
       url: contactId ? `/inbox?contactId=${contactId}` : '/inbox',
       contactId,
-      messageId,
+      messageId: effectiveMsgId,
       tenantId,
       unreadConversationCount,
       timestamp: Date.now(),
     });
 
     console.log(JSON.stringify({
-      event: 'push_dispatch_attempt',
+      event: 'push_notification_decision',
       tenantId,
-      contactId,
-      messageId,
-      tag: notifTag,
+      messageId: effectiveMsgId || null,
+      conversationId: contactId || null,
+      whatsappMessageId: whatsappMessageId || effectiveMsgId || null,
+      notificationEligible: true,
+      suppressionReason: null,
+      pushSubscriptionFound: true,
       subscriptionCount: activeSubs.length,
+      dispatchAttempted: true,
+      dispatchResult: 'in_progress',
       timestamp,
     }));
 
@@ -181,9 +193,14 @@ export async function sendInboundMessagePushNotification({
     await Promise.allSettled(
       activeSubs.map(async (sub) => {
         let endpointHost = 'unknown';
+        let subscriptionEndpointType = 'unknown';
         try {
           const parsed = new URL(sub.endpoint);
           endpointHost = `${parsed.protocol}//${parsed.host}`;
+          if (parsed.host.includes('apple')) subscriptionEndpointType = 'apns_webpush';
+          else if (parsed.host.includes('google') || parsed.host.includes('fcm')) subscriptionEndpointType = 'fcm_webpush';
+          else if (parsed.host.includes('windows')) subscriptionEndpointType = 'wns_webpush';
+          else subscriptionEndpointType = parsed.host;
         } catch {}
 
         try {
@@ -203,12 +220,14 @@ export async function sendInboundMessagePushNotification({
           const apnsId = response.headers ? response.headers['apns-id'] : undefined;
 
           console.log(JSON.stringify({
-            event: 'push_dispatch_success',
+            event: 'push_notification_dispatch',
             tenantId,
-            contactId,
-            messageId,
+            messageId: effectiveMsgId || null,
+            whatsappMessageId: whatsappMessageId || effectiveMsgId || null,
+            subscriptionEndpointType,
             endpointHost,
-            statusCode: response.statusCode,
+            result: 'success',
+            providerStatus: response.statusCode,
             apnsId,
             timestamp: new Date().toISOString(),
           }));
@@ -217,14 +236,16 @@ export async function sendInboundMessagePushNotification({
           const apnsId = err?.headers ? err.headers['apns-id'] : undefined;
 
           console.error(JSON.stringify({
-            event: 'push_dispatch_failure',
+            event: 'push_notification_dispatch',
             tenantId,
-            contactId,
-            messageId,
+            messageId: effectiveMsgId || null,
+            whatsappMessageId: whatsappMessageId || effectiveMsgId || null,
+            subscriptionEndpointType,
             endpointHost,
-            statusCode,
+            result: 'failure',
+            providerStatus: statusCode,
+            providerResponse: err?.message || 'Unknown push error',
             apnsId,
-            error: err?.message || 'Unknown push error',
             timestamp: new Date().toISOString(),
           }));
 

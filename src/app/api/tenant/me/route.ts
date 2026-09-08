@@ -126,10 +126,16 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json();
-    const { timezone } = body;
+    const updatePayload: Record<string, any> = {};
+    if (typeof body.timezone === 'string') updatePayload.timezone = body.timezone;
+    if (typeof body.name === 'string' && body.name.trim()) updatePayload.name = body.name.trim();
+
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
 
     const { data, error } = await db.from('tenants')
-      .update({ timezone })
+      .update(updatePayload)
       .eq('id', tenantId)
       .select()
       .single();

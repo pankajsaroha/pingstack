@@ -110,5 +110,64 @@ export const onboardingArticles: HelpArticle[] = [
       href: '/dashboard'
     },
     relatedArticleIds: ['connect_whatsapp_meta', 'meta_phone_pending']
+  },
+  {
+    id: 'install_pingstack_app',
+    title: 'How to install PingStack on Android, iPhone & Desktop',
+    category: 'onboarding',
+    keywords: [
+      'install pingstack',
+      'install app',
+      'pwa',
+      'home screen',
+      'add to home screen',
+      'android app',
+      'iphone app',
+      'standalone'
+    ],
+    summary: 'Install PingStack as a standalone web app on Android, iOS, or Desktop for a full-screen experience.',
+    explanation: 'PingStack is a Progressive Web App (PWA) that installs directly on your home screen without requiring an app store.',
+    whatHappened: 'You want to use PingStack like a native app on your phone or desktop.',
+    steps: [
+      'On Android: Open Chrome, tap the (⋮) menu, and tap "Install app" or "Add to Home screen".',
+      'On iPhone: Open Safari, tap the Share button, scroll down and tap "Add to Home Screen".',
+      'On Desktop: Click the Install icon on the right side of the address bar in Chrome or Edge.',
+      'Launch PingStack from your home screen or app drawer.'
+    ],
+    action: {
+      label: 'Open Installation Guide',
+      href: '/install'
+    },
+    relatedArticleIds: ['enable_push_notifications', 'what_to_do_after_connecting']
+  },
+  {
+    id: 'enable_push_notifications',
+    title: 'How to enable or fix blocked WhatsApp push notifications',
+    category: 'onboarding',
+    keywords: [
+      'notifications',
+      'push alerts',
+      'enable notifications',
+      'blocked notifications',
+      'sound alerts',
+      'lock screen',
+      'web push',
+      'permission denied'
+    ],
+    summary: 'Receive real-time lock-screen notifications when customers reply or send WhatsApp messages.',
+    explanation: 'Web Push alerts notify you instantly even when your browser or PingStack tab is closed.',
+    whatHappened: 'You want to receive notifications or unblock notifications previously denied in browser settings.',
+    steps: [
+      'Navigate to the "Install App & Alerts" page from the sidebar or settings.',
+      'If notifications are not configured: Click "Enable Notifications" and allow the browser prompt.',
+      'If notifications are blocked on Android: Open Settings > Apps > Chrome/PingStack > Notifications > Turn ON.',
+      'If notifications are blocked on iPhone: Open iOS Settings > Notifications > PingStack/Safari > Allow Notifications.',
+      'Click "Send Test Notification" to verify lock-screen delivery.'
+    ],
+    action: {
+      label: 'Configure Notifications',
+      href: '/install'
+    },
+    relatedArticleIds: ['install_pingstack_app', 'connect_whatsapp_meta']
   }
 ];

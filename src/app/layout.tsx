@@ -1,8 +1,17 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Outfit } from 'next/font/google';
 import './globals.css';
 
 const font = Outfit({ subsets: ['latin'], variable: '--font-outfit', display: 'swap' });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#09090b',
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: 'PingStack | Enterprise WhatsApp Notifications',
@@ -35,8 +44,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#09090b" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/apple-touch-icon.png" />
