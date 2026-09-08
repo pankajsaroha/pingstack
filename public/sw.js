@@ -1,4 +1,4 @@
-// PingStack Web Push Service Worker v2.2
+// PingStack Web Push Service Worker v2.3
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -19,40 +19,13 @@ self.addEventListener('push', (event) => {
         payload = { title: 'PingStack', body: event.data.text() };
       }
 
-      // 1. Update app icon badge if Badging API is supported and unreadConversationCount is present
-      if (typeof payload.unreadConversationCount === 'number') {
-        try {
-          if (payload.unreadConversationCount > 0) {
-            if ('setAppBadge' in self.navigator && typeof self.navigator.setAppBadge === 'function') {
-              await self.navigator.setAppBadge(payload.unreadConversationCount).catch(() => null);
-            }
-          } else {
-            if ('clearAppBadge' in self.navigator && typeof self.navigator.clearAppBadge === 'function') {
-              await self.navigator.clearAppBadge().catch(() => null);
-            }
-          }
-        } catch {
-          // Badging API unsupported - safely ignore
-        }
-      }
-
-      // 2. Check if any window client on this device is currently foreground AND focused
-      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const isAppFocused = clientList.some((client) => client.focused && client.visibilityState === 'visible');
-
-      // If user is actively in the foreground and focused on this device, suppress the OS notification banner
-      if (isAppFocused) {
-        console.log('[Service Worker] App is foreground and focused. Suppressing OS notification banner.');
-        return;
-      }
-
-      // 3. Otherwise (backgrounded, in app switcher/recent apps, or app closed), display OS push notification
       const title = payload.title || 'PingStack';
+      const notifTag = payload.tag || ('whatsapp-inbound-' + (payload.messageId || Date.now()));
       const options = {
         body: payload.body || 'You received a new message.',
         icon: payload.icon || '/icons/icon-192x192.png',
         badge: '/icons/icon-192x192.png',
-        tag: payload.tag || ('whatsapp-inbound-' + Date.now()),
+        tag: notifTag,
         renotify: true,
         data: {
           url: payload.url || '/inbox',
@@ -62,15 +35,35 @@ self.addEventListener('push', (event) => {
         },
       };
 
-      try {
-        await self.registration.showNotification(title, options);
-      } catch (err) {
-        console.error('[SW] showNotification failed with options, falling back to minimal options:', err);
-        await self.registration.showNotification(title, {
-          body: payload.body || 'You received a new message.',
-          icon: '/icons/icon-192x192.png',
-        });
+      const tasks = [];
+
+      // 1. Always display the OS notification banner
+      tasks.push(
+        self.registration.showNotification(title, options).catch(async (err) => {
+          console.error('[SW] showNotification error with full options, retrying fallback:', err);
+          return self.registration.showNotification(title, {
+            body: payload.body || 'You received a new message.',
+            icon: '/icons/icon-192x192.png',
+          });
+        })
+      );
+
+      // 2. Update app icon badge if Badging API is supported
+      if (typeof payload.unreadConversationCount === 'number') {
+        try {
+          if ('setAppBadge' in self.navigator && typeof self.navigator.setAppBadge === 'function') {
+            if (payload.unreadConversationCount > 0) {
+              tasks.push(self.navigator.setAppBadge(payload.unreadConversationCount).catch(() => null));
+            } else {
+              tasks.push(self.navigator.clearAppBadge().catch(() => null));
+            }
+          }
+        } catch {
+          // Badging API unsupported - safely ignore
+        }
       }
+
+      await Promise.all(tasks);
     } catch (err) {
       console.error('[Service Worker] Push event handler error:', err);
     }

@@ -213,6 +213,7 @@ export async function POST(req: Request) {
                   tenantId,
                   contactId,
                   messageId: msgId,
+                  whatsappMessageId: msgId,
                   senderName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
                   senderPhone: fromPhone,
                   messageText: textContext,

@@ -110,24 +110,42 @@ async function runTests() {
   assert(msg3.tag === 'whatsapp-inbound-wamid-003', 'Message 3 tag is distinct ("whatsapp-inbound-wamid-003")');
   assert(msg3.unreadConversationCount === 2, 'Message 3 unreadConversationCount is 2 (for Home Screen badge)');
 
-  // Test 3: Foreground/Background Suppression Logic Simulation
-  console.log('\n--- TEST GROUP 3: Service Worker Foreground / Background Evaluation ---');
+  // Test 3: Service Worker Execution & Display Logic Simulation
+  console.log('\n--- TEST GROUP 3: Service Worker Guaranteed Push Presentation ---');
   
-  const evaluateSwSuppression = (clientList: Array<{ focused: boolean; visibilityState: string }>) => {
-    const isAppFocused = clientList.some((client) => client.focused && client.visibilityState === 'visible');
-    return isAppFocused; // true = suppress OS banner, false = display OS push notification
+  const simulateSwPushExecution = (payload: any) => {
+    const notifTag = payload.tag || ('whatsapp-inbound-' + (payload.messageId || Date.now()));
+    const options = {
+      body: payload.body || 'You received a new message.',
+      icon: payload.icon || '/icons/icon-192x192.png',
+      badge: '/icons/icon-192x192.png',
+      tag: notifTag,
+      renotify: true,
+      data: {
+        url: payload.url || '/inbox',
+        contactId: payload.contactId,
+        tenantId: payload.tenantId,
+        timestamp: payload.timestamp || Date.now(),
+      },
+    };
+
+    return {
+      title: payload.title || 'PingStack',
+      options,
+      hasBadgeTask: typeof payload.unreadConversationCount === 'number',
+      badgeValue: payload.unreadConversationCount,
+    };
   };
 
-  // Case A: App is in background / recent apps / device locked (visibility: hidden, focused: false)
-  const backgroundClients = [{ focused: false, visibilityState: 'hidden' }];
-  assert(evaluateSwSuppression(backgroundClients) === false, 'Backgrounded / locked app does NOT suppress notification');
+  // Case A: Sequential messages all produce notifications
+  const swMsg1 = simulateSwPushExecution(msg1);
+  const swMsg2 = simulateSwPushExecution(msg2);
+  const swMsg3 = simulateSwPushExecution(msg3);
 
-  // Case B: App is closed (no client windows)
-  assert(evaluateSwSuppression([]) === false, 'Closed app does NOT suppress notification');
-
-  // Case C: App is actively foregrounded and focused (user looking at inbox)
-  const foregroundFocusedClients = [{ focused: true, visibilityState: 'visible' }];
-  assert(evaluateSwSuppression(foregroundFocusedClients) === true, 'Actively focused foreground app suppresses OS notification banner');
+  assert(swMsg1.title === 'PingStack' && swMsg1.options.tag === 'whatsapp-inbound-wamid-001', 'SW executes showNotification for Message 1');
+  assert(swMsg2.title === 'PingStack' && swMsg2.options.tag === 'whatsapp-inbound-wamid-002', 'SW executes showNotification for Message 2');
+  assert(swMsg3.title === 'PingStack' && swMsg3.options.tag === 'whatsapp-inbound-wamid-003', 'SW executes showNotification for Message 3');
+  assert(swMsg3.hasBadgeTask === true && swMsg3.badgeValue === 2, 'SW updates badge to 2 in parallel');
 
   console.log('\n=============================================');
   console.log('🎉 ALL PUSH NOTIFICATION TESTS PASSED!');
