@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import crypto from 'crypto';
-import { sendInboundMessagePushNotification } from '@/lib/server/push-notifications';
+import { enqueueInboundMessagePushNotification } from '@/lib/server/push-notifications';
 import { evaluateAndExecuteAutomations } from '@/lib/automation';
 
 export async function GET(req: Request) {
@@ -208,8 +208,8 @@ export async function POST(req: Request) {
                     .eq('id', contactId)
                 ]);
 
-                // Asynchronously dispatch push notification
-                sendInboundMessagePushNotification({
+                // Durably enqueue push notification into Redis background queue (~2ms, non-blocking for Meta)
+                await enqueueInboundMessagePushNotification({
                   tenantId,
                   contactId,
                   messageId: msgId,
@@ -217,9 +217,9 @@ export async function POST(req: Request) {
                   senderName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
                   senderPhone: fromPhone,
                   messageText: textContext,
-                }).catch((err) => console.error('[Meta Webhook Push Error]:', err));
+                }).catch((err) => console.error('[Meta Webhook Push Enqueue Error]:', err));
 
-                // Asynchronously evaluate and execute automation rules
+                // Asynchronously evaluate automations
                 evaluateAndExecuteAutomations({
                   tenantId,
                   contactId,

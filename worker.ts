@@ -23,7 +23,8 @@ import { dbAdmin as _dbAdmin } from './src/lib/db';
 if (!_dbAdmin) throw new Error('Database client (dbAdmin) is not initialized');
 const db = _dbAdmin;
 import { decrypt } from './src/lib/encryption';
-import { messageQueue, campaignQueue, deadLetterQueue } from './src/lib/queue';
+import { messageQueue, campaignQueue, notificationQueue, deadLetterQueue } from './src/lib/queue';
+import { sendInboundMessagePushNotification } from './src/lib/server/push-notifications';
 import { checkLimit, incrementUsage } from './src/lib/limits';
 import { renderTemplateBody } from './src/lib/templates';
 
@@ -713,6 +714,36 @@ campaignWorker.on('failed', async (job: Job | undefined, err: Error) => {
 });
 
 // ---------------------------------------------------------
+// 2.8. Inbound Push Notification Worker (Decoupled Background Dispatch)
+// ---------------------------------------------------------
+const notificationWorker = new Worker('notification-queue', async (job: Job) => {
+  const { tenantId, contactId, messageId, whatsappMessageId, senderName, senderPhone, messageText } = job.data;
+  const effectiveMsgId = messageId || whatsappMessageId;
+  console.log(`[Notification Worker] Processing push job ${job.id} for tenant ${tenantId}, msg=${effectiveMsgId}...`);
+
+  await sendInboundMessagePushNotification({
+    tenantId,
+    contactId,
+    messageId,
+    whatsappMessageId,
+    senderName,
+    senderPhone,
+    messageText,
+  });
+}, {
+  connection: connection as any,
+  concurrency: 10,
+});
+
+notificationWorker.on('completed', (job: Job) => {
+  console.log(`✅ [Notification Worker] Push job ${job.id} dispatched successfully.`);
+});
+
+notificationWorker.on('failed', (job: Job | undefined, err: Error) => {
+  console.error(`❌ [Notification Worker] Push job ${job?.id} failed on attempt ${job?.attemptsMade}:`, err?.message || err);
+});
+
+// ---------------------------------------------------------
 // 3. Startup Routines (Self-Healing & Backfill)
 // ---------------------------------------------------------
 
@@ -961,7 +992,8 @@ async function gracefulShutdown(signal: string) {
     // 1. Close BullMQ workers (waits for active jobs to complete, stops accepting new jobs)
     await Promise.all([
       worker.close(),
-      campaignWorker.close()
+      campaignWorker.close(),
+      notificationWorker.close()
     ]);
     console.log('[Worker Shutdown] BullMQ Workers closed safely.');
 
@@ -969,6 +1001,7 @@ async function gracefulShutdown(signal: string) {
     await Promise.all([
       messageQueue.close(),
       campaignQueue.close(),
+      notificationQueue.close(),
       deadLetterQueue.close()
     ]);
     console.log('[Worker Shutdown] BullMQ Queues closed safely.');

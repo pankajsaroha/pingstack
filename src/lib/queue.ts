@@ -61,6 +61,20 @@ export const campaignQueue = new Queue('campaign-queue', {
   },
 });
 
+// Push Notification Background Queue for durable decoupled dispatch
+export const notificationQueue = new Queue('notification-queue', {
+  connection: connection as any,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 1500, // 1.5s, 3s, 6s exponential retries for transient push network failures
+    },
+    removeOnComplete: 1000,
+    removeOnFail: false,
+  },
+});
+
 // Dead Letter Queue for capturing permanently failed message jobs
 export const deadLetterQueue = new Queue('dead-letter-queue', {
   connection: connection as any,
@@ -79,6 +93,12 @@ messageQueue.on('error', (err) => {
 campaignQueue.on('error', (err) => {
   if (process.env.NODE_ENV === 'production') {
     console.error('[Campaign Queue Error]:', err.message || err);
+  }
+});
+
+notificationQueue.on('error', (err) => {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[Notification Queue Error]:', err.message || err);
   }
 });
 
