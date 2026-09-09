@@ -75,6 +75,20 @@ export const notificationQueue = new Queue('notification-queue', {
   },
 });
 
+// Outbound Developer Webhooks Queue
+export const developerWebhookQueue = new Queue('developer-webhook-queue', {
+  connection: connection as any,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000, // 5s, 15s, 45s exponential retries
+    },
+    removeOnComplete: 1000,
+    removeOnFail: false,
+  },
+});
+
 // Dead Letter Queue for capturing permanently failed message jobs
 export const deadLetterQueue = new Queue('dead-letter-queue', {
   connection: connection as any,

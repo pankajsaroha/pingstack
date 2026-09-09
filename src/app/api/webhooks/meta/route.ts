@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import crypto from 'crypto';
 import { enqueueInboundMessagePushNotification } from '@/lib/server/push-notifications';
 import { evaluateAndExecuteAutomations } from '@/lib/automation';
+import { dispatchDeveloperWebhookEvent } from '@/lib/server/developer-webhooks';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -152,6 +153,15 @@ export async function POST(req: Request) {
             const updateData: any = { status: statusType };
             if (error) updateData.error = error;
 
+            // Asynchronously dispatch developer webhook for delivery status update
+            dispatchDeveloperWebhookEvent(tenantId!, `message.${statusType}`, {
+              provider_message_id: providerMessageId,
+              status: statusType,
+              recipient_id: status.recipient_id,
+              timestamp: status.timestamp,
+              error: error || undefined,
+            }).catch(() => null);
+
             return db!
               .from('messages')
               .update(updateData)
@@ -218,6 +228,16 @@ export async function POST(req: Request) {
                   senderPhone: fromPhone,
                   messageText: textContext,
                 }).catch((err) => console.error('[Meta Webhook Push Enqueue Error]:', err));
+
+                // Asynchronously dispatch developer webhook for inbound message
+                dispatchDeveloperWebhookEvent(tenantId, 'message.received', {
+                  message_id: msgId,
+                  contact_id: contactId,
+                  from: fromPhone,
+                  sender_name: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
+                  text: textContext,
+                  timestamp: new Date().toISOString(),
+                }).catch(() => null);
 
                 // Asynchronously evaluate automations
                 evaluateAndExecuteAutomations({

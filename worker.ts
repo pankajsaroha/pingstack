@@ -23,8 +23,9 @@ import { dbAdmin as _dbAdmin } from './src/lib/db';
 if (!_dbAdmin) throw new Error('Database client (dbAdmin) is not initialized');
 const db = _dbAdmin;
 import { decrypt } from './src/lib/encryption';
-import { messageQueue, campaignQueue, notificationQueue, deadLetterQueue } from './src/lib/queue';
+import { messageQueue, campaignQueue, notificationQueue, developerWebhookQueue, deadLetterQueue } from './src/lib/queue';
 import { sendInboundMessagePushNotification } from './src/lib/server/push-notifications';
+import { deliverDeveloperWebhookJob } from './src/lib/server/developer-webhooks';
 import { checkLimit, incrementUsage } from './src/lib/limits';
 import { renderTemplateBody } from './src/lib/templates';
 
@@ -744,6 +745,25 @@ notificationWorker.on('failed', (job: Job | undefined, err: Error) => {
 });
 
 // ---------------------------------------------------------
+// 2.9. Outbound Developer Webhook Worker (Asynchronous Dispatch)
+// ---------------------------------------------------------
+const developerWebhookWorker = new Worker('developer-webhook-queue', async (job: Job) => {
+  console.log(`[Developer Webhook Worker] Delivering webhook job ${job.id} (event: ${job.data.eventType}, endpoint: ${job.data.endpointId})...`);
+  await deliverDeveloperWebhookJob(job.data);
+}, {
+  connection: connection as any,
+  concurrency: 5,
+});
+
+developerWebhookWorker.on('completed', (job: Job) => {
+  console.log(`✅ [Developer Webhook Worker] Webhook ${job.id} delivered successfully.`);
+});
+
+developerWebhookWorker.on('failed', (job: Job | undefined, err: Error) => {
+  console.error(`❌ [Developer Webhook Worker] Webhook ${job?.id} failed on attempt ${job?.attemptsMade}:`, err?.message || err);
+});
+
+// ---------------------------------------------------------
 // 3. Startup Routines (Self-Healing & Backfill)
 // ---------------------------------------------------------
 
@@ -993,7 +1013,8 @@ async function gracefulShutdown(signal: string) {
     await Promise.all([
       worker.close(),
       campaignWorker.close(),
-      notificationWorker.close()
+      notificationWorker.close(),
+      developerWebhookWorker.close()
     ]);
     console.log('[Worker Shutdown] BullMQ Workers closed safely.');
 
@@ -1002,6 +1023,7 @@ async function gracefulShutdown(signal: string) {
       messageQueue.close(),
       campaignQueue.close(),
       notificationQueue.close(),
+      developerWebhookQueue.close(),
       deadLetterQueue.close()
     ]);
     console.log('[Worker Shutdown] BullMQ Queues closed safely.');
