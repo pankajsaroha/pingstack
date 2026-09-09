@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { sendInboundMessagePushNotification } from '@/lib/server/push-notifications';
+import { enqueueInboundMessagePushNotification } from '@/lib/server/push-notifications';
 
 export async function POST(req: Request) {
   try {
@@ -67,14 +67,14 @@ export async function POST(req: Request) {
             provider_message_id: payload.id
           });
 
-          sendInboundMessagePushNotification({
+          await enqueueInboundMessagePushNotification({
             tenantId: tenant.id,
             contactId,
             messageId: payload.id,
             senderName: payload.sender?.name || fromPhone,
             senderPhone: fromPhone,
             messageText: textContext,
-          }).catch((err) => console.error('[Gupshup Webhook Push Error]:', err));
+          }).catch((err) => console.error('[Gupshup Webhook Push Enqueue Error]:', err));
         }
       }
     }

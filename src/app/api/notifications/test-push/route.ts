@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 
         try {
           const response = await webPush.sendNotification(pushSub, testPayload, {
-            TTL: 60,
+            TTL: 86400,
             urgency: 'high',
           });
 

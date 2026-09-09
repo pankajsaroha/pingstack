@@ -1,6 +1,6 @@
 import webPush from 'web-push';
 import { db } from '@/lib/db';
-import { connection } from '@/lib/queue';
+import { connection, notificationQueue } from '@/lib/queue';
 
 // VAPID keys configuration
 export const VAPID_PUBLIC_KEY = 
@@ -61,7 +61,7 @@ export async function removeWorkspacePresence(tenantId: string, tabId: string): 
   }
 }
 
-interface InboundNotificationParams {
+export interface InboundNotificationParams {
   tenantId: string;
   contactId?: string;
   messageId?: string;
@@ -69,6 +69,37 @@ interface InboundNotificationParams {
   senderName?: string;
   senderPhone?: string;
   messageText?: string;
+}
+
+/**
+ * Enqueue an inbound WhatsApp message push notification into the durable background queue.
+ * Completes in ~2-5ms (fast Redis push) without waiting for APNs / Apple network responses.
+ * Safe and fail-open: If Redis is unavailable, it catches errors and never disrupts webhook processing.
+ */
+export async function enqueueInboundMessagePushNotification(params: InboundNotificationParams): Promise<void> {
+  if (!params.tenantId) return;
+
+  const effectiveMsgId = params.messageId || params.whatsappMessageId;
+  const jobId = effectiveMsgId ? `push-${effectiveMsgId}` : `push-${params.tenantId}-${Date.now()}`;
+
+  try {
+    await notificationQueue.add('inbound-push', params, {
+      jobId, // Ensures idempotency / no duplicate push jobs for the same message
+      removeOnComplete: 1000,
+    });
+    console.log(JSON.stringify({
+      event: 'push_job_enqueued',
+      tenantId: params.tenantId,
+      messageId: effectiveMsgId || null,
+      whatsappMessageId: params.whatsappMessageId || effectiveMsgId || null,
+      jobId,
+      timestamp: new Date().toISOString(),
+    }));
+  } catch (err: any) {
+    console.warn('[Push Queue Warning] Failed to enqueue push job to Redis, attempting direct non-blocking dispatch:', err?.message || err);
+    // Graceful fallback: attempt direct delivery if queue push threw
+    sendInboundMessagePushNotification(params).catch(() => null);
+  }
 }
 
 /**
@@ -213,7 +244,7 @@ export async function sendInboundMessagePushNotification({
           };
 
           const response = await webPush.sendNotification(pushSubscription, payload, {
-            TTL: 60, // Expire notification if device offline after 60 seconds
+            TTL: 86400, // 24 hours retention on push service (APNs / FCM) for reliable delivery when device is asleep/locked
             urgency: 'high',
           });
 
