@@ -142,19 +142,65 @@ const SECTION_DATA: Record<string, { title: string; description: string; endpoin
 
   'campaigns': {
     title: 'Campaigns Reference',
-    description: 'Endpoints for creating and launching broadcast campaigns.',
+    description: 'Endpoints for creating, launching, and monitoring broadcast campaigns across groups, contacts, and direct CRM recipients.',
     endpoints: [
+      {
+        method: 'POST',
+        path: '/api/v1/campaigns',
+        title: 'Create Campaign Draft',
+        description: 'Creates a new broadcast campaign draft associated with an approved template.',
+        headers: [
+          { name: 'Authorization', required: true, description: 'Bearer ps_secret_live_...' }
+        ],
+        bodyParams: [
+          { name: 'name', type: 'string', required: true, description: 'Human-readable campaign name' },
+          { name: 'template_id', type: 'string', required: false, description: 'Template UUID in Pingstack' },
+          { name: 'template_name', type: 'string', required: false, description: 'Approved Meta template name (e.g. fee_reminder)' },
+          { name: 'scheduled_at', type: 'string', required: false, description: 'ISO-8601 future timestamp for scheduled dispatch (Growth plan)' }
+        ],
+        exampleRequest: {
+          curl: `curl -X POST https://app.pingstack.in/api/v1/campaigns \\\n  -H "Authorization: Bearer ps_secret_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"name": "September Fee Reminders", "template_name": "fee_reminder"}'`,
+          node: `const res = await fetch('https://app.pingstack.in/api/v1/campaigns', {\n  method: 'POST',\n  headers: { 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },\n  body: JSON.stringify({ name: 'September Fee Reminders', template_name: 'fee_reminder' })\n});`,
+          python: `res = requests.post('https://app.pingstack.in/api/v1/campaigns', headers={'Authorization': f'Bearer {KEY}'}, json={'name': 'September Fee Reminders', 'template_name': 'fee_reminder'})`
+        },
+        exampleResponse: `{\n  "success": true,\n  "data": {\n    "id": "c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c",\n    "public_id": "c_9f0e1d2c",\n    "name": "September Fee Reminders",\n    "template_id": "tpl_fee_01",\n    "status": "draft",\n    "scheduled_at": null,\n    "created_at": "2026-09-10T08:00:00.000Z"\n  },\n  "request_id": "req_1a2b3c4d"\n}`
+      },
       {
         method: 'POST',
         path: '/api/v1/campaigns/{id}/launch',
         title: 'Launch Campaign',
-        description: 'Triggers broadcast delivery across contacts, groups, or direct CRM recipient lists.',
+        description: 'Triggers broadcast delivery across audience groups, contact lists, or direct CRM recipient arrays with template variables.',
+        headers: [
+          { name: 'Authorization', required: true, description: 'Bearer ps_secret_live_...' },
+          { name: 'Idempotency-Key', required: false, description: 'Unique request key for safe network retries' }
+        ],
+        bodyParams: [
+          { name: 'recipients', type: 'array', required: false, description: 'Direct CRM recipient objects: [{ phone, variables: {"1": "Val"}, name }]' },
+          { name: 'group_ids', type: 'array', required: false, description: 'Array of audience group IDs in Pingstack' },
+          { name: 'contact_ids', type: 'array', required: false, description: 'Array of contact IDs in Pingstack' },
+          { name: 'template_variables', type: 'object', required: false, description: 'Shared template variables applied to all group/contact recipients (supports {{name}} and {{phone}} macros)' }
+        ],
         exampleRequest: {
-          curl: `curl -X POST https://app.pingstack.in/api/v1/campaigns/CAMPAIGN_UUID/launch \\\n  -H "Authorization: Bearer ps_secret_live_..." \\\n  -H "Content-Type: application/json" \\\n  -H "Idempotency-Key: launch-001" \\\n  -d '{"recipients": [{"phone": "919876543210", "variables": {"1": "Rahul", "2": "2500"}}]}' `,
-          node: `const res = await fetch('https://app.pingstack.in/api/v1/campaigns/CAMPAIGN_UUID/launch', {\n  method: 'POST',\n  headers: { 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },\n  body: JSON.stringify({ recipients: [{ phone: '919876543210', variables: { '1': 'Rahul', '2': '2500' } }] })\n});`,
-          python: `res = requests.post('https://app.pingstack.in/api/v1/campaigns/CAMPAIGN_UUID/launch', headers={'Authorization': f'Bearer {KEY}'}, json={'recipients': [{'phone': '919876543210', 'variables': {'1': 'Rahul', '2': '2500'}}]})`
+          curl: `curl -X POST https://app.pingstack.in/api/v1/campaigns/c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c/launch \\\n  -H "Authorization: Bearer ps_secret_live_..." \\\n  -H "Content-Type: application/json" \\\n  -H "Idempotency-Key: fee-batch-sep-01" \\\n  -d '{\n    "recipients": [\n      { "phone": "919876543210", "variables": { "1": "Rahul", "2": "₹2,500" } },\n      { "phone": "919876543211", "variables": { "1": "Amit", "2": "₹1,800" } }\n    ]\n  }'`,
+          node: `const res = await fetch('https://app.pingstack.in/api/v1/campaigns/c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c/launch', {\n  method: 'POST',\n  headers: { 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json', 'Idempotency-Key': 'fee-batch-sep-01' },\n  body: JSON.stringify({\n    recipients: [\n      { phone: '919876543210', variables: { '1': 'Rahul', '2': '₹2,500' } },\n      { phone: '919876543211', variables: { '1': 'Amit', '2': '₹1,800' } }\n    ]\n  })\n});`,
+          python: `res = requests.post(\n    'https://app.pingstack.in/api/v1/campaigns/c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c/launch',\n    headers={'Authorization': f'Bearer {KEY}', 'Idempotency-Key': 'fee-batch-sep-01'},\n    json={\n        'recipients': [\n            {'phone': '919876543210', 'variables': {'1': 'Rahul', '2': '₹2,500'}},\n            {'phone': '919876543211', 'variables': {'1': 'Amit', '2': '₹1,800'}}\n        ]\n    }\n)`
         },
-        exampleResponse: `{\n  "success": true,\n  "data": {\n    "campaign_id": "c1...",\n    "status": "running",\n    "queued_at": "2026-09-09T22:00:00.000Z"\n  },\n  "request_id": "req_5a6b7c8d"\n}`
+        exampleResponse: `{\n  "success": true,\n  "data": {\n    "campaign_id": "c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c",\n    "name": "September Fee Reminders",\n    "status": "running",\n    "queued_at": "2026-09-10T08:00:00.000Z",\n    "audience": {\n      "contact_ids_count": 0,\n      "group_ids_count": 0,\n      "direct_recipients_count": 2\n    }\n  },\n  "request_id": "req_5a6b7c8d"\n}`
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/campaigns/{id}/results',
+        title: 'Get Campaign Results',
+        description: 'Returns real-time delivery metrics, sent counts, read rates, and failure tallies for a campaign.',
+        headers: [
+          { name: 'Authorization', required: true, description: 'Bearer ps_secret_live_...' }
+        ],
+        exampleRequest: {
+          curl: `curl https://app.pingstack.in/api/v1/campaigns/c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c/results \\\n  -H "Authorization: Bearer ps_secret_live_..."`,
+          node: `const res = await fetch('https://app.pingstack.in/api/v1/campaigns/c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c/results', {\n  headers: { 'Authorization': 'Bearer ' + KEY }\n});`,
+          python: `res = requests.get('https://app.pingstack.in/api/v1/campaigns/c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c/results', headers={'Authorization': f'Bearer {KEY}'})`
+        },
+        exampleResponse: `{\n  "success": true,\n  "data": {\n    "campaign_id": "c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c",\n    "name": "September Fee Reminders",\n    "status": "completed",\n    "metrics": {\n      "total_messages": 250,\n      "pending": 0,\n      "sent": 248,\n      "delivered": 245,\n      "read": 192,\n      "failed": 2,\n      "delivered_rate_pct": 98,\n      "read_rate_pct": 77\n    }\n  },\n  "request_id": "req_6b7c8d9e"\n}`
       }
     ]
   },
