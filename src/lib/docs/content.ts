@@ -439,37 +439,154 @@ export const DOCS_ARTICLES: Record<string, DocArticle> = {
     slug: 'campaigns',
     title: 'Campaigns & Broadcasts API',
     category: 'Core APIs',
-    description: 'Execute bulk broadcast campaigns using Contact IDs, Group IDs, or direct external CRM recipient lists.',
-    readTime: '6 min',
+    description: 'Orchestrate high-volume broadcast campaigns across saved contacts, audience groups, or direct external CRM recipient lists with template variables.',
+    readTime: '8 min',
     sections: [
       {
-        id: 'audience-patterns',
-        title: 'Three Supported Audience Patterns',
-        content: `The \`POST /api/v1/campaigns/{id}/launch\` endpoint supports three integration models:\n\n* **Pattern A (Contact IDs)**: Target existing contact UUIDs.\n* **Pattern B (Group IDs)**: Target pre-configured audience groups.\n* **Pattern C (Direct CRM Recipients)**: Pass phone numbers and positional variables directly without needing prior contact creation.`
+        id: 'overview',
+        title: 'Campaigns Overview',
+        content: `The Pingstack Campaigns API allows developers and backend systems to dispatch bulk WhatsApp template notifications to hundreds or thousands of recipients in a single background operation.\n\nWhen a campaign is launched:\n1. The API validates plan daily template allowances and idempotency keys.\n2. Recipients from selected groups, saved contacts, and direct CRM arrays are normalized and automatically deduplicated by phone number.\n3. The batch job is enqueued into Redis BullMQ (\`campaign-queue\`), immediately returning an asynchronous \`running\` status without risking HTTP request timeouts.\n4. The background worker resolves template positional placeholders, persists message records, and queues dispatches to Meta WhatsApp Cloud API with built-in rate smoothing.`
       },
       {
-        id: 'pattern-c-example',
-        title: 'Pattern C: Direct CRM Recipients Launch',
-        content: `Ideal for billing systems, ERPs, and schools that already manage their own customer databases:`,
-        codeSnippets: [
-          {
-            language: 'bash',
-            label: 'Launch with Direct Recipients',
-            code: `curl -X POST https://app.pingstack.in/api/v1/campaigns/CAMPAIGN_UUID/launch \\\n  -H "Authorization: Bearer ps_secret_live_..." \\\n  -H "Content-Type: application/json" \\\n  -H "Idempotency-Key: fee-batch-sep-01" \\\n  -d '{\n    "recipients": [\n      {\n        "phone": "919876543210",\n        "variables": { "1": "Rahul", "2": "₹5,000", "3": "15 Sep" }\n      },\n      {\n        "phone": "919876543211",\n        "variables": { "1": "Amit", "2": "₹3,500", "3": "15 Sep" }\n      }\n    ]\n  }'`
-          }
-        ]
+        id: 'when-to-use',
+        title: 'When to Use Campaigns vs. Messages API',
+        content: `Pingstack provides two distinct ways to send outbound WhatsApp messages:\n\n* **Messages API (\`POST /api/v1/messages\`)**: Best for individual, real-time transactional alerts triggered by immediate user actions (e.g. OTP verification, login confirmation, instant order payment receipt).\n* **Campaigns API (\`POST /api/v1/campaigns/{id}/launch\`)**: Best for batch notifications, fee reminders, monthly statements, marketing announcements, and broadcast newsletters sent to multiple recipients simultaneously with aggregated delivery reporting.`
       },
       {
-        id: 'campaign-results',
-        title: 'Query Campaign Results & Delivery Rates',
-        content: `\`GET /api/v1/campaigns/{id}/results\` returns live delivery metrics, sent counts, read rates, and failure tallies.`,
+        id: 'decision-guide',
+        title: 'Audience Decision Guide',
+        content: `Choose the integration model that best fits your system architecture:`,
+        tableData: {
+          headers: ['Your Requirement', 'Recommended Model', 'API Parameters Used'],
+          rows: [
+            ['I maintain customers in my own CRM / ERP database', 'Direct JSON Recipients (No contact sync needed)', 'recipients: [{ phone, variables }]'],
+            ['I want Pingstack to manage my contact database & segments', 'Saved Contacts & Groups', 'group_ids: ["..."] or contact_ids: ["..."]'],
+            ['I want the exact same variable values for everyone', 'Shared Template Variables', 'template_variables: { "1": "Sep", "2": "₹2500" }'],
+            ['Every recipient has different customized variable data', 'Per-Recipient Variable Mapping', 'recipients: [{ phone, variables: { "1": "...", "2": "..." } }]'],
+            ['The template has no variables (static message)', 'No Variables Required', 'Pass group_ids, contact_ids, or recipients without variables'],
+            ['I have an Excel / CSV spreadsheet file', 'Web UI File Upload or Backend JSON Script', 'Upload in Pingstack Console or parse in backend to JSON']
+          ]
+        }
+      },
+      {
+        id: 'scenario-1-no-variables',
+        title: '1. Audience + Template with No Variables',
+        content: `If your approved Meta WhatsApp template does not contain any variable placeholders (e.g. a general holiday announcement or terms update), you can launch the campaign by simply providing the target audience. No variable mapping is required.\n\n* **Audience**: \`group_ids\`, \`contact_ids\`, or \`recipients\`\n* **Variables**: None`
+      },
+      {
+        id: 'scenario-2-shared-variables',
+        title: '2. Audience + Template with Shared Variables (Same Values for All)',
+        content: `When sending to a group or contact list where all recipients should receive the **exact same placeholder values** (e.g. Month = "September", Due Date = "15th September"):\n\nPass the \`group_ids\` or \`contact_ids\` along with a top-level \`template_variables\` object. Every resolved recipient in the audience receives these shared values.\n\n* **Dynamic Macros**: In \`template_variables\`, you can optionally use \`{{name}}\` (resolves to the contact\'s saved name) or \`{{phone}}\` (resolves to the contact\'s phone number).`,
         codeSnippets: [
           {
             language: 'json',
-            label: 'Results Response',
-            code: `{\n  "success": true,\n  "data": {\n    "campaign_id": "c8a1b2c3-...",\n    "name": "Fee Reminder September",\n    "status": "completed",\n    "metrics": {\n      "total_messages": 100,\n      "pending": 0,\n      "sent": 98,\n      "delivered": 96,\n      "read": 74,\n      "failed": 2,\n      "delivered_rate_pct": 96,\n      "read_rate_pct": 74\n    }\n  },\n  "request_id": "req_9f0e1d2c"\n}`
+            label: 'Shared Variables Payload',
+            code: `{\n  "group_ids": ["g_parents_grade_10"],\n  "template_variables": {\n    "1": "{{name}}",\n    "2": "September 2026",\n    "3": "15th Sep"\n  }\n}`
           }
         ]
+      },
+      {
+        id: 'scenario-3-per-recipient-variables',
+        title: '3. Template with Per-Recipient Variables (Customized Values)',
+        content: `When each recipient requires unique, individual variable data (e.g. individual invoice amounts or student fee balances):\n\n* **Rahul** (919876543210) → Var 1: "Rahul", Var 2: "₹2,500"\n* **Amit** (919876543211) → Var 1: "Amit", Var 2: "₹1,800"\n* **Neha** (919876543212) → Var 1: "Neha", Var 2: "₹3,200"\n\nPass the \`recipients\` array where each item contains the recipient\'s phone number and their specific positional \`variables\`.\n\n*Important: The phone number is the recipient identity, NOT variable 1. Template variables remain positional placeholders corresponding to Meta template slots {{1}}, {{2}}, etc.*`,
+        codeSnippets: [
+          {
+            language: 'json',
+            label: 'Per-Recipient Payload',
+            code: `{\n  "recipients": [\n    {\n      "phone": "919876543210",\n      "name": "Rahul Sharma",\n      "variables": {\n        "1": "Rahul",\n        "2": "₹2,500",\n        "3": "15 Sep"\n      }\n    },\n    {\n      "phone": "919876543211",\n      "name": "Amit Kumar",\n      "variables": {\n        "1": "Amit",\n        "2": "₹1,800",\n        "3": "15 Sep"\n      }\n    }\n  ]\n}`
+          }
+        ]
+      },
+      {
+        id: 'scenario-4-5-csv-excel',
+        title: '4 & 5. Excel / CSV Spreadsheet Workflows',
+        content: `Pingstack supports spreadsheet workflows across both the Web Console UI and programmatic developer integrations:\n\n* **Pingstack Web Console (UI Workflow)**:\n  * Navigate to **Campaigns → Create Campaign** and select **Excel / CSV**.\n  * Upload your \`.xlsx\` or \`.csv\` file.\n  * Map spreadsheet columns to template placeholders (e.g. \`Phone Number\` → Recipient Identity, \`Student Name\` → \`{{1}}\`, \`Pending Amount\` → \`{{2}}\`, \`Due Date\` → \`{{3}}\`).\n  * Inspect the interactive preview before launching.\n\n* **Developer API (Programmatic Workflow)**:\n  * The REST API accepts structured JSON (\`application/json\`). To automate spreadsheet processing via code, your server-side script reads the CSV/Excel file, maps the columns to the \`recipients\` array, and calls \`POST /api/v1/campaigns/{id}/launch\`.\n\n* **Spreadsheet Validation Rules**:\n  1. **Phone Number is Mandatory**: Every row must contain a valid phone number with country code. It serves as recipient identity and is never treated as a template placeholder.\n  2. **Placeholder Count Matching**: Ensure all required positional variables (\`{{1}}\`, \`{{2}}\`, etc.) in the approved template are supplied.\n  3. **Automatic Deduplication**: Duplicate phone numbers in the same batch are automatically deduplicated.\n  4. **Unmapped Columns**: Extra columns in the file are safely ignored.`
+      },
+      {
+        id: 'scenario-6-direct-json',
+        title: '6. Direct JSON / Batch Recipients (CRM & ERP Integration)',
+        content: `This is the primary integration pattern for CRM, school ERP, billing, and accounting systems. If your external database already manages customer records, pass phone numbers and variables directly in the \`recipients\` array without needing to import or synchronize contacts in Pingstack beforehand.`
+      },
+      {
+        id: 'scenario-7-unsaved-contacts',
+        title: '7. Unsaved Recipients vs. Saved Contacts & Groups',
+        content: `It is important to understand how Pingstack handles different recipient sources:\n\n* **A. Saved Contacts**: Customer profiles created in Pingstack with names, tags, and custom metadata.\n* **B. Group Members**: Contacts associated with an audience segment (e.g. "VIP Customers").\n* **C. Direct / Unsaved Recipients**: Phone numbers provided directly in the \`recipients\` array. Pingstack sends messages directly to these numbers without requiring prior contact creation. In the workspace Inbox, messages from direct sends remain visible and accessible.`
+      },
+      {
+        id: 'lifecycle-examples',
+        title: 'Complete Lifecycle Code Examples',
+        content: `### Step 1: Create Campaign Draft (\`POST /api/v1/campaigns\`)`,
+        codeSnippets: [
+          {
+            language: 'bash',
+            label: 'cURL Create Campaign',
+            code: `curl -X POST https://app.pingstack.in/api/v1/campaigns \\\n  -H "Authorization: Bearer ps_secret_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "name": "September Fee Reminders",\n    "template_name": "fee_reminder"\n  }'`
+          },
+          {
+            language: 'javascript',
+            label: 'Node.js Create Campaign',
+            code: `const createRes = await fetch('https://app.pingstack.in/api/v1/campaigns', {\n  method: 'POST',\n  headers: {\n    'Authorization': 'Bearer ' + process.env.PINGSTACK_API_KEY,\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    name: 'September Fee Reminders',\n    template_name: 'fee_reminder'\n  })\n});\nconst { data: campaign } = await createRes.json();\nconsole.log('Created Campaign ID:', campaign.id);`
+          },
+          {
+            language: 'python',
+            label: 'Python Create Campaign',
+            code: `import os\nimport requests\n\nheaders = {\n    "Authorization": f"Bearer {os.getenv('PINGSTACK_API_KEY')}",\n    "Content-Type": "application/json"\n}\n\nres = requests.post(\n    "https://app.pingstack.in/api/v1/campaigns",\n    headers=headers,\n    json={"name": "September Fee Reminders", "template_name": "fee_reminder"}\n)\ncampaign = res.json()["data"]\nprint("Created Campaign ID:", campaign["id"])`
+          }
+        ]
+      },
+      {
+        id: 'launch-examples',
+        title: 'Step 2: Launch Campaign with Audience (\`POST /api/v1/campaigns/{id}/launch\`)',
+        content: `Pass \`group_ids\`, \`contact_ids\`, or direct \`recipients\` with positional variables:`,
+        codeSnippets: [
+          {
+            language: 'bash',
+            label: 'cURL Launch with Direct Recipients',
+            code: `curl -X POST https://app.pingstack.in/api/v1/campaigns/CAMPAIGN_ID/launch \\\n  -H "Authorization: Bearer ps_secret_live_..." \\\n  -H "Content-Type: application/json" \\\n  -H "Idempotency-Key: fee-batch-2026-09-01" \\\n  -d '{\n    "recipients": [\n      {\n        "phone": "919876543210",\n        "variables": { "1": "Rahul", "2": "₹2,500", "3": "15 Sep" }\n      },\n      {\n        "phone": "919876543211",\n        "variables": { "1": "Amit", "2": "₹1,800", "3": "15 Sep" }\n      }\n    ]\n  }'`
+          },
+          {
+            language: 'javascript',
+            label: 'Node.js Launch',
+            code: `const launchRes = await fetch(\`https://app.pingstack.in/api/v1/campaigns/\${campaign.id}/launch\`, {\n  method: 'POST',\n  headers: {\n    'Authorization': 'Bearer ' + process.env.PINGSTACK_API_KEY,\n    'Content-Type': 'application/json',\n    'Idempotency-Key': 'fee-batch-2026-09-01'\n  },\n  body: JSON.stringify({\n    recipients: [\n      { phone: '919876543210', variables: { '1': 'Rahul', '2': '₹2,500', '3': '15 Sep' } },\n      { phone: '919876543211', variables: { '1': 'Amit', '2': '₹1,800', '3': '15 Sep' } }\n    ]\n  })\n});\nconst launchData = await launchRes.json();\nconsole.log(launchData);`
+          },
+          {
+            language: 'python',
+            label: 'Python Launch',
+            code: `launch_res = requests.post(\n    f"https://app.pingstack.in/api/v1/campaigns/{campaign['id']}/launch",\n    headers={**headers, "Idempotency-Key": "fee-batch-2026-09-01"},\n    json={\n        "recipients": [\n            {"phone": "919876543210", "variables": {"1": "Rahul", "2": "₹2,500", "3": "15 Sep"}},\n            {"phone": "919876543211", "variables": {"1": "Amit", "2": "₹1,800", "3": "15 Sep"}}\n        ]\n    }\n)\nprint(launch_res.json())`
+          }
+        ]
+      },
+      {
+        id: 'status-results',
+        title: 'Status Lifecycle & Querying Results',
+        content: `* **Campaign Statuses**: \`draft\` → \`scheduled\` (Growth plan) → \`running\` (processing in BullMQ) → \`completed\` (or \`failed\`).\n* **Query Live Metrics**: \`GET /api/v1/campaigns/{id}/results\` returns delivery counts and read rates:`,
+        codeSnippets: [
+          {
+            language: 'json',
+            label: 'Results Response Format',
+            code: `{\n  "success": true,\n  "data": {\n    "campaign_id": "c8a1b2c3-1d2e-4f5a-b6c7-8d9e0f1a2b3c",\n    "name": "September Fee Reminders",\n    "status": "completed",\n    "metrics": {\n      "total_messages": 250,\n      "pending": 0,\n      "sent": 248,\n      "delivered": 245,\n      "read": 192,\n      "failed": 2,\n      "delivered_rate_pct": 98,\n      "read_rate_pct": 77\n    }\n  },\n  "request_id": "req_9f0e1d2c"\n}`
+          }
+        ]
+      },
+      {
+        id: 'idempotency-and-quotas',
+        title: 'Idempotency, Quotas & Rate Limits',
+        content: `* **Idempotency**: Always pass an \`Idempotency-Key\` header when launching campaigns. If network latency triggers an automatic client retry within 24 hours, Pingstack replays the existing launch response without creating duplicate message jobs.\n* **Plan Quota Checking**: Before queueing campaign messages, Pingstack checks your daily template message allowance. If your plan limit is insufficient, the launch request returns \`HTTP 403 LIMIT_EXCEEDED\`.\n* **Rate Smoothing**: Background dispatches are rate-smoothed across Redis workers to prevent Meta Cloud API throughput spikes.`
+      },
+      {
+        id: 'troubleshooting',
+        title: 'Common Errors & Troubleshooting',
+        tableData: {
+          headers: ['Error Code', 'HTTP Status', 'Cause & Resolution'],
+          rows: [
+            ['VALIDATION_ERROR', '400', 'No audience provided. Ensure at least one of "contact_ids", "group_ids", or "recipients" is non-empty.'],
+            ['NOT_FOUND', '404', 'Campaign ID does not exist or belongs to another workspace.'],
+            ['LIMIT_EXCEEDED', '403', 'Daily template message allowance reached for your plan. Upgrade required.'],
+            ['FEATURE_GATED', '403', 'Campaign scheduling ("scheduled_at") is restricted to Growth and Pro plans.'],
+            ['CONFLICT', '409', 'Idempotency-Key was already used with a differing request payload body.'],
+            ['INTERNAL_SERVER_ERROR', '500', 'Unexpected backend error. Retry with backoff.']
+          ]
+        }
       }
     ]
   },

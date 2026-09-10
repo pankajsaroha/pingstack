@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Menu, Search, ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { DocsSidebar } from '@/components/docs/DocsSidebar';
 import { DocsSearchModal } from '@/components/docs/DocsSearchModal';
@@ -13,6 +14,84 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [modalType, setModalType] = useState<'login' | 'register' | 'forgot' | null>(null);
+  const [tenant, setTenant] = useState<any>(null);
+  const [loadingSession, setLoadingSession] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    let mounted = true;
+    const cached = typeof window !== 'undefined' ? sessionStorage.getItem('tenant_session') : null;
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (mounted) {
+          setTenant(parsed);
+          setLoadingSession(false);
+        }
+      } catch (e) {}
+    }
+
+    async function checkSession() {
+      const hasAuthCookie = typeof document !== 'undefined' && (
+        document.cookie.includes('token=') ||
+        document.cookie.includes('sb-') ||
+        document.cookie.includes('auth=')
+      );
+
+      if (!hasAuthCookie && !cached) {
+        if (mounted) setLoadingSession(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/tenant/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) {
+            setTenant(data);
+            sessionStorage.setItem('tenant_session', JSON.stringify(data));
+          }
+        } else {
+          if (mounted) {
+            setTenant(null);
+            sessionStorage.removeItem('tenant_session');
+          }
+        }
+      } catch (err) {
+        // Ignore unauthenticated network errors
+      } finally {
+        if (mounted) setLoadingSession(false);
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleConsoleClick = async () => {
+    if (tenant) {
+      router.push('/dashboard');
+      return;
+    }
+
+    if (loadingSession) {
+      try {
+        const res = await fetch('/api/tenant/me');
+        if (res.ok) {
+          const data = await res.json();
+          setTenant(data);
+          sessionStorage.setItem('tenant_session', JSON.stringify(data));
+          router.push('/dashboard');
+          return;
+        }
+      } catch (e) {}
+    }
+
+    setModalType('login');
+  };
 
   return (
     <div className="min-h-screen bg-bg text-fg selection:bg-indigo-500/30">
@@ -56,10 +135,10 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             </Link>
 
             <button
-              onClick={() => setModalType('login')}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xs"
+              onClick={handleConsoleClick}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xs cursor-pointer"
             >
-              Console Login
+              {tenant ? 'Console' : 'Console Login'}
             </button>
           </div>
         </div>
