@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { MessageCircle } from 'lucide-react';
 import VirtualList from '@/components/VirtualList';
+import ContactAvatar from '@/components/ContactAvatar';
 
 interface ConversationListProps {
   conversations: any[];
@@ -98,51 +99,59 @@ export default function ConversationList({
         <div
           key={item.key}
           onClick={() => onSelectContact(conv.contact.id)}
-          className={`px-4 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 ${
+          className={`px-3.5 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 flex items-center gap-3 ${
             isActive
               ? 'bg-zinc-100 dark:bg-zinc-800 border-l-3 border-l-indigo-600 dark:border-l-indigo-500'
               : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
           }`}
           style={{ height: 82 }}
         >
-          <div className="flex justify-between items-start mb-1">
-            <h3
-              className={`font-semibold text-xs truncate pr-2 ${
-                isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'
-              }`}
-            >
-              {conv.contact.name || conv.contact.phone_number}
-            </h3>
-            <span
-              className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 shrink-0"
-              suppressHydrationWarning
-            >
-              {new Date(conv.latestMessage.created_at).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          </div>
-          <div className="flex justify-between items-end">
-            <p
-              className={`text-xs truncate w-full ${
-                conv.unreadCount > 0
-                  ? 'text-zinc-900 dark:text-zinc-100 font-bold'
-                  : 'text-zinc-500 dark:text-zinc-400'
-              }`}
-            >
-              {conv.latestMessage.direction === 'outbound' && (
-                <span className="mr-1 font-semibold text-indigo-600 dark:text-indigo-400">You:</span>
+          <ContactAvatar
+            name={conv.contact.name}
+            phone={conv.contact.phone_number}
+            avatarUrl={conv.contact.avatar_url}
+            size="md"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex justify-between items-start mb-1">
+              <h3
+                className={`font-semibold text-xs truncate pr-2 ${
+                  isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'
+                }`}
+              >
+                {conv.contact.name || conv.contact.phone_number}
+              </h3>
+              <span
+                className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 shrink-0"
+                suppressHydrationWarning
+              >
+                {new Date(conv.latestMessage.created_at).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+            <div className="flex justify-between items-end">
+              <p
+                className={`text-xs truncate w-full ${
+                  conv.unreadCount > 0
+                    ? 'text-zinc-900 dark:text-zinc-100 font-bold'
+                    : 'text-zinc-500 dark:text-zinc-400'
+                }`}
+              >
+                {conv.latestMessage.direction === 'outbound' && (
+                  <span className="mr-1 font-semibold text-indigo-600 dark:text-indigo-400">You:</span>
+                )}
+                {conv.latestMessage.content || 'Attachment File'}
+              </p>
+              {conv.unreadCount > 0 && (
+                <div className="w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-2xs">
+                  <span className="text-[9px] font-bold text-white">
+                    {conv.unreadCount}
+                  </span>
+                </div>
               )}
-              {conv.latestMessage.content || 'Attachment File'}
-            </p>
-            {conv.unreadCount > 0 && (
-              <div className="w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-2xs">
-                <span className="text-[9px] font-bold text-white">
-                  {conv.unreadCount}
-                </span>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       );
@@ -169,36 +178,40 @@ export default function ConversationList({
         <div
           key={item.key}
           onClick={() => onSelectContact(contact.id)}
-          className={`px-4 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 ${
+          className={`px-3.5 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 flex items-center gap-3 ${
             isActive
               ? 'bg-zinc-100 dark:bg-zinc-800 border-l-3 border-l-indigo-600 dark:border-l-indigo-500'
               : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
           }`}
           style={{ height: 72 }}
         >
-          <div className="flex justify-between items-center">
-            <div className="min-w-0 flex-1 pr-3">
-              <h3
-                className={`font-semibold text-xs truncate ${
-                  isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'
-                }`}
-              >
-                {contact.name || contact.phone_number}
-              </h3>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono truncate mt-0.5">
-                {contact.phone_number}
-              </p>
-            </div>
-            <span
-              className={`text-[9px] font-bold uppercase tracking-wider border px-2 py-0.5 rounded-md shrink-0 ${
-                isActive
-                  ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
-                  : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'
+          <ContactAvatar
+            name={contact.name}
+            phone={contact.phone_number}
+            avatarUrl={contact.avatar_url}
+            size="md"
+          />
+          <div className="min-w-0 flex-1 pr-2">
+            <h3
+              className={`font-semibold text-xs truncate ${
+                isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'
               }`}
             >
-              Start Chat
-            </span>
+              {contact.name || contact.phone_number}
+            </h3>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono truncate mt-0.5">
+              {contact.phone_number}
+            </p>
           </div>
+          <span
+            className={`text-[9px] font-bold uppercase tracking-wider border px-2 py-0.5 rounded-md shrink-0 ${
+              isActive
+                ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'
+            }`}
+          >
+            Start Chat
+          </span>
         </div>
       );
     }

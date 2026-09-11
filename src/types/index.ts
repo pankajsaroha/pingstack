@@ -31,6 +31,7 @@ export interface Contact {
   tenant_id: string;
   created_at: string;
   last_received_at?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface Template {

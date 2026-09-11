@@ -6,6 +6,7 @@ import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
 import ChatComposer from './ChatComposer';
 import TemplateSelector from './TemplateSelector';
+import ContactAvatar from '@/components/ContactAvatar';
 import { formatSeparatorDate } from './utils';
 
 interface ChatThreadProps {
@@ -244,9 +245,13 @@ export default function ChatThread({
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center justify-center mr-3 shadow-2xs shrink-0">
-            <User className="w-4 h-4" />
-          </div>
+          <ContactAvatar
+            name={activeConversation.contact.name}
+            phone={activeConversation.contact.phone_number}
+            avatarUrl={activeConversation.contact.avatar_url}
+            size="sm"
+            className="mr-3"
+          />
           <div className="truncate">
             <h3 className="font-bold text-zinc-900 dark:text-zinc-100 tracking-tight truncate text-xs sm:text-sm">
               {activeConversation.contact.name || 'Anonymous Client'}

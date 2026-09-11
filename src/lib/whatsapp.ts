@@ -374,3 +374,170 @@ export const sendMetaTextMessage = async (
     text: { body: text }
   }, retryOpts);
 };
+
+export interface MetaBusinessProfile {
+  about?: string;
+  address?: string;
+  description?: string;
+  email?: string;
+  profile_picture_url?: string;
+  websites?: string[];
+  vertical?: string;
+  display_phone_number?: string;
+  verified_name?: string;
+}
+
+/**
+ * Fetches the WhatsApp Business Profile for a given phone_number_id.
+ */
+export const fetchMetaBusinessProfile = async (
+  phoneNumberId: string,
+  accessToken: string,
+  retryOpts?: RetryOptions
+): Promise<{ success: boolean; profile?: MetaBusinessProfile; error?: string }> => {
+  const profileUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`;
+  const phoneUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name`;
+
+  try {
+    const [profileRes, phoneRes] = await Promise.all([
+      fetchWithRetry(profileUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }, retryOpts),
+      fetchWithRetry(phoneUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }, retryOpts).catch(() => null)
+    ]);
+
+    const profileData = await profileRes.json();
+    let phoneData: any = {};
+    if (phoneRes && phoneRes.ok) {
+      try {
+        phoneData = await phoneRes.json();
+      } catch {}
+    }
+
+    if (profileRes.ok && profileData.data && profileData.data.length > 0) {
+      const raw = profileData.data[0];
+      return {
+        success: true,
+        profile: {
+          about: raw.about,
+          address: raw.address,
+          description: raw.description,
+          email: raw.email,
+          profile_picture_url: raw.profile_picture_url,
+          websites: raw.websites,
+          vertical: raw.vertical,
+          display_phone_number: phoneData.display_phone_number,
+          verified_name: phoneData.verified_name,
+        }
+      };
+    } else {
+      const errorMsg = profileData.error?.message || 'Failed to fetch WhatsApp Business profile';
+      return { success: false, error: errorMsg };
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error fetching WhatsApp Business profile' };
+  }
+};
+
+/**
+ * Updates the WhatsApp Business Profile Picture using Meta's Resumable Upload API.
+ */
+export const updateMetaBusinessProfilePicture = async (
+  phoneNumberId: string,
+  accessToken: string,
+  imageBuffer: Buffer,
+  mimeType: string = 'image/jpeg',
+  appId?: string,
+  retryOpts?: RetryOptions
+): Promise<{ success: boolean; profile_picture_url?: string; error?: string }> => {
+  try {
+    // 1. Resolve Meta App ID
+    let resolvedAppId = appId || process.env.NEXT_PUBLIC_FB_APP_ID || process.env.FB_APP_ID;
+    if (!resolvedAppId) {
+      const appRes = await fetch(`https://graph.facebook.com/v19.0/app?access_token=${encodeURIComponent(accessToken)}`);
+      if (appRes.ok) {
+        const appData = await appRes.json();
+        resolvedAppId = appData.id;
+      }
+    }
+
+    if (!resolvedAppId) {
+      return {
+        success: false,
+        error: 'Meta App ID could not be determined. Please ensure NEXT_PUBLIC_FB_APP_ID is configured in environment.'
+      };
+    }
+
+    // 2. Step 1: Initiate Resumable Upload Session
+    const sessionUrl = `https://graph.facebook.com/v19.0/${resolvedAppId}/uploads?file_length=${imageBuffer.length}&file_type=${encodeURIComponent(mimeType)}&access_token=${encodeURIComponent(accessToken)}`;
+    const sessionRes = await fetchWithRetry(sessionUrl, {
+      method: 'POST',
+    }, retryOpts);
+
+    const sessionData = await sessionRes.json();
+    if (!sessionRes.ok || !sessionData.id) {
+      return {
+        success: false,
+        error: sessionData.error?.message || 'Failed to create Meta upload session'
+      };
+    }
+
+    const uploadSessionId = sessionData.id;
+
+    // 3. Step 2: Upload file bytes to the upload session
+    const uploadUrl = `https://graph.facebook.com/v19.0/${uploadSessionId}`;
+    const uploadRes = await fetchWithRetry(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `OAuth ${accessToken}`,
+        'file_offset': '0',
+        'Content-Type': mimeType
+      },
+      body: new Uint8Array(imageBuffer)
+    }, retryOpts);
+
+    const uploadData = await uploadRes.json();
+    const handle = uploadData.h || uploadData.handle;
+    if (!uploadRes.ok || !handle) {
+      return {
+        success: false,
+        error: uploadData.error?.message || 'Failed to upload image data to Meta session'
+      };
+    }
+
+    // 4. Step 3: Update WhatsApp Business Profile with the upload handle
+    const updateProfileUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile`;
+    const updateRes = await fetchWithRetry(updateProfileUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        profile_picture_handle: handle
+      })
+    }, retryOpts);
+
+    const updateData = await updateRes.json();
+    if (!updateRes.ok || (!updateData.success && !updateData.id)) {
+      return {
+        success: false,
+        error: updateData.error?.message || 'Meta rejected profile picture update'
+      };
+    }
+
+    // 5. Fetch fresh profile to get the updated profile_picture_url
+    const freshProfile = await fetchMetaBusinessProfile(phoneNumberId, accessToken, retryOpts);
+    return {
+      success: true,
+      profile_picture_url: freshProfile.profile?.profile_picture_url
+    };
+
+  } catch (err: any) {
+    console.error('[Meta Update DP Exception]:', err);
+    return { success: false, error: err.message || 'Failed to update WhatsApp Business profile picture' };
+  }
+};
