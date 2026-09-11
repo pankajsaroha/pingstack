@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Plus, Send, Loader2, ChevronDown } from 'lucide-react';
+import { Plus, Send, Loader2, ChevronDown, RefreshCw } from 'lucide-react';
 import Toast from '@/components/Toast';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import CampaignCard from './CampaignCard';
@@ -48,6 +48,24 @@ export default function CampaignsClient({
       }
     }
   }, []);
+
+  // Auto-poll campaign list every 3.5 seconds if any campaign is currently 'running'
+  useEffect(() => {
+    const hasRunning = campaigns.some((c) => c.status === 'running');
+    if (!hasRunning) return;
+
+    const interval = setInterval(() => {
+      fetch('/api/campaigns?page=1')
+        .then((res) => res.json())
+        .then((json) => {
+          const data = Array.isArray(json) ? json : (json.data || []);
+          setCampaigns(data);
+        })
+        .catch((err) => console.error('[Campaigns Polling Error]:', err));
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [campaigns]);
 
   // Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -237,13 +255,23 @@ export default function CampaignsClient({
           <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Broadcast Campaigns</h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Manage bulk messaging workflows, real-time dispatching, and delivery logs.</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <span>Launch Campaign</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchCampaigns()}
+            disabled={loading}
+            className="p-1.5 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            title="Refresh campaigns"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Launch Campaign</span>
+          </button>
+        </div>
       </div>
 
       {/* Campaigns Listing */}
