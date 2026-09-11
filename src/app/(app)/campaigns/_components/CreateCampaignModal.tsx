@@ -24,7 +24,7 @@ import {
   Info,
   HelpCircle
 } from 'lucide-react';
-import ExcelUploader, { ParsedExcelFile } from './ExcelUploader';
+import ExcelUploader, { ParsedExcelFile, evaluateExcelRecipients } from './ExcelUploader';
 
 interface CreateCampaignModalProps {
   templates: any[];
@@ -203,14 +203,26 @@ export default function CreateCampaignModal({
     };
   }, [selectedGroupIds]);
 
-  // Auto-map Excel columns when file is parsed or template changes
+  const handleExcelPhoneHeaderChange = (newHeader: string) => {
+    if (!parsedExcelFile) return;
+    const evaluated = evaluateExcelRecipients(parsedExcelFile.headers, parsedExcelFile.dataMatrix, newHeader);
+    setParsedExcelFile({
+      ...parsedExcelFile,
+      phoneHeader: newHeader,
+      rows: evaluated.rows,
+      validPhoneCount: evaluated.validPhoneCount,
+      invalidPhoneCount: evaluated.invalidPhoneCount,
+    });
+  };
+
+  // Auto-map Excel columns when file is parsed or template/phone header changes
   useEffect(() => {
     if (parsedExcelFile && varsDetected.length > 0) {
       const newMapping: Record<string, string> = {};
       const nonPhoneHeaders = parsedExcelFile.headers.filter((h) => h !== parsedExcelFile.phoneHeader);
 
       varsDetected.forEach((varNum, idx) => {
-        const exactMatch = parsedExcelFile.headers.find(
+        const exactMatch = nonPhoneHeaders.find(
           (h) => h.toLowerCase() === `var${varNum}` || h.toLowerCase() === `variable${varNum}` || h === `{{${varNum}}}`
         );
         if (exactMatch) {
@@ -218,12 +230,12 @@ export default function CreateCampaignModal({
         } else if (nonPhoneHeaders[idx]) {
           newMapping[varNum] = nonPhoneHeaders[idx];
         } else {
-          newMapping[varNum] = parsedExcelFile.headers[0] || '';
+          newMapping[varNum] = nonPhoneHeaders[0] || '';
         }
       });
       setExcelColMapping(newMapping);
     }
-  }, [parsedExcelFile, varsDetected]);
+  }, [parsedExcelFile?.fileName, parsedExcelFile?.phoneHeader, varsDetected]);
 
   // Filter contacts by search
   const filteredContacts = useMemo(() => {
@@ -674,16 +686,22 @@ export default function CreateCampaignModal({
           });
         }
       } else {
-        const directData = (parsedExcelFile?.rows || []).map((row) => {
-          const variables = varsDetected.map((varNum) => {
-            const col = excelColMapping[varNum];
-            return col && row[col] !== undefined ? String(row[col]) : '';
+        const directData = (parsedExcelFile?.rows || [])
+          .filter((row) => row._isPhoneValid && row._phone)
+          .map((row) => {
+            const variables = varsDetected.map((varNum) => {
+              const col = excelColMapping[varNum];
+              return col && row[col] !== undefined ? String(row[col]) : '';
+            });
+            return {
+              phone: row._phone,
+              variables,
+            };
           });
-          return {
-            phone: row._phone,
-            variables,
-          };
-        });
+
+        if (directData.length === 0) {
+          throw new Error('No valid recipients found. Please select a column containing valid phone numbers.');
+        }
 
         await onSaved({
           name,
@@ -1346,33 +1364,71 @@ export default function CreateCampaignModal({
                     )}
                   </div>
                 ) : (
-                  /* Excel / CSV Variable to Column Mapping (Sections 8, 9, 13) */
+                  /* Excel / CSV Variable to Column Mapping */
                   <div className="space-y-3">
                     <p className="text-[10px] text-muted font-medium">
-                      Map each template variable to a column from your uploaded spreadsheet file:
+                      Map recipient phone number and template variables from your uploaded spreadsheet file:
                     </p>
 
                     {parsedExcelFile ? (
-                      <div className="space-y-2">
-                        {varsDetected.map((varNum, i) => (
-                          <div key={varNum} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5">
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-fg/80">
-                              VAR {i + 1} <code className="text-muted font-mono text-[9px] ml-1">{"{{" + varNum + "}}"}</code>
-                            </label>
+                      <div className="space-y-2.5">
+                        {/* 1. Phone Number (First-Class Recipient Identity) */}
+                        <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <label className="text-[10px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                                <span>Phone Number</span>
+                                <span className="text-[8px] px-1 py-0.2 bg-indigo-500/20 text-indigo-300 rounded font-mono uppercase">
+                                  Recipient
+                                </span>
+                              </label>
+                              <p className="text-[9px] text-muted mt-0.5">
+                                {parsedExcelFile.validPhoneCount > 0
+                                  ? `✓ ${parsedExcelFile.validPhoneCount} valid recipient(s) ready`
+                                  : `⚠ 0 valid phone numbers in "${parsedExcelFile.phoneHeader}"`}
+                              </p>
+                            </div>
                             <select
-                              value={excelColMapping[varNum] || ''}
-                              onChange={(e) => setExcelColMapping({ ...excelColMapping, [varNum]: e.target.value })}
-                              className="bg-bg border border-glass-border rounded-lg px-3 py-1.5 text-xs font-bold text-fg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 cursor-pointer"
+                              value={parsedExcelFile.phoneHeader}
+                              onChange={(e) => handleExcelPhoneHeaderChange(e.target.value)}
+                              className="bg-bg border border-indigo-500/40 rounded-lg px-3 py-1.5 text-xs font-bold font-mono text-fg focus:outline-none focus:border-indigo-400 cursor-pointer"
                             >
-                              <option value="">Select column...</option>
                               {parsedExcelFile.headers.map((h) => (
                                 <option key={h} value={h}>
-                                  {h} {h === parsedExcelFile.phoneHeader ? '(Phone)' : ''}
+                                  {h} {h === parsedExcelFile.detectedPhoneHeader ? '(Auto-detected)' : ''}
                                 </option>
                               ))}
                             </select>
                           </div>
-                        ))}
+                        </div>
+
+                        {/* 2. Template Variables */}
+                        {varsDetected.length > 0 && (
+                          <div className="space-y-2 pt-1">
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-wider">
+                              Template Variables ({varsDetected.length})
+                            </p>
+                            {varsDetected.map((varNum, i) => (
+                              <div key={varNum} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-fg/80">
+                                  VAR {i + 1} <code className="text-muted font-mono text-[9px] ml-1">{"{{" + varNum + "}}"}</code>
+                                </label>
+                                <select
+                                  value={excelColMapping[varNum] || ''}
+                                  onChange={(e) => setExcelColMapping({ ...excelColMapping, [varNum]: e.target.value })}
+                                  className="bg-bg border border-glass-border rounded-lg px-3 py-1.5 text-xs font-bold text-fg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 cursor-pointer"
+                                >
+                                  <option value="">Select column...</option>
+                                  {parsedExcelFile.headers.map((h) => (
+                                    <option key={h} value={h}>
+                                      {h} {h === parsedExcelFile.phoneHeader ? '(Phone)' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-xs text-muted p-2 italic">Upload a spreadsheet above to map columns.</p>
