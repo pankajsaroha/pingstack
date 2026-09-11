@@ -21,7 +21,12 @@ import {
   Save, 
   LogOut,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Camera,
+  Upload,
+  X,
+  RefreshCw,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useTenant } from '@/context/tenant-context';
 import { getPlatformInfo, PlatformInfo } from '@/lib/push-client';
@@ -36,6 +41,121 @@ export default function WorkspaceSettingsPage() {
   const [timezone, setTimezone] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // WhatsApp Business Profile DP state
+  const [businessProfile, setBusinessProfile] = useState<{
+    profile_picture_url?: string;
+    verified_name?: string;
+    about?: string;
+    description?: string;
+  } | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [selectedDpFile, setSelectedDpFile] = useState<File | null>(null);
+  const [dpPreviewUrl, setDpPreviewUrl] = useState<string | null>(null);
+  const [showDpModal, setShowDpModal] = useState(false);
+  const [uploadingDp, setUploadingDp] = useState(false);
+  const [dpError, setDpError] = useState<string | null>(null);
+
+  const whatsappAccount = tenant?.whatsapp_account;
+  const isConnected = whatsappAccount?.status === 'ACTIVE' || whatsappAccount?.status === 'CONNECTED';
+
+  const fetchBusinessProfile = async () => {
+    if (!isConnected) return;
+    setLoadingProfile(true);
+    try {
+      const res = await fetch('/api/whatsapp/meta/profile');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.profile) {
+          setBusinessProfile(json.profile);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch WhatsApp Business profile:', e);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected) {
+      fetchBusinessProfile();
+    }
+  }, [isConnected, tenant?.id]);
+
+  const handleSelectDpFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setDpError(null);
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      setDpError('Please select a JPG or PNG image.');
+      setShowDpModal(true);
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setDpError(`File is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Maximum allowed size is 5MB.`);
+      setShowDpModal(true);
+      return;
+    }
+
+    setSelectedDpFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setDpPreviewUrl(objectUrl);
+    setShowDpModal(true);
+    // Reset file input so re-selecting same file triggers change
+    e.target.value = '';
+  };
+
+  const handleUploadDp = async () => {
+    if (!selectedDpFile) return;
+
+    setUploadingDp(true);
+    setDpError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedDpFile);
+
+      const res = await fetch('/api/whatsapp/meta/profile', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSaveStatus({ text: 'WhatsApp Business profile picture updated successfully!', type: 'success' });
+        setTimeout(() => setSaveStatus(null), 5000);
+        setShowDpModal(false);
+        setSelectedDpFile(null);
+        if (dpPreviewUrl) {
+          URL.revokeObjectURL(dpPreviewUrl);
+          setDpPreviewUrl(null);
+        }
+        await fetchBusinessProfile();
+      } else {
+        setDpError(data.error || 'Failed to update WhatsApp Business profile picture.');
+      }
+    } catch (err: any) {
+      setDpError(err.message || 'Network error updating profile picture.');
+    } finally {
+      setUploadingDp(false);
+    }
+  };
+
+  const handleCloseDpModal = () => {
+    if (uploadingDp) return;
+    setShowDpModal(false);
+    setSelectedDpFile(null);
+    if (dpPreviewUrl) {
+      URL.revokeObjectURL(dpPreviewUrl);
+      setDpPreviewUrl(null);
+    }
+    setDpError(null);
+  };
 
   useEffect(() => {
     setPlatform(getPlatformInfo());
@@ -82,8 +202,6 @@ export default function WorkspaceSettingsPage() {
     window.location.replace('/login');
   };
 
-  const whatsappAccount = tenant?.whatsapp_account;
-  const isConnected = whatsappAccount?.status === 'ACTIVE' || whatsappAccount?.status === 'CONNECTED';
   const planType = getActivePlanType(tenant?.plan_type);
   const planLimits = PLANS[planType];
   const planConfig = PLAN_CONFIGS[planType];
@@ -227,8 +345,8 @@ export default function WorkspaceSettingsPage() {
           </div>
         </form>
 
-        {/* Section 3: WhatsApp Connection Status */}
-        <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+        {/* Section 3: WhatsApp Connection & Business Profile */}
+        <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800/60">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -236,7 +354,7 @@ export default function WorkspaceSettingsPage() {
               </div>
               <div>
                 <h2 className="text-sm font-bold text-zinc-900 dark:text-white">Meta WhatsApp Integration</h2>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Official Cloud API business connection</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Official Cloud API business connection &amp; WhatsApp Business Profile</p>
               </div>
             </div>
 
@@ -248,6 +366,79 @@ export default function WorkspaceSettingsPage() {
               {isConnected ? 'Connected' : (whatsappAccount?.status || 'Unlinked')}
             </span>
           </div>
+
+          {/* Connected WhatsApp Business Profile DP & Details */}
+          {isConnected && (
+            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-200/80 dark:border-zinc-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="relative group shrink-0">
+                  <div className="w-14 h-14 rounded-full border-2 border-emerald-500/30 dark:border-emerald-500/40 bg-white dark:bg-zinc-800 shadow-2xs overflow-hidden flex items-center justify-center">
+                    {businessProfile?.profile_picture_url ? (
+                      <img
+                        src={businessProfile.profile_picture_url}
+                        alt="WhatsApp Business DP"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-bold text-lg text-emerald-600 dark:text-emerald-400 font-mono">
+                        {(businessProfile?.verified_name || tenant?.name || 'W').charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <label
+                    htmlFor="dp-file-input"
+                    className="absolute inset-0 bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity backdrop-blur-2xs"
+                    title="Change WhatsApp Profile Picture"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </label>
+                  <input
+                    id="dp-file-input"
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    onChange={handleSelectDpFile}
+                    className="hidden"
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-xs font-bold text-zinc-900 dark:text-white truncate">
+                      {businessProfile?.verified_name || tenant?.name || 'WhatsApp Business Profile'}
+                    </h3>
+                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Verified WABA
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                    {whatsappAccount?.display_phone_number || whatsappAccount?.phone_number_id || 'Connected Phone'}
+                  </p>
+                  {businessProfile?.about && (
+                    <p className="text-[10px] text-zinc-400 italic truncate mt-0.5">
+                      &ldquo;{businessProfile.about}&rdquo;
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+                <label
+                  htmlFor="dp-file-input-btn"
+                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Update Profile Picture</span>
+                </label>
+                <input
+                  id="dp-file-input-btn"
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  onChange={handleSelectDpFile}
+                  className="hidden"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/80 dark:border-zinc-800">
@@ -275,6 +466,94 @@ export default function WorkspaceSettingsPage() {
             </Link>
           </div>
         </div>
+
+        {/* WhatsApp Profile Picture Update Modal */}
+        {showDpModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl space-y-4 text-left">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <Camera className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Update WhatsApp Profile Picture</h3>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Meta WhatsApp Business Account (WABA)</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseDpModal}
+                  disabled={uploadingDp}
+                  className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-lg cursor-pointer transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {dpError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{dpError}</span>
+                </div>
+              )}
+
+              {/* Image Preview */}
+              <div className="flex flex-col items-center justify-center p-6 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 space-y-3">
+                {dpPreviewUrl ? (
+                  <div className="w-32 h-32 rounded-full border-4 border-emerald-500/30 overflow-hidden shadow-md bg-white dark:bg-zinc-800">
+                    <img
+                      src={dpPreviewUrl}
+                      alt="Preview DP"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 rounded-full border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex flex-col items-center justify-center text-zinc-400">
+                    <ImageIcon className="w-8 h-8 mb-1" />
+                    <span className="text-[10px]">No image</span>
+                  </div>
+                )}
+                <div className="text-center">
+                  <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                    {selectedDpFile?.name || 'Selected Image'}
+                  </p>
+                  <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                    {selectedDpFile ? `${(selectedDpFile.size / 1024).toFixed(1)} KB • ${selectedDpFile.type}` : 'JPEG or PNG, Max 5MB'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseDpModal}
+                  disabled={uploadingDp}
+                  className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUploadDp}
+                  disabled={uploadingDp || !selectedDpFile}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                >
+                  {uploadingDp ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Uploading to Meta...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Save &amp; Update DP</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Section 4: Notifications & PWA App */}
         <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
