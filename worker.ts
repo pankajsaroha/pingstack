@@ -184,6 +184,54 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('❌ CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing. Check .env.local path.');
 }
 
+// Helper to update campaign status once all messages for a campaign have finished execution
+async function updateCampaignStatusIfFinished(campaignId: string, tenantId?: string) {
+  try {
+    const { data: messages, error } = await db
+      .from('messages')
+      .select('status, tenant_id')
+      .eq('campaign_id', campaignId);
+
+    if (error || !messages || messages.length === 0) return;
+
+    const resolvedTenantId = tenantId || messages[0]?.tenant_id;
+
+    // Invalidate Redis campaign cache for tenant immediately
+    if (resolvedTenantId && connection && connection.status === 'ready') {
+      try {
+        const keys = await connection.keys(`campaigns:${resolvedTenantId}:*`);
+        if (keys.length > 0) await connection.del(...keys);
+      } catch (e) {
+        console.error('[Worker] Redis cache invalidation error:', e);
+      }
+    }
+
+    const pending = messages.filter((m: any) => m.status === 'pending').length;
+    if (pending > 0) {
+      // Messages are still being processed
+      return;
+    }
+
+    const failed = messages.filter((m: any) => m.status === 'failed').length;
+    const total = messages.length;
+    const success = messages.filter((m: any) => ['sent', 'delivered', 'read'].includes(m.status)).length;
+
+    let finalStatus = 'completed';
+    if (failed === total) {
+      finalStatus = 'failed';
+    } else if (failed > 0 && success > 0) {
+      finalStatus = 'partial_success';
+    } else {
+      finalStatus = 'completed';
+    }
+
+    await db.from('campaigns').update({ status: finalStatus }).eq('id', campaignId);
+    console.log(`[Worker] Campaign ${campaignId} finished execution -> status updated to '${finalStatus}'.`);
+  } catch (err) {
+    console.error('[Worker] Error in updateCampaignStatusIfFinished:', err);
+  }
+}
+
 // ---------------------------------------------------------
 // 1. Messaging Worker (Processes individual message jobs)
 // ---------------------------------------------------------
@@ -356,6 +404,10 @@ const worker = new Worker('message-queue', async (job: Job) => {
         console.error('[Worker] Billing hook failed:', bErr.message || bErr);
       }
     }
+
+    if (message.campaign_id) {
+      await updateCampaignStatusIfFinished(message.campaign_id, message.tenant_id);
+    }
   } else {
     const errorString = String(result.error);
     await db.from('messages')
@@ -372,6 +424,10 @@ const worker = new Worker('message-queue', async (job: Job) => {
       provider,
       timestamp: new Date().toISOString()
     }));
+
+    if (message.campaign_id) {
+      await updateCampaignStatusIfFinished(message.campaign_id, message.tenant_id);
+    }
 
     throw new Error(errorString);
   }
@@ -577,7 +633,27 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
     });
   };
 
-  // A. Process Contacts and Groups
+  // Precedence Step 1: Process Direct Excel/CSV or explicit recipient rows first
+  // This ensures custom per-recipient variables (e.g. from spreadsheet columns) take highest priority.
+  if (directData && Array.isArray(directData)) {
+    directData.forEach((row: any) => {
+      const cleanPhone = String(row.phone || '').replace(/\D/g, '');
+      if (cleanPhone.length >= 7) {
+        let rowVars = Array.isArray(row.variables) && row.variables.length > 0 ? row.variables : [];
+        if (rowVars.length === 0 && templateVariables) {
+          const fakeContact = { name: row.name || 'Customer', phone_number: cleanPhone };
+          rowVars = resolveContactVariables(fakeContact);
+        }
+        recipientsByPhone.set(cleanPhone, {
+          contactId: row.contactId || row.contact_id || undefined,
+          phone: cleanPhone,
+          variables: rowVars,
+        });
+      }
+    });
+  }
+
+  // Precedence Step 2: Process Contacts and Groups for any recipients not already added with custom row data
   let targetContactIds = new Set<string>(contactIds || []);
   if (groupIds && groupIds.length > 0) {
     const { data: gcData } = await db.from('group_contacts').select('contact_id').in('group_id', groupIds).eq('tenant_id', tenantId);
@@ -590,30 +666,20 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
     (contacts || []).forEach((c: any) => {
       const cleanPhone = String(c.phone_number || '').replace(/\D/g, '');
       if (cleanPhone.length >= 7) {
-        recipientsByPhone.set(cleanPhone, {
-          contactId: c.id,
-          phone: cleanPhone,
-          variables: resolveContactVariables(c),
-        });
-      }
-    });
-  }
-
-  // B. Process Direct Excel/CSV Data (if present)
-  if (directData && Array.isArray(directData)) {
-    directData.forEach((row: any) => {
-      const cleanPhone = String(row.phone || '').replace(/\D/g, '');
-      if (cleanPhone.length >= 7 && !recipientsByPhone.has(cleanPhone)) {
-        // If row already has variables from spreadsheet columns, use them; otherwise resolve from templateVariables
-        let rowVars = row.variables || [];
-        if ((!rowVars || rowVars.length === 0) && templateVariables) {
-          const fakeContact = { name: row.name || 'Customer', phone_number: cleanPhone };
-          rowVars = resolveContactVariables(fakeContact);
+        if (recipientsByPhone.has(cleanPhone)) {
+          // If already in directData, preserve the custom per-row variables but attach the real contactId
+          const existing = recipientsByPhone.get(cleanPhone)!;
+          if (!existing.contactId) {
+            existing.contactId = c.id;
+          }
+        } else {
+          // New contact not in directData, resolve variables from group/contact templateVariables
+          recipientsByPhone.set(cleanPhone, {
+            contactId: c.id,
+            phone: cleanPhone,
+            variables: resolveContactVariables(c),
+          });
         }
-        recipientsByPhone.set(cleanPhone, {
-          phone: cleanPhone,
-          variables: rowVars,
-        });
       }
     });
   }
@@ -695,9 +761,17 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
   // Increment tenant daily template send quota by exact count
   await incrementUsage(tenantId, 'campaigns', jobs.length);
 
-  // Update campaign status to 'completed'
-  await db.from('campaigns').update({ status: 'completed' }).eq('id', campaignId);
-  console.log(`[Campaign Worker] Campaign ${campaignId} processed successfully! (Queued ${jobs.length} recipients)`);
+  // Keep campaign status as 'running' during active dispatch; messageWorker will update to completed/failed
+  await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
+  if (connection && connection.status === 'ready') {
+    try {
+      const keys = await connection.keys(`campaigns:${tenantId}:*`);
+      if (keys.length > 0) await connection.del(...keys);
+    } catch (e) {
+      console.error('[Campaign Worker] Redis cache invalidation error:', e);
+    }
+  }
+  console.log(`[Campaign Worker] Campaign ${campaignId} queued ${jobs.length} messages into BullMQ.`);
 
 }, {
   connection: connection as any,

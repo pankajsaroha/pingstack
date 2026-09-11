@@ -148,21 +148,25 @@ export default function CreateCampaignModal({
     const matches = activeTemplate.content.match(/\{\{(\d+)\}\}/g) || [];
     const rawNums = Array.from(new Set(matches.map((m: string) => m.replace(/\D/g, ''))));
     return (rawNums as string[]).sort((a: string, b: string) => Number(a) - Number(b));
-  }, [activeTemplate]);
+  }, [activeTemplate?.content]);
 
-  // Reset variable values when template changes (pure generic empty initial values)
+  const varsDetectedKey = varsDetected.join(',');
+
+  // Reset variable values when template changes (pure generic empty initial values, preserving user typing across re-renders)
   useEffect(() => {
     if (varsDetected.length > 0) {
-      const initialSame: Record<string, string> = {};
-      varsDetected.forEach((num: string) => {
-        initialSame[num] = '';
+      setSameVarValues((prev) => {
+        const initialSame: Record<string, string> = {};
+        varsDetected.forEach((num: string) => {
+          initialSame[num] = prev[num] || '';
+        });
+        return initialSame;
       });
-      setSameVarValues(initialSame);
     } else {
       setSameVarValues({});
     }
     setPreviewIndex(0);
-  }, [varsDetected]);
+  }, [templateId, varsDetectedKey]);
 
   // Fetch contacts for selected groups in a single batch operation
   const [groupContactsMap, setGroupContactsMap] = useState<Record<string, any[]>>({});

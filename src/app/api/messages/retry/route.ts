@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { messageQueue, deadLetterQueue } from '@/lib/queue';
+import { messageQueue, deadLetterQueue, connection } from '@/lib/queue';
 
 type RetryRequestBody = {
   messageId?: string;
@@ -119,6 +119,24 @@ export async function POST(req: Request) {
     if (updateErr) {
       console.error('[DLQ Retry] DB update status error:', updateErr);
       return NextResponse.json({ error: 'Failed to update message status' }, { status: 500 });
+    }
+
+    // Update affected campaigns back to 'running'
+    const affectedCampaignIds = Array.from(
+      new Set(failedMessages.map((m: any) => m.campaign_id).filter(Boolean))
+    );
+    if (affectedCampaignIds.length > 0) {
+      await db.from('campaigns').update({ status: 'running' }).in('id', affectedCampaignIds);
+    }
+
+    // Invalidate Redis campaign cache for this tenant
+    if (connection && connection.status === 'ready') {
+      try {
+        const keys = await connection.keys(`campaigns:${tenantId}:*`);
+        if (keys.length > 0) await connection.del(...keys);
+      } catch (e) {
+        console.error('[DLQ Retry] Redis cache invalidation error:', e);
+      }
     }
 
     // 2. Build BullMQ jobs for re-queued messages
