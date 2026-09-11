@@ -219,7 +219,7 @@ const SECTION_DATA: Record<string, { title: string; description: string; endpoin
           node: `const res = await fetch('https://app.pingstack.in/api/v1/webhooks', {\n  method: 'POST',\n  headers: { 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },\n  body: JSON.stringify({ url: 'https://api.mycrm.com/webhooks/pingstack', events: ['message.received', 'message.delivered'] })\n});`,
           python: `res = requests.post('https://app.pingstack.in/api/v1/webhooks', headers={'Authorization': f'Bearer {KEY}'}, json={'url': 'https://api.mycrm.com/webhooks/pingstack', 'events': ['message.received', 'message.delivered']})`
         },
-        exampleResponse: `{\n  "success": true,\n  "data": {\n    "id": "wh_1...",\n    "url": "https://api.mycrm.com/webhooks/pingstack",\n    "signing_secret": "whsec_xxxxxxxxxxxxxxxxxxxxxxxx"\n  },\n  "request_id": "req_6b7c8d9e"\n}`
+        exampleResponse: `{\n  "success": true,\n  "data": {\n    "id": "wh_1...",\n    "url": "https://api.mycrm.com/webhooks/pingstack",\n    "signing_secret": "whsec_YOUR_SIGNING_SECRET_HERE"\n  },\n  "request_id": "req_6b7c8d9e"\n}`
       }
     ]
   },

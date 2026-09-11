@@ -616,7 +616,7 @@ export const DOCS_ARTICLES: Record<string, DocArticle> = {
           {
             language: 'json',
             label: 'Creation Response (Secret shown once)',
-            code: `{\n  "success": true,\n  "data": {\n    "id": "wh_1...",\n    "url": "https://api.mycrm.com/webhooks/pingstack",\n    "signing_secret": "whsec_xxxxxxxxxxxxxxxxxxxxxxxx",\n    "subscribed_events": ["message.received", "message.delivered", "message.failed"],\n    "is_active": true,\n    "created_at": "2026-09-09T22:00:00.000Z"\n  },\n  "request_id": "req_3d4e5f6a"\n}`
+            code: `{\n  "success": true,\n  "data": {\n    "id": "wh_1...",\n    "url": "https://api.mycrm.com/webhooks/pingstack",\n    "signing_secret": "whsec_YOUR_SIGNING_SECRET_HERE",\n    "subscribed_events": ["message.received", "message.delivered", "message.failed"],\n    "is_active": true,\n    "created_at": "2026-09-09T22:00:00.000Z"\n  },\n  "request_id": "req_3d4e5f6a"\n}`
           }
         ]
       }

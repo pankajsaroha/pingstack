@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type')?.trim().toLowerCase() || 'all';
-    const status = searchParams.get('status')?.trim().toUpperCase() || 'all';
+    const status = searchParams.get('status')?.trim().toLowerCase() || 'all';
     const priority = searchParams.get('priority')?.trim().toLowerCase() || 'all';
 
     let query = db
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       query = query.eq('type', type);
     }
     if (status !== 'all') {
-      query = query.eq('status', status);
+      query = query.eq('status', status.toUpperCase());
     }
     if (priority !== 'all') {
       query = query.eq('priority', priority);

@@ -2,14 +2,64 @@
 
 import { useRef, useState } from 'react';
 import { Upload, CheckCircle2, FileText, AlertTriangle, RefreshCw, Eye } from 'lucide-react';
+import { isValidPhoneNumber, normalizePhoneNumber, detectPhoneColumn } from '@/lib/phone';
 
 export interface ParsedExcelFile {
   fileName: string;
   headers: string[];
+  dataMatrix: any[][];
   rows: Record<string, any>[];
   validPhoneCount: number;
   invalidPhoneCount: number;
   phoneHeader: string;
+  detectedPhoneHeader: string;
+}
+
+/**
+ * Re-evaluates spreadsheet rows and counts against a selected phone header.
+ */
+export function evaluateExcelRecipients(
+  headers: string[],
+  dataMatrix: any[][],
+  phoneHeader: string
+): {
+  rows: Record<string, any>[];
+  validPhoneCount: number;
+  invalidPhoneCount: number;
+} {
+  let validPhoneCount = 0;
+  let invalidPhoneCount = 0;
+  const parsedRows: Record<string, any>[] = [];
+
+  const phoneColIdx = headers.indexOf(phoneHeader);
+
+  dataMatrix.forEach((row) => {
+    const rawPhone = phoneColIdx >= 0 && row[phoneColIdx] !== undefined ? String(row[phoneColIdx]).trim() : '';
+    const isValValid = isValidPhoneNumber(rawPhone);
+    const cleanPhone = isValValid ? normalizePhoneNumber(rawPhone) : '';
+
+    const rowObj: Record<string, any> = {
+      _phone: cleanPhone,
+      _isPhoneValid: isValValid,
+    };
+
+    headers.forEach((header, hIdx) => {
+      rowObj[header] = row[hIdx] !== undefined ? String(row[hIdx]).trim() : '';
+    });
+
+    if (isValValid) {
+      validPhoneCount++;
+      parsedRows.push(rowObj);
+    } else if (rawPhone.length > 0) {
+      invalidPhoneCount++;
+    }
+  });
+
+  return {
+    rows: parsedRows,
+    validPhoneCount,
+    invalidPhoneCount,
+  };
 }
 
 interface ExcelUploaderProps {
@@ -65,72 +115,34 @@ export default function ExcelUploader({
             dataMatrix = rawMatrix;
           }
 
-          // 2. Identify phone column
-          let phoneColIdx = -1;
-          headers.forEach((h, idx) => {
-            if (phoneColIdx === -1 && /^(phone|mobile|number|tel|whatsapp|contact_number|cell_number|phone_number)/i.test(h)) {
-              phoneColIdx = idx;
-            }
-          });
-
-          // Fallback: search columns for phone-like values (7-15 digits)
-          if (phoneColIdx === -1 && dataMatrix.length > 0) {
-            for (let c = 0; c < headers.length; c++) {
-              const sampleDigits = String(dataMatrix[0]?.[c] || '').replace(/\D/g, '');
-              if (sampleDigits.length >= 7 && sampleDigits.length <= 15) {
-                phoneColIdx = c;
-                break;
-              }
-            }
-          }
-
-          if (phoneColIdx === -1) {
-            phoneColIdx = 0;
-          }
-
-          const phoneHeader = headers[phoneColIdx] || 'Phone';
-
-          // 3. Process data rows
-          let validPhoneCount = 0;
-          let invalidPhoneCount = 0;
-          const parsedRows: Record<string, any>[] = [];
-
-          dataMatrix.forEach((row) => {
-            const rawPhone = String(row[phoneColIdx] || '').trim();
-            const cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
-            const digits = cleanPhone.replace(/\D/g, '');
-
-            const rowObj: Record<string, any> = {
-              _phone: cleanPhone,
-            };
-
-            headers.forEach((header, hIdx) => {
-              rowObj[header] = row[hIdx] !== undefined ? String(row[hIdx]).trim() : '';
-            });
-
-            if (digits.length >= 7) {
-              validPhoneCount++;
-              parsedRows.push(rowObj);
-            } else if (rawPhone.length > 0) {
-              invalidPhoneCount++;
-            }
-          });
-
-          if (validPhoneCount === 0) {
-            onToast('No valid phone numbers found in file. Please ensure a phone column exists.', 'error');
+          if (headers.length === 0 || dataMatrix.length === 0) {
+            onToast('Spreadsheet contains no data rows.', 'error');
             return;
           }
+
+          // 2. Identify phone column with 2-stage detector
+          const { detectedHeader, confidence } = detectPhoneColumn(headers, dataMatrix, true);
+          const initialPhoneHeader = detectedHeader || headers[0] || '';
+
+          // 3. Process data rows
+          const evaluated = evaluateExcelRecipients(headers, dataMatrix, initialPhoneHeader);
 
           onParsed({
             fileName: file.name,
             headers,
-            rows: parsedRows,
-            validPhoneCount,
-            invalidPhoneCount,
-            phoneHeader,
+            dataMatrix,
+            rows: evaluated.rows,
+            validPhoneCount: evaluated.validPhoneCount,
+            invalidPhoneCount: evaluated.invalidPhoneCount,
+            phoneHeader: initialPhoneHeader,
+            detectedPhoneHeader: initialPhoneHeader,
           });
 
-          onToast(`Loaded ${validPhoneCount} valid recipients from ${file.name}`, 'success');
+          if (evaluated.validPhoneCount === 0) {
+            onToast(`File loaded. Please select the correct phone column below (${evaluated.invalidPhoneCount} invalid/empty numbers).`, 'info');
+          } else {
+            onToast(`Loaded ${evaluated.validPhoneCount} valid recipients from ${file.name}`, 'success');
+          }
         } catch (err: any) {
           console.error('[ExcelUploader] parse error:', err);
           onToast('Failed to parse spreadsheet file. Please check format.', 'error');
@@ -139,6 +151,23 @@ export default function ExcelUploader({
       reader.readAsBinaryString(file);
     } catch (err) {
       onToast('Failed to load spreadsheet parser engine.', 'error');
+    }
+  };
+
+  const handlePhoneHeaderChange = (newHeader: string) => {
+    if (!parsedFile) return;
+    const evaluated = evaluateExcelRecipients(parsedFile.headers, parsedFile.dataMatrix, newHeader);
+    onParsed({
+      ...parsedFile,
+      phoneHeader: newHeader,
+      rows: evaluated.rows,
+      validPhoneCount: evaluated.validPhoneCount,
+      invalidPhoneCount: evaluated.invalidPhoneCount,
+    });
+    if (evaluated.validPhoneCount > 0) {
+      onToast(`Selected "${newHeader}" (${evaluated.validPhoneCount} valid recipients)`, 'success');
+    } else {
+      onToast(`Selected "${newHeader}" (0 valid recipients found)`, 'info');
     }
   };
 
@@ -252,16 +281,34 @@ export default function ExcelUploader({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             <div className="p-2.5 rounded-xl bg-black/20 border border-white/5 space-y-0.5">
               <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Recipients Detected</p>
-              <p className="text-xs font-black text-emerald-400">
-                ✓ {parsedFile.validPhoneCount} valid recipients ({parsedFile.headers.length} columns)
-              </p>
+              {parsedFile.validPhoneCount > 0 ? (
+                <p className="text-xs font-black text-emerald-400">
+                  ✓ {parsedFile.validPhoneCount} valid recipients ({parsedFile.headers.length} columns)
+                </p>
+              ) : (
+                <p className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  0 valid recipients in &ldquo;{parsedFile.phoneHeader}&rdquo;
+                </p>
+              )}
             </div>
 
-            <div className="p-2.5 rounded-xl bg-black/20 border border-white/5 space-y-0.5">
-              <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Phone Column</p>
-              <p className="text-xs font-mono font-bold text-indigo-300 truncate">
-                &ldquo;{parsedFile.phoneHeader}&rdquo;
-              </p>
+            <div className="p-2.5 rounded-xl bg-black/20 border border-white/5 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Phone Column</p>
+                <span className="text-[9px] text-muted">Change if needed</span>
+              </div>
+              <select
+                value={parsedFile.phoneHeader}
+                onChange={(e) => handlePhoneHeaderChange(e.target.value)}
+                className="w-full bg-bg border border-glass-border rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-fg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 cursor-pointer"
+              >
+                {parsedFile.headers.map((h) => (
+                  <option key={h} value={h}>
+                    {h} {h === parsedFile.detectedPhoneHeader ? '(Auto-detected)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -298,7 +345,7 @@ export default function ExcelUploader({
                     {parsedFile.rows.slice(0, 5).map((row, rIdx) => (
                       <tr key={rIdx} className="hover:bg-white/[0.02]">
                         {parsedFile.headers.map((h) => (
-                          <td key={h} className="px-3 py-1.5 font-mono whitespace-nowrap text-muted hover:text-fg">
+                          <td key={h} className={`px-3 py-1.5 font-mono whitespace-nowrap ${h === parsedFile.phoneHeader ? 'text-emerald-300 font-bold' : 'text-muted hover:text-fg'}`}>
                             {row[h] || '—'}
                           </td>
                         ))}

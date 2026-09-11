@@ -12,9 +12,8 @@ const getResend = () => {
 
 export async function POST(req: Request) {
   try {
-    const reqHeaders = await headers();
-    const tenantId = reqHeaders.get('x-tenant-id') || null;
-    const userId = reqHeaders.get('x-user-id') || null;
+    const tenantId = req.headers.get('x-tenant-id') || null;
+    const userId = req.headers.get('x-user-id') || null;
 
     const body = await req.json();
     const { 
@@ -57,8 +56,17 @@ export async function POST(req: Request) {
         .insert([payload]);
 
       if (dbError) {
-        console.warn('[Feedback API] DB insert warning:', dbError.message);
+        console.error('[Feedback API] DB insert error:', dbError.message);
+        return NextResponse.json(
+          { error: 'Failed to record feedback. Please try again.' },
+          { status: 500 }
+        );
       }
+    } else {
+      return NextResponse.json(
+        { error: 'Database service unavailable' },
+        { status: 503 }
+      );
     }
 
     console.log('[Feedback Collected]', JSON.stringify(payload, null, 2));
