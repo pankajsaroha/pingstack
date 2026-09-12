@@ -137,10 +137,13 @@ export default function CampaignReport({ campaign, onClose }: CampaignReportProp
             <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Delivery Status Metrics Logs</p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 hover:bg-glass-input rounded-xl transition-colors cursor-pointer text-muted hover:text-fg"
+            className="w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer border border-zinc-200/80 dark:border-zinc-700/80 shadow-xs shrink-0"
+            title="Close"
+            aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 

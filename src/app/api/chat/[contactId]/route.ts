@@ -101,3 +101,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
 
   return NextResponse.json(msg);
 }
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ contactId: string }> }
+) {
+  const tenantId = req.headers.get('x-tenant-id');
+  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  const { contactId } = await params;
+
+  try {
+    const { error } = await db
+      .from('messages')
+      .delete()
+      .eq('contact_id', contactId)
+      .eq('tenant_id', tenantId);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('Delete Conversation Error:', err);
+    return NextResponse.json({ error: 'Failed to delete conversation' }, { status: 500 });
+  }
+}
+

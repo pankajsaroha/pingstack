@@ -327,17 +327,19 @@ export default function AutomationsManager({ tenant, templates: initialTemplates
 
       {/* Create / Edit Rule Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-bg/95 backdrop-blur-md border border-glass-border w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-bg/95 backdrop-blur-md border border-glass-border w-full max-w-xl rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer border border-zinc-200/80 dark:border-zinc-700/80 shadow-xs z-20"
+              title="Close"
+              aria-label="Close"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4.5 h-4.5" />
             </button>
 
-            <h3 className="text-xl font-black text-fg mb-6 tracking-tight flex items-center gap-2">
+            <h3 className="text-lg sm:text-xl font-black text-fg mb-6 tracking-tight flex items-center gap-2 pr-12">
               <Bot className="w-5 h-5 text-indigo-500" />
               {editingRule ? 'Edit Automation Rule' : 'New Automation Rule'}
             </h3>

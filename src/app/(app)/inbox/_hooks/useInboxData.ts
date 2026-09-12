@@ -413,7 +413,11 @@ export function useInboxData({
 
   const handleBulkDelete = useCallback(async () => {
     if (selectedMessageIds.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedMessageIds.size} messages?`)) return;
+    const count = selectedMessageIds.size;
+    const confirmMessage = count === 1
+      ? 'Are you sure you want to delete this message?'
+      : `Are you sure you want to delete these ${count} messages?`;
+    if (!confirm(confirmMessage)) return;
     try {
       const res = await fetch('/api/messages/bulk-delete', {
         method: 'POST',
@@ -423,7 +427,7 @@ export function useInboxData({
       if (res.ok) {
         setMessages(prev => prev.filter(m => !selectedMessageIds.has(m.id)));
         setSelectedMessageIds(new Set());
-        setToast({ message: 'Messages deleted', type: 'success' });
+        setToast({ message: count === 1 ? 'Message deleted' : `${count} messages deleted`, type: 'success' });
       } else {
         setToast({ message: 'Failed to delete messages', type: 'error' });
       }
@@ -450,6 +454,37 @@ export function useInboxData({
     }
   }, [tenant?.id]);
 
+  const handleDeleteConversation = useCallback(async (contactId: string) => {
+    try {
+      const res = await fetch(`/api/chat/${contactId}`, {
+        method: 'DELETE',
+        headers: { 'x-tenant-id': tenant?.id || '' },
+      });
+      if (res.ok) {
+        setConversations(prev => {
+          const updated = prev.filter(c => c.contact.id !== contactId);
+          if (activeContactId === contactId) {
+            const nextActiveId = updated.length > 0 ? updated[0].contact.id : null;
+            setActiveContactId(nextActiveId);
+            if (nextActiveId) {
+              fetchMessages(nextActiveId);
+            } else {
+              setMessages([]);
+            }
+            setShowChatOnMobile(false);
+          }
+          return updated;
+        });
+        setToast({ message: 'Conversation deleted', type: 'success' });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setToast({ message: data.error || 'Failed to delete conversation', type: 'error' });
+      }
+    } catch {
+      setToast({ message: 'Error deleting conversation', type: 'error' });
+    }
+  }, [activeContactId, fetchMessages, tenant?.id]);
+
   const handleToggleMessageSelect = useCallback((id: string) => {
     setSelectedMessageIds(prev => {
       const next = new Set(prev);
@@ -471,6 +506,7 @@ export function useInboxData({
   return {
     // states
     conversations,
+    setConversations,
     allContacts,
     messages,
     templates,
@@ -482,6 +518,7 @@ export function useInboxData({
     toast,
     setToast,
     activeContactId,
+    setActiveContactId,
     searchQuery,
     setSearchQuery,
     newMessage,
@@ -508,6 +545,7 @@ export function useInboxData({
     handleSendTemplate,
     handleBulkDelete,
     handleDeleteMessage,
+    handleDeleteConversation,
     handleToggleMessageSelect,
     handleFileSelect,
     handleFileChange,
