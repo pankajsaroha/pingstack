@@ -177,6 +177,7 @@ export async function POST(req: Request) {
             // Extract message content and type across all WhatsApp message categories
             let textContext = '';
             let msgType = msg.type || 'text';
+            let msgError: string | null = null;
             let mediaUrl: string | undefined = undefined;
 
             if (msg.type === 'text') {
@@ -230,6 +231,13 @@ export async function POST(req: Request) {
               textContext = '[Sticker]';
               msgType = 'sticker';
               mediaUrl = msg.sticker?.id;
+            } else if (msg.type === 'unsupported') {
+              const err = msg.errors && msg.errors.length > 0 ? msg.errors[0] : null;
+              const errCode = err?.code;
+              const errTitle = err?.title || err?.message || 'Message type is not currently supported';
+              msgType = 'unsupported';
+              textContext = `[Unsupported WhatsApp message format${errCode ? ` (Code ${errCode})` : ''}]`;
+              msgError = `${errTitle}${errCode ? ` (Code: ${errCode})` : ''}`;
             } else {
               // Fallback for any other WhatsApp message payload types
               textContext = msg[msg.type]?.body || msg[msg.type]?.caption || `[${(msg.type || 'Message').toUpperCase()}]`;
@@ -303,6 +311,9 @@ export async function POST(req: Request) {
                 provider_message_id: msgId,
                 message_type: msgType
               };
+              if (msgError) {
+                messagePayload.error = msgError;
+              }
               if (mediaUrl) {
                 messagePayload.media_url = mediaUrl;
               }

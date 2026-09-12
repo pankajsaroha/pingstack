@@ -5,6 +5,7 @@ import {
   Send, Clock, Check, CheckCheck, AlertCircle,
   Trash2, Image, FileText, Paperclip, X
 } from 'lucide-react';
+import { WhatsAppFormattedText } from '@/lib/whatsapp-formatter';
 
 interface MessageBubbleProps {
   msg: {
@@ -180,10 +181,28 @@ export default function MessageBubble({
           </div>
         )}
 
-        {/* Text */}
-        <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-normal break-words [overflow-wrap:anywhere] min-w-0">
-          {msg.content || (msg.media_path ? '' : '[Template Message]')}
-        </p>
+        {/* Text or Unsupported Message Notice */}
+        {(msg.message_type === 'unsupported' || msg.content === '[UNSUPPORTED]' || msg.content?.startsWith('[Unsupported WhatsApp message format')) ? (
+          <div className="flex items-start space-x-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed min-w-0">
+              <p className="font-semibold text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                Unsupported Format
+              </p>
+              <p className="text-[11px] text-zinc-600 dark:text-zinc-300 mt-0.5">
+                {msg.error || 'This message format (e.g. B2B Template) is not supported for rendering by WhatsApp Cloud API.'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-normal break-words [overflow-wrap:anywhere] min-w-0">
+            {msg.content ? (
+              <WhatsAppFormattedText text={msg.content} />
+            ) : (
+              msg.media_path ? '' : '[Template Message]'
+            )}
+          </div>
+        )}
 
         {/* Timestamp + status */}
         <div className={`flex items-center justify-end mt-1 space-x-1 ${isOutbound ? 'text-white/60 dark:text-zinc-900/60' : 'text-zinc-400 dark:text-zinc-500'}`}>
