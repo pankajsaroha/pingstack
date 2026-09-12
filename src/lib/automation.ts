@@ -3,7 +3,7 @@ import { messageQueue } from './queue';
 import { renderTemplateBody } from './templates';
 import { checkTemplateSendLimit, incrementTemplateSendUsage, isFeatureAllowed } from './limits';
 
-export type TriggerType = 'keyword' | 'welcome' | 'message_contains' | 'exact_match';
+export type TriggerType = 'keyword' | 'welcome' | 'first_inbound' | 'message_contains' | 'exact_match';
 
 export interface AutomationCondition {
   field: 'text' | 'sender_name' | 'sender_phone' | 'time_of_day' | 'is_first_message';
@@ -128,7 +128,7 @@ function matchTriggerAndConditions(
   // 1. Evaluate Trigger
   let triggerMatched = false;
 
-  if (triggerType === 'welcome') {
+  if (triggerType === 'welcome' || triggerType === 'first_inbound') {
     triggerMatched = isFirstMessage;
   } else if (triggerType === 'exact_match') {
     triggerMatched = keywords.some((k) => normalizedText === k);
@@ -230,7 +230,7 @@ async function executeRuleActions(
         ? Object.values(action.variables)
         : [];
 
-      const metaParams = paramsList.map((v) => ({ type: 'text', text: String(v) }));
+      const metaParams = (paramsList as any[]).map((v: any) => ({ type: 'text', text: String(v) }));
       const components = metaParams.length > 0 ? [{ type: 'body', parameters: metaParams }] : [];
 
       await messageQueue.add('send-whatsapp', {

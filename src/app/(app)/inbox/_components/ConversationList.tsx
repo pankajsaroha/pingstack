@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { MessageCircle } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { MessageCircle, Trash2, AlertTriangle, X } from 'lucide-react';
 import VirtualList from '@/components/VirtualList';
 import ContactAvatar from '@/components/ContactAvatar';
 
@@ -12,6 +12,7 @@ interface ConversationListProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onSelectContact: (contactId: string) => void;
+  onDeleteConversation?: (contactId: string) => void;
 }
 
 type ListElement =
@@ -26,7 +27,66 @@ export default function ConversationList({
   searchQuery,
   onSearchChange,
   onSelectContact,
+  onDeleteConversation,
 }: ConversationListProps) {
+  const [deleteConfirmContact, setDeleteConfirmContact] = useState<{ id: string; name: string; phone: string } | null>(null);
+
+  // Long-press detection for conversations
+  const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+  const isLongPressRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+    };
+  }, []);
+
+  const handleTouchStart = (contact: { id: string; name: string; phone: string }, e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      isLongPressRef.current = false;
+
+      if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = setTimeout(() => {
+        isLongPressRef.current = true;
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          try { navigator.vibrate(40); } catch (_) {}
+        }
+        setDeleteConfirmContact(contact);
+      }, 500);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos.current || !touchTimerRef.current) return;
+    if (e.touches.length > 0) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+      if (dx > 10 || dy > 10) {
+        // Scrolling conversation list — cancel long press
+        clearTimeout(touchTimerRef.current);
+        touchTimerRef.current = null;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+    touchStartPos.current = null;
+  };
+
+  const handleConversationClick = (contactId: string) => {
+    if (isLongPressRef.current) {
+      isLongPressRef.current = false;
+      return;
+    }
+    onSelectContact(contactId);
+  };
+
   const { listItems, itemHeights, filteredConversationsCount, matchingNewContactsCount } = useMemo(() => {
     const conversationsContactIds = new Set(conversations.map((c) => c.contact.id));
 
@@ -95,11 +155,25 @@ export default function ConversationList({
     if (item.type === 'conversation') {
       const conv = item.data;
       const isActive = conv.contact.id === activeContactId;
+      const contactInfo = {
+        id: conv.contact.id,
+        name: conv.contact.name || conv.contact.phone_number,
+        phone: conv.contact.phone_number
+      };
+
       return (
         <div
           key={item.key}
-          onClick={() => onSelectContact(conv.contact.id)}
-          className={`px-3.5 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 flex items-center gap-3 ${
+          onClick={() => handleConversationClick(conv.contact.id)}
+          onTouchStart={(e) => handleTouchStart(contactInfo, e)}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setDeleteConfirmContact(contactInfo);
+          }}
+          className={`group px-3.5 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 flex items-center gap-3 select-none ${
             isActive
               ? 'bg-zinc-100 dark:bg-zinc-800 border-l-3 border-l-indigo-600 dark:border-l-indigo-500'
               : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
@@ -153,6 +227,21 @@ export default function ConversationList({
               )}
             </div>
           </div>
+
+          {/* Desktop delete chat button on hover */}
+          {onDeleteConversation && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteConfirmContact(contactInfo);
+              }}
+              className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer hidden sm:block shrink-0"
+              title="Delete chat"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       );
     }
@@ -240,6 +329,52 @@ export default function ConversationList({
           className="custom-scrollbar"
         />
       )}
+
+      {/* Delete Chat Confirmation Modal */}
+      {deleteConfirmContact && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setDeleteConfirmContact(null)}
+        >
+          <div 
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-150 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-10 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center mb-4">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              Delete Chat?
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+              Are you sure you want to delete all conversation history with <strong className="text-zinc-800 dark:text-zinc-200">{deleteConfirmContact.name}</strong>? This will remove these messages from Pingstack.
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmContact(null)}
+                className="flex-1 py-2.5 px-4 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const id = deleteConfirmContact.id;
+                  setDeleteConfirmContact(null);
+                  onDeleteConversation?.(id);
+                }}
+                className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+              >
+                Delete Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

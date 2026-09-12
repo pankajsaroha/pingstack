@@ -56,6 +56,7 @@ export default function InboxClient({
     handleSendTemplate,
     handleBulkDelete,
     handleDeleteMessage,
+    handleDeleteConversation,
     handleToggleMessageSelect,
     handleFileSelect,
     handleFileChange,
@@ -156,6 +157,7 @@ export default function InboxClient({
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onSelectContact={handleSelectContact}
+          onDeleteConversation={handleDeleteConversation}
         />
       </div>
 

@@ -148,22 +148,25 @@ export default function CreateTemplateModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] overflow-y-auto animate-in fade-in duration-200">
-      <div className="flex min-h-full items-start justify-center p-4 text-center sm:items-center sm:p-8">
-        <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-4xl w-full p-8 relative text-left my-8 sm:my-0 animate-in zoom-in-95 duration-300">
+      <div className="flex min-h-full items-start justify-center p-3 text-center sm:items-center sm:p-8">
+        <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl max-w-4xl w-full p-5 sm:p-8 relative text-left my-4 sm:my-0 animate-in zoom-in-95 duration-300">
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-8 right-8 text-muted hover:text-fg p-1 hover:bg-glass-input rounded-lg transition-colors cursor-pointer bg-transparent border-0 outline-none z-10"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer border border-zinc-200/80 dark:border-zinc-700/80 shadow-xs z-20"
+            title="Close"
+            aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
 
-          <div className="flex items-center mb-6">
-            <div className="w-14 h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mr-6 shrink-0">
-              <span className="text-xs font-black uppercase text-fg">WABA</span>
+          <div className="flex items-center mb-6 pr-12 sm:pr-14">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-glass-input border border-glass-border rounded-2xl flex items-center justify-center mr-4 sm:mr-6 shrink-0">
+              <span className="text-[11px] sm:text-xs font-black uppercase text-fg">WABA</span>
             </div>
-            <div>
-              <h3 className="text-xl font-black text-fg tracking-tight">Create Meta Template</h3>
-              <p className="text-[9px] text-fg/30 font-black uppercase tracking-widest mt-1.5">Direct Cloud API Submission Pipeline</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg sm:text-xl font-black text-fg tracking-tight truncate">Create Meta Template</h3>
+              <p className="text-[8px] sm:text-[9px] text-fg/40 font-black uppercase tracking-widest mt-1 truncate">Direct Cloud API Submission Pipeline</p>
             </div>
           </div>
 

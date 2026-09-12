@@ -732,24 +732,27 @@ export default function CreateCampaignModal({
       <div className="min-h-full flex items-start justify-center py-4 sm:py-8">
         <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full p-5 sm:p-7 relative text-left animate-in zoom-in-95 duration-200">
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-5 right-5 sm:top-8 sm:right-8 text-muted hover:text-fg p-1.5 hover:bg-glass-input rounded-lg transition-colors cursor-pointer bg-transparent border-0 outline-none"
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer border border-zinc-200/80 dark:border-zinc-700/80 shadow-xs z-20"
+          title="Close"
+          aria-label="Close"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4.5 h-4.5" />
         </button>
 
-        <div className="flex items-center justify-between mb-1 pr-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1 pr-12 sm:pr-14">
           <h3 className="text-xl sm:text-2xl font-black text-fg tracking-tight">Create Campaign</h3>
           <button
             type="button"
             onClick={() => setShowGuide(!showGuide)}
-            className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 bg-transparent border-0 cursor-pointer"
+            className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 bg-transparent border-0 cursor-pointer self-start sm:self-auto"
           >
             <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
             <span>{showGuide ? 'Hide guide' : 'How campaigns work'}</span>
           </button>
         </div>
-        <p className="text-xs text-muted font-medium mb-4">Configure and launch bulk WhatsApp campaigns</p>
+        <p className="text-xs text-muted font-medium mb-4 pr-12 sm:pr-14">Configure and launch bulk WhatsApp campaigns</p>
 
         {/* Contextual In-Product Campaign Guidance (Section 15) */}
         {showGuide && (

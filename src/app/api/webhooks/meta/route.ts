@@ -175,6 +175,19 @@ export async function POST(req: Request) {
               const msgId = msg.id;
               const textContext = msg.text.body;
 
+              // Idempotency: skip already-processed messages if Meta retries webhook
+              if (msgId) {
+                const { data: existingMsg } = await db!
+                  .from('messages')
+                  .select('id')
+                  .eq('provider_message_id', msgId)
+                  .maybeSingle();
+
+                if (existingMsg) {
+                  return;
+                }
+              }
+
               // NORMALIZE: Meta sends 91..., but we might have stored +91...
               const cleanPhone = fromPhone.replace(/^\+/, '');
 
@@ -203,6 +216,22 @@ export async function POST(req: Request) {
               }
 
               if (contactId) {
+                // Determine if this is the customer's first inbound message ever
+                let isFirstMessage = false;
+                if (!existingContact) {
+                  isFirstMessage = true;
+                } else {
+                  const { count: priorInboundCount } = await db!
+                    .from('messages')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('tenant_id', tenantId)
+                    .eq('contact_id', contactId)
+                    .eq('direction', 'inbound');
+
+                  isFirstMessage = (priorInboundCount || 0) === 0;
+                }
+
+                // 1. Persist inbound message first (highest priority)
                 await Promise.all([
                   db!.from('messages').insert({
                     tenant_id: tenantId,
@@ -218,7 +247,7 @@ export async function POST(req: Request) {
                     .eq('id', contactId)
                 ]);
 
-                // Durably enqueue push notification into Redis background queue (~2ms, non-blocking for Meta)
+                // 2. Durably enqueue push notification into Redis background queue (~2ms, non-blocking)
                 await enqueueInboundMessagePushNotification({
                   tenantId,
                   contactId,
@@ -229,7 +258,7 @@ export async function POST(req: Request) {
                   messageText: textContext,
                 }).catch((err) => console.error('[Meta Webhook Push Enqueue Error]:', err));
 
-                // Asynchronously dispatch developer webhook for inbound message
+                // 3. Asynchronously dispatch developer webhook for inbound message
                 dispatchDeveloperWebhookEvent(tenantId, 'message.received', {
                   message_id: msgId,
                   contact_id: contactId,
@@ -239,15 +268,19 @@ export async function POST(req: Request) {
                   timestamp: new Date().toISOString(),
                 }).catch(() => null);
 
-                // Asynchronously evaluate automations
-                evaluateAndExecuteAutomations({
-                  tenantId,
-                  contactId,
-                  fromPhone,
-                  messageText: textContext,
-                  contactName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
-                  isFirstMessage: !existingContact,
-                }).catch((err) => console.error('[Meta Webhook Automation Error]:', err));
+                // 4. Immediately evaluate automations and enqueue auto-reply jobs into Redis queue
+                try {
+                  await evaluateAndExecuteAutomations({
+                    tenantId,
+                    contactId,
+                    fromPhone,
+                    messageText: textContext,
+                    contactName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
+                    isFirstMessage,
+                  });
+                } catch (autoErr) {
+                  console.error('[Meta Webhook Automation Error]:', autoErr);
+                }
               }
             }
           });
