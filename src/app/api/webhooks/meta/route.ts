@@ -170,117 +170,183 @@ export async function POST(req: Request) {
 
           // 2. Process Incoming Messages in Parallel
           const messagePromises = (value.messages || []).map(async (msg: any) => {
+            const fromPhone = msg.from;
+            const msgId = msg.id;
+            if (!fromPhone || !msgId) return;
+
+            // Extract message content and type across all WhatsApp message categories
+            let textContext = '';
+            let msgType = msg.type || 'text';
+            let mediaUrl: string | undefined = undefined;
+
             if (msg.type === 'text') {
-              const fromPhone = msg.from;
-              const msgId = msg.id;
-              const textContext = msg.text.body;
-
-              // Idempotency: skip already-processed messages if Meta retries webhook
-              if (msgId) {
-                const { data: existingMsg } = await db!
-                  .from('messages')
-                  .select('id')
-                  .eq('provider_message_id', msgId)
-                  .maybeSingle();
-
-                if (existingMsg) {
-                  return;
-                }
+              textContext = msg.text?.body || '';
+              msgType = 'text';
+            } else if (msg.type === 'button') {
+              textContext = msg.button?.text || msg.button?.payload || '[Button Click]';
+              msgType = 'button';
+            } else if (msg.type === 'interactive') {
+              msgType = 'interactive';
+              const interactiveType = msg.interactive?.type;
+              if (interactiveType === 'button_reply') {
+                textContext = msg.interactive?.button_reply?.title || msg.interactive?.button_reply?.id || '[Button Reply]';
+              } else if (interactiveType === 'list_reply') {
+                textContext = msg.interactive?.list_reply?.title || msg.interactive?.list_reply?.description || '[List Reply]';
+              } else if (interactiveType === 'nfm_reply') {
+                textContext = msg.interactive?.nfm_reply?.response_json || '[Form Response]';
+              } else {
+                textContext = '[Interactive Message]';
               }
+            } else if (msg.type === 'image') {
+              textContext = msg.image?.caption || '[Photo]';
+              msgType = 'image';
+              mediaUrl = msg.image?.id;
+            } else if (msg.type === 'video') {
+              textContext = msg.video?.caption || '[Video]';
+              msgType = 'video';
+              mediaUrl = msg.video?.id;
+            } else if (msg.type === 'audio') {
+              textContext = msg.audio?.voice ? '[Voice message]' : '[Audio]';
+              msgType = 'audio';
+              mediaUrl = msg.audio?.id;
+            } else if (msg.type === 'document') {
+              textContext = msg.document?.caption || (msg.document?.filename ? `[Document: ${msg.document.filename}]` : '[Document]');
+              msgType = 'document';
+              mediaUrl = msg.document?.id;
+            } else if (msg.type === 'location') {
+              const name = msg.location?.name;
+              const address = msg.location?.address;
+              const coords = `${msg.location?.latitude || ''}, ${msg.location?.longitude || ''}`;
+              textContext = name ? (address ? `${name} (${address})` : name) : `Location: ${coords}`;
+              msgType = 'location';
+            } else if (msg.type === 'contacts') {
+              const contactName = msg.contacts?.[0]?.name?.formatted_name || msg.contacts?.[0]?.phones?.[0]?.phone;
+              textContext = contactName ? `[Contact: ${contactName}]` : '[Contact Card]';
+              msgType = 'contacts';
+            } else if (msg.type === 'reaction') {
+              textContext = msg.reaction?.emoji || '[Reaction]';
+              msgType = 'reaction';
+            } else if (msg.type === 'sticker') {
+              textContext = '[Sticker]';
+              msgType = 'sticker';
+              mediaUrl = msg.sticker?.id;
+            } else {
+              // Fallback for any other WhatsApp message payload types
+              textContext = msg[msg.type]?.body || msg[msg.type]?.caption || `[${(msg.type || 'Message').toUpperCase()}]`;
+              msgType = msg.type || 'text';
+            }
 
-              // NORMALIZE: Meta sends 91..., but we might have stored +91...
-              const cleanPhone = fromPhone.replace(/^\+/, '');
-
-              // Find or create contact
-              let contactId: string | undefined;
-              const { data: existingContact } = await db!
-                .from('contacts')
-                .select('id, name')
-                .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${cleanPhone}`)
-                .eq('tenant_id', tenantId)
+            // Idempotency: skip already-processed messages if Meta retries webhook
+            if (msgId) {
+              const { data: existingMsg } = await db!
+                .from('messages')
+                .select('id')
+                .eq('provider_message_id', msgId)
                 .maybeSingle();
 
-              if (existingContact) {
-                contactId = existingContact.id;
+              if (existingMsg) {
+                return;
+              }
+            }
+
+            // NORMALIZE: Meta sends 91..., but we might have stored +91...
+            const cleanPhone = fromPhone.replace(/^\+/, '');
+
+            // Find or create contact
+            let contactId: string | undefined;
+            const { data: existingContact } = await db!
+              .from('contacts')
+              .select('id, name')
+              .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${cleanPhone}`)
+              .eq('tenant_id', tenantId)
+              .maybeSingle();
+
+            if (existingContact) {
+              contactId = existingContact.id;
+            } else {
+              const { data: newContact } = await db!
+                .from('contacts')
+                .insert({
+                  tenant_id: tenantId,
+                  name: value.contacts?.[0]?.profile?.name || fromPhone,
+                  phone_number: fromPhone
+                })
+                .select('id')
+                .single();
+              contactId = newContact?.id;
+            }
+
+            if (contactId) {
+              // Determine if this is the customer's first inbound message ever
+              let isFirstMessage = false;
+              if (!existingContact) {
+                isFirstMessage = true;
               } else {
-                const { data: newContact } = await db!
-                  .from('contacts')
-                  .insert({
-                    tenant_id: tenantId,
-                    name: value.contacts?.[0]?.profile?.name || fromPhone,
-                    phone_number: fromPhone
-                  })
-                  .select('id')
-                  .single();
-                contactId = newContact?.id;
+                const { count: priorInboundCount } = await db!
+                  .from('messages')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('tenant_id', tenantId)
+                  .eq('contact_id', contactId)
+                  .eq('direction', 'inbound');
+
+                isFirstMessage = (priorInboundCount || 0) === 0;
               }
 
-              if (contactId) {
-                // Determine if this is the customer's first inbound message ever
-                let isFirstMessage = false;
-                if (!existingContact) {
-                  isFirstMessage = true;
-                } else {
-                  const { count: priorInboundCount } = await db!
-                    .from('messages')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('tenant_id', tenantId)
-                    .eq('contact_id', contactId)
-                    .eq('direction', 'inbound');
+              // 1. Persist inbound message first (highest priority)
+              const messagePayload: any = {
+                tenant_id: tenantId,
+                contact_id: contactId,
+                phone_number: fromPhone,
+                direction: 'inbound',
+                content: textContext,
+                status: 'received',
+                provider_message_id: msgId,
+                message_type: msgType
+              };
+              if (mediaUrl) {
+                messagePayload.media_url = mediaUrl;
+              }
 
-                  isFirstMessage = (priorInboundCount || 0) === 0;
-                }
+              await Promise.all([
+                db!.from('messages').insert(messagePayload),
+                db!.from('contacts')
+                  .update({ last_received_at: new Date().toISOString() })
+                  .eq('id', contactId)
+              ]);
 
-                // 1. Persist inbound message first (highest priority)
-                await Promise.all([
-                  db!.from('messages').insert({
-                    tenant_id: tenantId,
-                    contact_id: contactId,
-                    phone_number: fromPhone,
-                    direction: 'inbound',
-                    content: textContext,
-                    status: 'received',
-                    provider_message_id: msgId
-                  }),
-                  db!.from('contacts')
-                    .update({ last_received_at: new Date().toISOString() })
-                    .eq('id', contactId)
-                ]);
+              // 2. Durably enqueue push notification into Redis background queue (~2ms, non-blocking)
+              await enqueueInboundMessagePushNotification({
+                tenantId,
+                contactId,
+                messageId: msgId,
+                whatsappMessageId: msgId,
+                senderName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
+                senderPhone: fromPhone,
+                messageText: textContext,
+              }).catch((err) => console.error('[Meta Webhook Push Enqueue Error]:', err));
 
-                // 2. Durably enqueue push notification into Redis background queue (~2ms, non-blocking)
-                await enqueueInboundMessagePushNotification({
+              // 3. Asynchronously dispatch developer webhook for inbound message
+              dispatchDeveloperWebhookEvent(tenantId, 'message.received', {
+                message_id: msgId,
+                contact_id: contactId,
+                from: fromPhone,
+                sender_name: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
+                text: textContext,
+                timestamp: new Date().toISOString(),
+              }).catch(() => null);
+
+              // 4. Immediately evaluate automations and enqueue auto-reply jobs into Redis queue
+              try {
+                await evaluateAndExecuteAutomations({
                   tenantId,
                   contactId,
-                  messageId: msgId,
-                  whatsappMessageId: msgId,
-                  senderName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
-                  senderPhone: fromPhone,
+                  fromPhone,
                   messageText: textContext,
-                }).catch((err) => console.error('[Meta Webhook Push Enqueue Error]:', err));
-
-                // 3. Asynchronously dispatch developer webhook for inbound message
-                dispatchDeveloperWebhookEvent(tenantId, 'message.received', {
-                  message_id: msgId,
-                  contact_id: contactId,
-                  from: fromPhone,
-                  sender_name: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
-                  text: textContext,
-                  timestamp: new Date().toISOString(),
-                }).catch(() => null);
-
-                // 4. Immediately evaluate automations and enqueue auto-reply jobs into Redis queue
-                try {
-                  await evaluateAndExecuteAutomations({
-                    tenantId,
-                    contactId,
-                    fromPhone,
-                    messageText: textContext,
-                    contactName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
-                    isFirstMessage,
-                  });
-                } catch (autoErr) {
-                  console.error('[Meta Webhook Automation Error]:', autoErr);
-                }
+                  contactName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
+                  isFirstMessage,
+                });
+              } catch (autoErr) {
+                console.error('[Meta Webhook Automation Error]:', autoErr);
               }
             }
           });
