@@ -216,7 +216,9 @@ export default function ConversationList({
                 {conv.latestMessage.direction === 'outbound' && (
                   <span className="mr-1 font-semibold text-indigo-600 dark:text-indigo-400">You:</span>
                 )}
-                {conv.latestMessage.content || 'Attachment File'}
+                {conv.latestMessage.content === '[UNSUPPORTED]'
+                  ? 'Unsupported format'
+                  : (conv.latestMessage.content || 'Attachment File')}
               </p>
               {conv.unreadCount > 0 && (
                 <div className="w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 ml-2 shadow-2xs">
