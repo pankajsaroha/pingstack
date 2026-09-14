@@ -10,6 +10,7 @@ export interface PlanLimits {
   maxStorageMb: number;
   maxFileSizeMb: number;
   mediaRetentionDays: number;
+  maxAiTemplatesPerMonth: number;
   features: string[];
 }
 
@@ -54,6 +55,7 @@ export const PLANS: Record<PlanType, PlanLimits> = {
     maxStorageMb: 50,
     maxFileSizeMb: 5,
     mediaRetentionDays: 30,
+    maxAiTemplatesPerMonth: 0,
     features: [
       '100 template sends/day',
       'Up to 500 contacts',
@@ -72,12 +74,14 @@ export const PLANS: Record<PlanType, PlanLimits> = {
     maxStorageMb: 500,
     maxFileSizeMb: 15,
     mediaRetentionDays: 90,
+    maxAiTemplatesPerMonth: 5,
     features: [
       '500 template sends/day',
       'Up to 2,500 contacts',
       '50 saved templates',
       'Scheduled campaigns',
       'Custom contact fields',
+      '5 AI template generations/mo',
       '90-day message history',
       'Priority support'
     ]
@@ -92,10 +96,12 @@ export const PLANS: Record<PlanType, PlanLimits> = {
     maxStorageMb: 5120, // 5GB
     maxFileSizeMb: 64,   // WhatsApp global max
     mediaRetentionDays: 365,
+    maxAiTemplatesPerMonth: 20,
     features: [
       '2,000 template sends/day',
       'Up to 10,000 contacts',
       'Unlimited saved templates',
+      '20 AI template generations/mo',
       '1-year message history',
       'Shared team inbox (Roadmap)',
       'Developer API (Roadmap)',

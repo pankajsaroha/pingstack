@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, AlertCircle, Loader2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Loader2, ChevronDown, ChevronRight, Check, CheckCircle2, ArrowRight } from 'lucide-react';
 import Toast from '@/components/Toast';
+import { getActivePlanType } from '@/lib/plans';
+import type { AiTemplateSuggestion } from '@/lib/ai-template-validator';
 
 const LANGUAGES = [
   { code: 'en_US', label: 'English (US)' },
@@ -90,40 +92,95 @@ export default function CreateTemplateModal({
   const [category, setCategory] = useState('UTILITY');
   const [bodyText, setBodyText] = useState('');
 
+  // AI State
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<AiTemplateSuggestion[]>([]);
+  const [aiQuota, setAiQuota] = useState<{
+    planType: string;
+    maxRequests: number;
+    usedRequests: number;
+    remainingQuota: number;
+  } | null>(null);
+
   const [showPresets, setShowPresets] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isAiExpandedMobile, setIsAiExpandedMobile] = useState(false);
 
+  const activePlan = getActivePlanType(tenant?.plan_type);
+  const isAiAllowed = activePlan === 'growth' || activePlan === 'pro';
+
+  // Fetch AI Quota on modal mount
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchQuota() {
+      if (!tenant?.id || !isAiAllowed) return;
+      try {
+        const headers: Record<string, string> = { 'x-tenant-id': tenant.id };
+        const res = await fetch('/api/templates/ai-quota', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.quota) {
+            setAiQuota(data.quota);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load AI quota:', e);
+      }
+    }
+    fetchQuota();
+    return () => { isMounted = false; };
+  }, [tenant?.id, isAiAllowed]);
+
   const handleGenerateAI = async () => {
-    if (!aiPrompt.trim()) return;
+    if (!aiPrompt.trim() || !isAiAllowed) return;
     setGeneratingAI(true);
     setAiError(null);
     try {
-      const headers: any = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (tenant?.id) {
         headers['x-tenant-id'] = tenant.id;
       }
+
       const res = await fetch('/api/templates/generate', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ prompt: aiPrompt })
+        body: JSON.stringify({ 
+          prompt: aiPrompt,
+          category,
+          language
+        })
       });
+
       const data = await res.json();
-      if (res.ok && data.text) {
-        setBodyText(data.text);
-        setAiPrompt('');
-        onToast('Template draft generated successfully!', 'success');
+
+      if (res.ok && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        setSuggestions(data.suggestions);
+        if (data.quota) {
+          setAiQuota(data.quota);
+        }
+        onToast(`Generated ${data.suggestions.length} AI template suggestions!`, 'success');
       } else {
         setAiError(data.error || 'AI generation failed');
+        if (data.quota) {
+          setAiQuota(data.quota);
+        }
       }
     } catch (e: any) {
       setAiError(e.message || 'AI request failed');
     } finally {
       setGeneratingAI(false);
     }
+  };
+
+  const handleApplySuggestion = (s: AiTemplateSuggestion) => {
+    setName(s.name);
+    setCategory(s.category);
+    setLanguage(s.language);
+    setBodyText(s.body);
+    setSuggestions([]);
+    onToast('Template populated from AI suggestion! Review and submit to Meta.', 'info');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -293,11 +350,21 @@ export default function CreateTemplateModal({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {tenant?.plan_type === 'starter' && (
-                        <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-black uppercase tracking-wider shrink-0">
-                          Upgrade Required
+                      {!isAiAllowed ? (
+                        <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full font-black uppercase tracking-wider shrink-0">
+                          Growth / Pro Required
                         </span>
-                      )}
+                      ) : aiQuota ? (
+                        <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 border ${
+                          aiQuota.remainingQuota > 0 
+                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                        }`}>
+                          {aiQuota.remainingQuota > 0 
+                            ? `AI: ${aiQuota.remainingQuota}/${aiQuota.maxRequests} left this month` 
+                            : 'Limit reached (0 left)'}
+                        </span>
+                      ) : null}
                       <div className="p-1 rounded-lg text-zinc-400 md:hidden shrink-0">
                         {isAiExpandedMobile ? (
                           <ChevronDown className="w-4 h-4 text-indigo-400 transition-transform" />
@@ -312,22 +379,98 @@ export default function CreateTemplateModal({
                     <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
-                        placeholder={tenant?.plan_type === 'starter' ? 'AI generation is locked on Starter plan' : 'Describe the message you want to generate (e.g. order tracking alert)...'}
-                        disabled={tenant?.plan_type === 'starter' || generatingAI}
+                        placeholder={
+                          !isAiAllowed 
+                            ? 'AI generation requires Growth or Pro plan' 
+                            : (aiQuota && aiQuota.remainingQuota <= 0)
+                              ? 'Monthly AI generation limit reached'
+                              : 'Describe your use case (e.g. fee reminder with due date and amount)...'
+                        }
+                        disabled={!isAiAllowed || generatingAI || (aiQuota !== null && aiQuota.remainingQuota <= 0)}
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
                         className="flex-1 bg-glass-input border border-glass-border rounded-xl px-4 py-3 text-xs font-semibold text-fg placeholder:text-fg/20 focus:border-indigo-500 focus:outline-none disabled:opacity-50 font-sans"
                       />
                       <button
                         type="button"
-                        disabled={tenant?.plan_type === 'starter' || generatingAI || !aiPrompt.trim()}
+                        disabled={!isAiAllowed || generatingAI || !aiPrompt.trim() || (aiQuota !== null && aiQuota.remainingQuota <= 0)}
                         onClick={handleGenerateAI}
                         className="px-5 py-3 sm:py-0 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/30 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center shrink-0 cursor-pointer border-0 outline-none"
                       >
                         {generatingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Generate'}
                       </button>
                     </div>
-                    {aiError && <p className="text-[10px] text-red-400 font-bold ml-1">{aiError}</p>}
+
+                    {aiError && (
+                      <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-2">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-rose-400 font-semibold">{aiError}</p>
+                      </div>
+                    )}
+
+                    {/* AI Suggestions Review Cards */}
+                    {suggestions.length > 0 && (
+                      <div className="space-y-2.5 pt-2 animate-in fade-in duration-300">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-fg/40 uppercase tracking-widest">
+                            AI Suggestions ({suggestions.length} options)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSuggestions([])}
+                            className="text-[9px] text-fg/40 hover:text-fg underline cursor-pointer bg-transparent border-0"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {suggestions.map((s, idx) => (
+                            <div
+                              key={idx}
+                              className="p-3 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 hover:border-indigo-500/40 rounded-xl space-y-2 text-left shadow-2xs transition-all"
+                            >
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                                    {s.name}
+                                  </span>
+                                  <span className="text-[8px] px-1.5 py-0.5 rounded font-mono font-bold bg-indigo-500/10 text-indigo-500 uppercase">
+                                    {s.category}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApplySuggestion(s)}
+                                  className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer border-0 shadow-2xs"
+                                >
+                                  <span>Use this</span>
+                                  <ArrowRight className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+
+                              <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap font-sans">
+                                {s.body}
+                              </p>
+
+                              {s.variables.length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-zinc-100 dark:border-zinc-800/60">
+                                  <span className="text-[9px] font-bold text-zinc-400">Variables:</span>
+                                  {s.variables.map((v) => (
+                                    <span
+                                      key={v.position}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                                    >
+                                      <strong>{`{{${v.position}}}`}</strong>: {v.meaning}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -342,7 +485,7 @@ export default function CreateTemplateModal({
                   required
                   rows={5}
                   placeholder="Hi {{1}}, your booking for date {{2}} is confirmed."
-                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-semibold text-fg focus:border-indigo-500 focus:outline-none placeholder:text-fg/20 transition-all leading-relaxed resize-none"
+                  className="block w-full bg-glass-input border border-glass-border rounded-2xl px-5 py-4 text-sm font-semibold text-fg focus:border-indigo-500 focus:outline-none placeholder:text-fg/20 transition-all leading-relaxed resize-none font-sans"
                   value={bodyText}
                   onChange={(e) => setBodyText(e.target.value)}
                 />
