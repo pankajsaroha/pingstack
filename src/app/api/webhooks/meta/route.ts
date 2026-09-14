@@ -123,6 +123,43 @@ export async function POST(req: Request) {
             return;
           }
 
+          // 2. Handle Meta Business Capability & Messaging Limits Webhook Events
+          if (
+            field === 'business_capability_update' ||
+            field === 'account_update' ||
+            field === 'phone_number_quality_update' ||
+            value?.messaging_limit_tier ||
+            value?.max_daily_conversation_per_phone
+          ) {
+            const phoneId = value.metadata?.phone_number_id || value.phone_number_id || value.id;
+            const limitTier = value.messaging_limit_tier || value.max_daily_conversation_per_phone || value.current_limit;
+            const qualityRating = value.quality_rating || value.event;
+
+            if (phoneId) {
+              try {
+                let tenantId = accountCache.get(phoneId);
+                if (tenantId === undefined) {
+                  const { data: whatsappAccount } = await db!
+                    .from('whatsapp_accounts')
+                    .select('tenant_id')
+                    .eq('phone_number_id', phoneId)
+                    .maybeSingle();
+                  tenantId = whatsappAccount?.tenant_id || null;
+                  accountCache.set(phoneId, tenantId || null);
+                }
+
+                if (tenantId) {
+                  const { updateCachedMetaLimitsFromWebhook } = await import('@/lib/server/meta-limits');
+                  await updateCachedMetaLimitsFromWebhook(tenantId, limitTier, qualityRating);
+                  console.log(`[Webhook/Meta] Processed capability update for tenant ${tenantId}: Tier=${limitTier}, Quality=${qualityRating}`);
+                }
+              } catch (capErr) {
+                console.error('[Webhook/Meta] Error processing capability update:', capErr);
+              }
+            }
+            return;
+          }
+
           const phoneId = value.metadata?.phone_number_id;
           if (!phoneId) return;
 

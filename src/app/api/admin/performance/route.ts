@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAdminApi } from '@/lib/server/admin-auth';
 import { generatePerformanceReport, recordLatency } from '@/lib/server/latency-telemetry';
+import { getOnboardingMetrics } from '@/lib/server/onboarding-telemetry';
 import { dbAdmin as db } from '@/lib/db';
 import { connection } from '@/lib/queue';
 
@@ -61,10 +62,12 @@ export async function GET(req: Request) {
 
     // 3. Generate aggregated report with P50/P95/P99
     const report = generatePerformanceReport();
+    const onboardingMetrics = await getOnboardingMetrics();
 
     return NextResponse.json({
       success: true,
       report,
+      onboardingMetrics,
       liveInfrastructure: {
         database: { status: dbStatus, latencyMs: dbLatencyMs },
         redis: { status: redisStatus, latencyMs: redisLatencyMs }

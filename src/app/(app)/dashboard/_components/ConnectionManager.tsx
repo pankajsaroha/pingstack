@@ -43,6 +43,7 @@ export default function ConnectionManager({
   const whatsappAccount = tenant?.whatsapp_account;
   const [showMore, setShowMore] = useState(false);
   const [showRecipientGuideModal, setShowRecipientGuideModal] = useState(false);
+
   const [dismissedNotice, setDismissedNotice] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('meta_setup_notice_dismissed') === 'true';
@@ -229,6 +230,8 @@ export default function ConnectionManager({
               </p>
             </div>
           </div>
+
+
 
           {/* Required Meta Setup Guidance Notice */}
           {isNewOrTestUser && (

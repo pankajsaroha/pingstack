@@ -17,18 +17,36 @@ export async function POST(req: Request) {
     // Encrypt the API key
     const encryptedKey = encrypt(apiKey);
 
-    const { error } = await db.from('whatsapp_accounts').upsert({
-      tenant_id: tenantId,
-      provider: 'GUPSHUP',
-      gupshup_app_name: appName,
-      gupshup_api_key: encryptedKey,
-      phone_number_id: phoneNumber, // repurposed for Gupshup phone number
-      status: 'ACTIVE',
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'tenant_id' }); // Assuming one WhatsApp account per tenant for now
+    const { data: existingAccount } = await db
+      .from('whatsapp_accounts')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    let dbResult;
+    if (existingAccount) {
+      dbResult = await db.from('whatsapp_accounts').update({
+        provider: 'GUPSHUP',
+        gupshup_app_name: appName,
+        gupshup_api_key: encryptedKey,
+        phone_number_id: phoneNumber,
+        status: 'ACTIVE',
+        updated_at: new Date().toISOString()
+      }).eq('id', existingAccount.id);
+    } else {
+      dbResult = await db.from('whatsapp_accounts').insert({
+        tenant_id: tenantId,
+        provider: 'GUPSHUP',
+        gupshup_app_name: appName,
+        gupshup_api_key: encryptedKey,
+        phone_number_id: phoneNumber,
+        status: 'ACTIVE',
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    if (dbResult.error) {
+      return NextResponse.json({ error: dbResult.error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

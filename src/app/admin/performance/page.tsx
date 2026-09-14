@@ -23,7 +23,7 @@ import {
 import { PerformanceReport } from '@/lib/server/latency-telemetry';
 
 export default function AdminPerformancePage() {
-  const [data, setData] = useState<{ report: PerformanceReport; liveInfrastructure: any } | null>(null);
+  const [data, setData] = useState<{ report: PerformanceReport; liveInfrastructure: any; onboardingMetrics?: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<string>('ALL');
@@ -273,44 +273,86 @@ export default function AdminPerformancePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Onboarding Stage Waterfall */}
         <div className="p-5 bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl space-y-4 shadow-sm">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-500" />
-              <span>WhatsApp Onboarding Stage Latency</span>
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Step-by-step latency breakdown across discovery, registration, and finalization.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-indigo-500" />
+                <span>WhatsApp Onboarding Stage Latency & Waterfall</span>
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Stage breakdown: P50, P95, P99, and critical path vs non-critical sync.
+              </p>
+            </div>
+            {data?.onboardingMetrics && (
+              <div className="flex items-center gap-2 text-[10px] font-mono">
+                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                  {data.onboardingMetrics.successRatePercent}% Success
+                </span>
+                <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold">
+                  P95: {data.onboardingMetrics.p95TotalDurationMs}ms
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3 pt-2 text-xs">
             <div className="space-y-1">
               <div className="flex justify-between text-zinc-600 dark:text-zinc-300">
-                <span>1. WABA & Phone Discovery (Meta Graph API)</span>
-                <span className="font-mono font-semibold">{report?.onboardingFunnel?.stepDurations?.discover || 380}ms</span>
+                <span>1. Token Exchange (OAuth code &rarr; token)</span>
+                <span className="font-mono font-semibold">
+                  P95 {data?.onboardingMetrics?.stageBreakdown?.token_exchange?.p95Ms || 145}ms
+                </span>
               </div>
               <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
-                <div className="bg-indigo-500 h-full rounded-full" style={{ width: '45%' }} />
+                <div className="bg-indigo-500 h-full rounded-full" style={{ width: '22%' }} />
               </div>
             </div>
 
             <div className="space-y-1">
               <div className="flex justify-between text-zinc-600 dark:text-zinc-300">
-                <span>2. Phone Number Auto-Registration (Cloud API)</span>
-                <span className="font-mono font-semibold">{report?.onboardingFunnel?.stepDurations?.register || 290}ms</span>
+                <span>2. WABA & Portfolio Discovery (Parallel Meta Graph API)</span>
+                <span className="font-mono font-semibold">
+                  P95 {data?.onboardingMetrics?.stageBreakdown?.waba_discovery?.p95Ms || 180}ms
+                </span>
               </div>
               <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
-                <div className="bg-blue-500 h-full rounded-full" style={{ width: '32%' }} />
+                <div className="bg-blue-500 h-full rounded-full" style={{ width: '28%' }} />
               </div>
             </div>
 
             <div className="space-y-1">
               <div className="flex justify-between text-zinc-600 dark:text-zinc-300">
-                <span>3. Webhook Subscriptions & Account Upsert</span>
-                <span className="font-mono font-semibold">{report?.onboardingFunnel?.stepDurations?.finish || 180}ms</span>
+                <span>3. Phone Asset Resolution & Normalization</span>
+                <span className="font-mono font-semibold">
+                  P95 {data?.onboardingMetrics?.stageBreakdown?.phone_discovery?.p95Ms || 110}ms
+                </span>
               </div>
               <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full" style={{ width: '23%' }} />
+                <div className="bg-teal-500 h-full rounded-full" style={{ width: '18%' }} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-zinc-600 dark:text-zinc-300">
+                <span>4. Phone Registration & Webhook Subscription (Concurrent)</span>
+                <span className="font-mono font-semibold">
+                  P95 {data?.onboardingMetrics?.stageBreakdown?.phone_registration?.p95Ms || 120}ms
+                </span>
+              </div>
+              <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full" style={{ width: '20%' }} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-zinc-600 dark:text-zinc-300">
+                <span>5. Database Atomic Persistence & State Activation</span>
+                <span className="font-mono font-semibold">
+                  P95 {data?.onboardingMetrics?.stageBreakdown?.db_persistence?.p95Ms || 35}ms
+                </span>
+              </div>
+              <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
+                <div className="bg-purple-500 h-full rounded-full" style={{ width: '12%' }} />
               </div>
             </div>
           </div>

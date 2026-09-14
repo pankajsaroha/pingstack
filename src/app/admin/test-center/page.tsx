@@ -29,6 +29,7 @@ import {
   BellRing,
   Code,
   Gauge,
+  Rocket,
 } from 'lucide-react';
 import { TestSuiteType, TestSuiteResult, TestEnvironmentConfig } from '@/lib/server/admin-tests/types';
 
@@ -224,6 +225,8 @@ export default function AdminTestCenterPage() {
     { id: 'ai_eval', title: 'AI Template Evaluation (11 Cases)', desc: 'Validates 10+ enterprise use cases against sequential numbering {{1}}, JSON schemas, category bounds, and prompt injection defense.', icon: Sparkles },
     { id: 'rate_limit', title: 'Pingstack API Rate Limits (5 Steps)', desc: 'Token-bucket bursts, sliding window endpoints, atomic concurrency, and plan tier differentiation.', icon: Zap },
     { id: 'performance', title: 'Performance & Latency Benchmarks (8 Steps)', desc: 'Template regex speed, webhook parser throughput, batch phone normalization, JWT crypto, mocked AI & Onboarding orchestration, and 3x latency regression guardrails.', icon: Gauge },
+    { id: 'meta_limits', title: 'Meta WhatsApp Messaging Limits & Quotas (20 Cases)', desc: 'Tier parsing (250/1k/10k/100k/unlimited), rolling 24h unique recipient tracking, customer-service 24h window exemption, fail-open resilience, pre-flight warnings, and webhook cache updates.', icon: ShieldAlert },
+    { id: 'onboarding_perf', title: 'WhatsApp Onboarding Performance & Reliability (18 Cases)', desc: 'Parallel asset discovery, critical path isolation from template sync, transient error retries (503/429), non-retryable fast-fails (400/403/190), idempotency/replay, and latency regression guardrails.', icon: Rocket },
   ];
 
   const providerSuites: Array<{ id: TestSuiteType; title: string; desc: string; isReal: boolean; icon: any }> = [
@@ -250,11 +253,13 @@ export default function AdminTestCenterPage() {
     },
   ];
 
-  // Launch Readiness Domains (15 Subsystems)
+  // Launch Readiness Domains (17 Subsystems)
   const launchReadinessDomains = [
     { name: 'Authentication', isPassing: results['unit']?.status === 'passed' && results['integration']?.status === 'passed', icon: KeyRound },
     { name: 'WhatsApp Setup', isPassing: envConfig.isVerified, liveCheckRequired: !envConfig.isVerified, icon: MessageSquare },
+    { name: 'Onboarding Engine', isPassing: results['onboarding_perf']?.status === 'passed', icon: Rocket },
     { name: 'Messaging Pipeline', isPassing: results['unit']?.status === 'passed' && results['e2e']?.status === 'passed', icon: Send },
+    { name: 'Meta Limits & Quotas', isPassing: results['meta_limits']?.status === 'passed', icon: ShieldAlert },
     { name: 'Webhooks Correlation', isPassing: results['integration']?.status === 'passed', icon: Radio },
     { name: 'Inbox State', isPassing: results['e2e']?.status === 'passed', icon: MessageSquare },
     { name: 'Contacts & CSV', isPassing: results['unit']?.status === 'passed' && results['integration']?.status === 'passed', icon: Server },
@@ -383,7 +388,7 @@ export default function AdminTestCenterPage() {
             <Server className="w-4 h-4" />
             <span>Automated Suites (Mock & Deterministic)</span>
             <span className="px-1.5 py-0.2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-mono">
-              SAFE (58 TESTS)
+              SAFE (78 TESTS)
             </span>
           </button>
 

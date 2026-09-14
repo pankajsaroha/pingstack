@@ -15,20 +15,27 @@ export async function GET(req: Request) {
 
     if (db) {
       try {
-        const { data: tenants } = await db
-          .from('tenants')
-          .select('id, name')
-          .or('name.ilike.%test%,name.ilike.%internal%,name.ilike.%pingstack%')
-          .order('name', { ascending: true })
-          .limit(20);
+        const explicitTestWorkspaceId = process.env.INTERNAL_TEST_WORKSPACE_ID;
+        let tenantQuery = db.from('tenants').select('id, name');
+
+        if (explicitTestWorkspaceId) {
+          tenantQuery = tenantQuery.eq('id', explicitTestWorkspaceId);
+        } else {
+          tenantQuery = tenantQuery
+            .or('name.ilike.%test%,name.ilike.%internal%,name.ilike.%pingstack%')
+            .order('name', { ascending: true })
+            .limit(20);
+        }
+
+        const { data: tenants } = await tenantQuery;
 
         const { data: waAccounts } = await db
           .from('whatsapp_accounts')
-          .select('tenant_id, display_phone_number, status');
+          .select('tenant_id, phone_number_id, business_id, status');
 
-        const waMap = new Map<string, { status: string; displayPhone?: string }>();
+        const waMap = new Map<string, { status: string; phoneId?: string }>();
         waAccounts?.forEach((w: any) => {
-          waMap.set(w.tenant_id, { status: w.status, displayPhone: w.display_phone_number });
+          waMap.set(w.tenant_id, { status: w.status, phoneId: w.phone_number_id });
         });
 
         availableWorkspaces = (tenants || []).map((t: any) => {
@@ -37,7 +44,7 @@ export async function GET(req: Request) {
             id: t.id,
             name: t.name,
             hasWaAccount: wa?.status === 'ACTIVE' || wa?.status === 'CONNECTED',
-            displayPhone: wa?.displayPhone,
+            displayPhone: wa?.phoneId ? `ID: ${wa.phoneId}` : undefined,
           };
         });
       } catch (dbErr) {
@@ -79,12 +86,12 @@ export async function POST(req: Request) {
 
       const { data: waAccount } = await db
         .from('whatsapp_accounts')
-        .select('business_id, display_phone_number, status')
+        .select('business_id, phone_number_id, status')
         .eq('tenant_id', workspaceId)
         .maybeSingle();
 
       wabaId = waAccount?.business_id || '';
-      senderPhone = waAccount?.display_phone_number || '';
+      senderPhone = waAccount?.phone_number_id || '';
       isVerified = waAccount?.status === 'ACTIVE' || waAccount?.status === 'CONNECTED';
     }
 

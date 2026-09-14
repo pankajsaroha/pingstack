@@ -6,6 +6,7 @@ import { generatePublicId } from '@/lib/utils';
 import { sendVerificationOTP } from '@/lib/email-service';
 import { ensureSupabaseAuthUser, getSupabaseAuthSession } from '@/lib/supabase-auth';
 import { enforceAuthRateLimit } from '@/lib/rate-limit';
+import { isPlatformAdminEmail } from '@/lib/server/admin-auth';
 import crypto from 'crypto';
 import type { Session } from '@supabase/supabase-js';
 
@@ -139,13 +140,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Failed to create tenant' }, { status: 500 });
       }
 
+      const initialRole = isPlatformAdminEmail(normalizedEmail) ? 'admin' : 'user';
+
       const { data: userData, error: userErr } = await db.from('users')
         .insert({
           tenant_id: tenant.id,
           name: userName,
           email: normalizedEmail,
           password_hash: passwordHash,
-          role: 'admin'
+          role: initialRole
         }).select('id, role, tenant_id').single();
       const user = userData as RegisteredUser | null;
 
@@ -160,7 +163,7 @@ export async function POST(req: Request) {
       const token = await signToken({
         userId: user.id,
         tenantId: user.tenant_id,
-        role: user.role || 'admin'
+        role: user.role || 'user'
       });
 
       let supabaseSession: Session | null = null;

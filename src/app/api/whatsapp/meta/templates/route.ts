@@ -49,7 +49,8 @@ export async function GET(req: Request) {
 
     const accessToken = decrypt(whatsappAccount.access_token);
     const wabaId = whatsappAccount.business_id;
-    let portfolioId = whatsappAccount.portfolio_id;
+    const url = new URL(req.url);
+    const portfolioId = url.searchParams.get('portfolioId') || undefined;
 
     if (!wabaId) {
       return NextResponse.json({
@@ -93,7 +94,7 @@ export async function GET(req: Request) {
     }
 
     // 2c. Discover portfolio WABAs if portfolioId exists
-    const bizId = portfolioId || whatsappAccount.portfolio_id;
+    const bizId = portfolioId;
     if (bizId) {
       try {
         const bizRes = await fetch(`https://graph.facebook.com/v19.0/${bizId}?fields=owned_whatsapp_business_accounts{id,name},client_whatsapp_business_accounts{id,name}`, {
@@ -237,7 +238,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       templates: updatedTemplates || [],
-      portfolioId: whatsappAccount.portfolio_id || portfolioId
+      portfolioId: portfolioId || null
     });
 
   } catch (err: unknown) {
