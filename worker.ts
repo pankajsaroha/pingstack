@@ -485,113 +485,45 @@ worker.on('failed', async (job: Job | undefined, err: Error) => {
 });
 
 // ---------------------------------------------------------
-// 2. Campaign Scheduler (Advanced Automation)
+// 2. Campaign Scheduler Safety Fallback (Runs every minute)
 // ---------------------------------------------------------
 cron.schedule('* * * * *', async () => {
   const now = new Date().toISOString();
-  console.log(`[Scheduler] Checking for campaigns due by ${now}...`);
 
   try {
-    // a. Fetch draft campaigns whose scheduled time has arrived
+    // Fetch scheduled campaigns whose time has arrived but haven't started running yet
     const { data: dueCampaigns, error } = await db
       .from('campaigns')
-      .select('*, templates(*)')
-      .eq('status', 'draft')
-      .lte('scheduled_at', now);
+      .select('id, tenant_id, scheduled_at, status')
+      .in('status', ['scheduled', 'draft'])
+      .not('scheduled_at', 'is', null)
+      .lte('scheduled_at', now)
+      .limit(50);
 
     if (error) throw error;
     if (!dueCampaigns || dueCampaigns.length === 0) return;
 
-    console.log(`[Scheduler] Found ${dueCampaigns.length} campaigns to trigger.`);
+    console.log(`[Scheduler Fallback] Found ${dueCampaigns.length} scheduled campaigns due for dispatch.`);
 
     for (const campaign of dueCampaigns) {
-      const tenantId = campaign.tenant_id;
-
-      // b. Verify Plan & Daily Limit
-      const canSend = await checkLimit(tenantId, 'campaigns');
-      if (!canSend) {
-        console.warn(`[Scheduler] Skipping campaign ${campaign.id} - Daily limit reached for tenant ${tenantId}`);
-        continue;
-      }
-
-      // c. Update status to 'running' to avoid double processing
-      await db.from('campaigns').update({ status: 'running' }).eq('id', campaign.id);
-
-      // d. Fetch contacts from group
-      const { data: contacts } = await db
-        .from('group_contacts')
-        .select('contacts(*)')
-        .eq('group_id', campaign.group_id);
-
-      if (!contacts || contacts.length === 0) {
-        await db.from('campaigns').update({ status: 'completed', error: 'No contacts found in group' }).eq('id', campaign.id);
-        continue;
-      }
-
-      const validContacts = contacts.map((c: any) => c.contacts).filter(Boolean);
-      console.log(`[Scheduler] Campaign ${campaign.id}: Queuing ${validContacts.length} messages.`);
-
-      // e. Create messages and push to BullMQ
-      const messagesToInsert = validContacts.map((c: any) => ({
-        tenant_id: tenantId,
-        campaign_id: campaign.id, // CRITICAL FIX: Ensure campaign connection
-        contact_id: c.id,
-        phone_number: c.phone_number,
-        status: 'pending',
-        direction: 'outbound'
-      }));
-
-      const { data: insertedMsgs, error: mErr } = await db.from('messages').insert(messagesToInsert).select('id, phone_number');
-      if (mErr || !insertedMsgs) {
-        console.error(`❌ [Scheduler] Failed to create messages for campaign ${campaign.id}:`, mErr);
-        continue;
-      }
-
-      const jobs = validContacts.map((c: any) => {
-        const msgRecord = insertedMsgs.find((im: any) => im.phone_number === c.phone_number);
-        let renderedContent = campaign.templates?.content || '';
-        const params: any[] = [];
-
-        // Basic variable resolution: {{name}}
-        if (renderedContent.includes('{{name}}')) {
-          const nameValue = c.name || 'Customer';
-          renderedContent = renderedContent.replace(/{{name}}/g, nameValue);
-          params.push({ type: 'text', text: nameValue });
-        }
-
-        return {
-          name: 'send-whatsapp',
-          data: {
-            messageId: msgRecord?.id,
-            phone: c.phone_number,
-            templateId: campaign.templates?.name,
-            templateLanguage: campaign.templates?.language || 'en_US',
-            components: params.length > 0 ? [{ type: 'body', parameters: params }] : [],
-            isDirectText: false
+      // Check if job is already queued/running in BullMQ
+      const existingJob = await campaignQueue.getJob(`campaign-${campaign.id}`);
+      if (!existingJob) {
+        console.log(`[Scheduler Fallback] Re-enqueueing due campaign ${campaign.id} to campaignQueue.`);
+        await campaignQueue.add(
+          'process-campaign',
+          {
+            tenantId: campaign.tenant_id,
+            campaignId: campaign.id
+          },
+          {
+            jobId: `campaign-${campaign.id}`
           }
-        };
-      });
-
-      // Update messages with rendered content for Inbox display
-      for (const contact of validContacts as any[]) {
-        const rawContent = campaign.templates?.content || '';
-        const resolved = renderTemplateBody(rawContent, [], { name: contact.name, phone: contact.phone_number });
-        const msgRecord = insertedMsgs.find((im: any) => im.phone_number === contact.phone_number);
-        if (msgRecord) {
-          await db.from('messages').update({ content: resolved }).eq('id', msgRecord.id);
-        }
+        );
       }
-
-      await messageQueue.addBulk(jobs);
-
-      // f. Finalize campaign
-      await db.from('campaigns').update({ status: 'completed' }).eq('id', campaign.id);
-      await incrementUsage(tenantId, 'campaigns');
-
-      console.log(`✅ [Scheduler] Campaign ${campaign.id} triggered successfully.`);
     }
   } catch (err) {
-    console.error('❌ [Scheduler] Error in cron task:', err);
+    console.error('❌ [Scheduler Fallback] Error in cron safety check:', err);
   }
 });
 
@@ -613,6 +545,15 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
     console.error(`[Campaign Worker] Campaign ${campaignId} not found in DB:`, cErr);
     return;
   }
+
+  // Idempotency / Cancellation check
+  if (campaign.status === 'cancelled') {
+    console.log(`[Campaign Worker] Campaign ${campaignId} is cancelled. Skipping execution.`);
+    return;
+  }
+
+  // Update campaign status to running upon execution start
+  await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
 
   // Deduplication map by normalized phone number
   const recipientsByPhone = new Map<string, {

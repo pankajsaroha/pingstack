@@ -144,27 +144,28 @@ export default function CampaignsClient({
     if (!cRes.ok) throw new Error('Failed to create campaign');
     const campaign = await cRes.json();
 
-    if (!campaignData.scheduled_at) {
-      const sRes = await fetch('/api/campaigns/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-          groupIds: targetGroupIds,
-          contactIds: targetContactIds,
-          directData: campaignData.excelData,
-          templateVariables: campaignData.groupVarValues || undefined
-        })
-      });
+    const sRes = await fetch('/api/campaigns/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        campaignId: campaign.id,
+        groupIds: targetGroupIds,
+        contactIds: targetContactIds,
+        directData: campaignData.excelData,
+        templateVariables: campaignData.groupVarValues || undefined,
+        scheduledAt: campaignData.scheduled_at || undefined
+      })
+    });
 
-      if (!sRes.ok) {
-        const errorData = await sRes.json();
-        fireToast('Error: ' + errorData.error, 'error');
-      } else {
-        fireToast('Campaign queued!', 'success');
-      }
+    if (!sRes.ok) {
+      const errorData = await sRes.json();
+      fireToast('Error: ' + errorData.error, 'error');
     } else {
-      fireToast('Campaign scheduled!', 'success');
+      if (campaignData.scheduled_at) {
+        fireToast('Campaign scheduled successfully!', 'success');
+      } else {
+        fireToast('Campaign queued for dispatch!', 'success');
+      }
     }
 
     await fetchCampaigns();

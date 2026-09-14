@@ -35,7 +35,7 @@ export default function CampaignCard({
   const failPct = total > 0 ? Math.round((failed / Math.max(1, total)) * 100) : 0;
 
   const getStatusBadge = () => {
-    if (campaign.scheduled_at && campaign.status === 'draft') {
+    if (campaign.status === 'scheduled' || (campaign.scheduled_at && campaign.status === 'draft')) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
           <Calendar className="w-3 h-3" />
@@ -92,7 +92,7 @@ export default function CampaignCard({
             {getStatusBadge()}
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+          <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex-wrap">
             <span className="flex items-center gap-1">
               <FileText className="w-3 h-3 text-indigo-500" />
               <span>Template: <strong className="text-zinc-800 dark:text-zinc-200 font-medium">{campaign.templates?.name || 'Standard Dispatch'}</strong></span>
@@ -101,6 +101,15 @@ export default function CampaignCard({
             <span className="font-mono text-[11px]" suppressHydrationWarning>
               {new Date(campaign.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
+            {campaign.scheduled_at && (campaign.status === 'scheduled' || campaign.status === 'draft') && (
+              <>
+                <span>&bull;</span>
+                <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-medium font-mono text-[11px]" suppressHydrationWarning>
+                  <Calendar className="w-3 h-3" />
+                  Scheduled for: {new Date(campaign.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </>
+            )}
           </div>
         </div>
 

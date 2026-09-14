@@ -44,6 +44,7 @@ export interface CampaignSendPayload {
   contactIds?: string[];
   directData?: Array<{ phone: string; variables?: string[] }>;
   templateVariables?: Record<string, string>;
+  scheduledAt?: string | null;
 }
 
 export function validateCampaignSendPayload(body: any): { valid: boolean; data?: CampaignSendPayload; error?: string } {
@@ -109,6 +110,15 @@ export function validateCampaignSendPayload(body: any): { valid: boolean; data?:
     }
   }
 
+  let scheduledAt: string | null = null;
+  if (body.scheduledAt !== undefined && body.scheduledAt !== null && body.scheduledAt !== '') {
+    const parsedDate = new Date(body.scheduledAt);
+    if (isNaN(parsedDate.getTime())) {
+      return { valid: false, error: 'scheduledAt must be a valid ISO date timestamp.' };
+    }
+    scheduledAt = parsedDate.toISOString();
+  }
+
   return {
     valid: true,
     data: {
@@ -116,7 +126,8 @@ export function validateCampaignSendPayload(body: any): { valid: boolean; data?:
       groupIds,
       contactIds,
       directData,
-      templateVariables
+      templateVariables,
+      scheduledAt
     }
   };
 }
