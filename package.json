@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "worker": "tsx worker.ts",
-    "db:clean": "tsx scripts/clean-db.ts"
+    "db:clean": "tsx scripts/clean-db.ts",
+    "test:admin": "tsx scripts/run-admin-tests.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",

@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { campaignQueue } from '@/lib/queue';
 import { validatePayloadSize, validateCampaignSendPayload } from '@/lib/validation';
 import { logAuditEvent } from '@/lib/audit';
-import { checkTemplateSendLimit } from '@/lib/limits';
+import { checkTemplateSendLimit, isFeatureAllowed } from '@/lib/limits';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validation.error || 'Invalid request payload' }, { status: 400 });
     }
 
-    const { campaignId, groupIds, contactIds, directData, templateVariables } = validation.data;
+    const { campaignId, groupIds, contactIds, directData, templateVariables, scheduledAt } = validation.data;
 
     // 2. Fetch and verify campaign belongs to this tenant (Strict Tenant Boundary RLS Check)
     const { data: campaign, error: cErr } = await db
@@ -47,27 +47,76 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
 
-    // 3. Update campaign status to 'running'
-    await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId).eq('tenant_id', tenantId);
+    // 2.2 Scheduled Campaign Plan Entitlement & Validation
+    let delayMs = 0;
+    let targetStatus = 'running';
+
+    if (scheduledAt) {
+      const allowed = await isFeatureAllowed(tenantId, 'scheduled_campaigns');
+      if (!allowed) {
+        return NextResponse.json({
+          error: 'Campaign scheduling is a Growth plan feature. Please upgrade to Growth or Pro to schedule campaigns.',
+          code: 'FEATURE_GATED'
+        }, { status: 403 });
+      }
+
+      const scheduledTimestamp = new Date(scheduledAt).getTime();
+      const now = Date.now();
+
+      if (isNaN(scheduledTimestamp) || scheduledTimestamp <= now) {
+        return NextResponse.json({
+          error: 'Scheduled time must be in the future.',
+          code: 'INVALID_SCHEDULE_TIME'
+        }, { status: 400 });
+      }
+
+      delayMs = Math.max(0, scheduledTimestamp - now);
+      targetStatus = 'scheduled';
+    }
+
+    // 3. Update campaign status in database
+    await db
+      .from('campaigns')
+      .update({
+        status: targetStatus,
+        scheduled_at: scheduledAt || null,
+        error: null
+      })
+      .eq('id', campaignId)
+      .eq('tenant_id', tenantId);
 
     // 4. Queue the campaign processing job in Redis campaign-queue
-    await campaignQueue.add('process-campaign', {
-      tenantId,
-      campaignId,
-      groupIds,
-      contactIds,
-      directData,
-      templateVariables
-    });
+    const queueOptions: { delay?: number; jobId?: string } = {
+      jobId: `campaign-${campaignId}`
+    };
+
+    if (delayMs > 0) {
+      queueOptions.delay = delayMs;
+    }
+
+    await campaignQueue.add(
+      'process-campaign',
+      {
+        tenantId,
+        campaignId,
+        groupIds,
+        contactIds,
+        directData,
+        templateVariables
+      },
+      queueOptions
+    );
 
     // 5. Audit log event
     await logAuditEvent({
       tenantId,
       userId,
-      action: 'CAMPAIGN_SEND',
+      action: scheduledAt ? 'CAMPAIGN_SCHEDULE' : 'CAMPAIGN_SEND',
       resource: `campaign:${campaignId}`,
       details: {
         campaignName: campaign.name,
+        scheduledAt: scheduledAt || null,
+        delayMs,
         groupCount: groupIds?.length || 0,
         contactCount: contactIds?.length || 0,
         directRowCount: directData?.length || 0
@@ -76,11 +125,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      status: 'queued',
-      message: 'Campaign processing has been scheduled in the background.'
+      status: targetStatus === 'scheduled' ? 'scheduled' : 'queued',
+      scheduledAt: scheduledAt || null,
+      message: scheduledAt 
+        ? `Campaign successfully scheduled for ${scheduledAt}` 
+        : 'Campaign processing has been scheduled in the background.'
     });
   } catch (err: any) {
     console.error('[Campaign Send Route Error]:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
 }
+

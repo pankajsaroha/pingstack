@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     const allowed = await isFeatureAllowed(tenantId, 'scheduled_campaigns');
     if (!allowed) {
       return NextResponse.json({
-        error: 'Campaign scheduling is a Growth feature. Please upgrade to Growth to schedule campaigns in advance.',
+        error: 'Campaign scheduling is a Growth plan feature. Please upgrade to Growth or Pro to schedule campaigns in advance.',
         code: 'FEATURE_GATED'
       }, { status: 403 });
     }
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
 
   const publicId = generatePublicId('c');
   const { data, error } = await db.from('campaigns')
-    .insert({ tenant_id: tenantId, public_id: publicId, name, template_id, scheduled_at, status: 'draft' })
+    .insert({ tenant_id: tenantId, public_id: publicId, name, template_id, scheduled_at, status: scheduled_at ? 'scheduled' : 'draft' })
     .select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

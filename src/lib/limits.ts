@@ -256,15 +256,111 @@ export async function checkAutomationLimit(tenantId: string) {
   return quota.remainingQuota > 0;
 }
 
+import { connection } from './queue';
+
+export async function getAiTemplateQuota(tenantId: string) {
+  if (!db) return { planType: 'starter', maxRequests: 0, usedRequests: 0, remainingQuota: 0 };
+
+  const { data: tenant } = await db.from('tenants').select('plan_type').eq('id', tenantId).single();
+  const planType = ((tenant as any)?.plan_type || 'starter').toLowerCase() as PlanType;
+  const plan = PLANS[planType] || PLANS.starter;
+  const maxRequests = plan.maxAiTemplatesPerMonth || 0;
+
+  if (maxRequests === 0) {
+    return { planType, maxRequests: 0, usedRequests: 0, remainingQuota: 0 };
+  }
+
+  const d = new Date();
+  const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  const redisKey = `quota:ai_templates:${tenantId}:${ym}`;
+  let usedRequests = 0;
+
+  if (connection && connection.status === 'ready') {
+    try {
+      const val = await connection.get(redisKey);
+      usedRequests = parseInt(val || '0', 10);
+    } catch (e) {
+      console.warn('[AI Quota] Redis get failed:', e);
+    }
+  }
+
+  const remainingQuota = Math.max(0, maxRequests - usedRequests);
+
+  return {
+    planType,
+    maxRequests,
+    usedRequests,
+    remainingQuota
+  };
+}
+
+export async function checkAiTemplateRateLimit(tenantId: string): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+  // Max 3 requests per 10 minutes (600 seconds)
+  const RATE_LIMIT_WINDOW = 600;
+  const MAX_REQUESTS_PER_WINDOW = 3;
+
+  if (!connection || connection.status !== 'ready') {
+    return { allowed: true };
+  }
+
+  const key = `ratelimit:ai_templates:${tenantId}`;
+  try {
+    const current = await connection.incr(key);
+    if (current === 1) {
+      await connection.expire(key, RATE_LIMIT_WINDOW);
+    }
+
+    if (current > MAX_REQUESTS_PER_WINDOW) {
+      const ttl = await connection.ttl(key);
+      return { allowed: false, retryAfterSeconds: Math.max(1, ttl) };
+    }
+
+    return { allowed: true };
+  } catch (e) {
+    console.warn('[AI RateLimit] Redis error:', e);
+    return { allowed: true };
+  }
+}
+
+export async function consumeAiTemplateQuota(tenantId: string): Promise<{ success: boolean; used: number; max: number; remaining: number }> {
+  const quota = await getAiTemplateQuota(tenantId);
+  if (quota.remainingQuota <= 0) {
+    return { success: false, used: quota.usedRequests, max: quota.maxRequests, remaining: 0 };
+  }
+
+  const d = new Date();
+  const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  const redisKey = `quota:ai_templates:${tenantId}:${ym}`;
+  let newUsed = quota.usedRequests + 1;
+
+  if (connection && connection.status === 'ready') {
+    try {
+      newUsed = await connection.incr(redisKey);
+      if (newUsed === 1) {
+        await connection.expire(redisKey, 45 * 24 * 3600);
+      }
+    } catch (e) {
+      console.warn('[AI Quota] Redis increment failed:', e);
+    }
+  }
+
+  return {
+    success: true,
+    used: newUsed,
+    max: quota.maxRequests,
+    remaining: Math.max(0, quota.maxRequests - newUsed)
+  };
+}
+
 export async function isFeatureAllowed(
   tenantId: string, 
-  feature: 'scheduled_campaigns' | 'csv_export' | 'pause_resume' | 'custom_fields' | 'automation' | 'advanced_automation' | 'advanced_analytics'
+  feature: 'scheduled_campaigns' | 'csv_export' | 'pause_resume' | 'custom_fields' | 'automation' | 'advanced_automation' | 'advanced_analytics' | 'ai_templates'
 ): Promise<boolean> {
   if (!db) return true;
   const { data: tenant } = await db.from('tenants').select('plan_type, subscription_status').eq('id', tenantId).single();
   const planType = (tenant as any)?.plan_type || 'starter';
 
-  if (feature === 'scheduled_campaigns' || feature === 'csv_export' || feature === 'pause_resume') {
+  if (feature === 'scheduled_campaigns' || feature === 'csv_export' || feature === 'pause_resume' || feature === 'ai_templates') {
     return planType === 'growth' || planType === 'pro';
   }
   if (feature === 'custom_fields') {
@@ -287,3 +383,4 @@ export async function incrementUsage(tenantId: string, type: 'campaigns', count:
     await incrementTemplateSendUsage(tenantId, count);
   }
 }
+

@@ -25,6 +25,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import ExcelUploader, { ParsedExcelFile, evaluateExcelRecipients } from './ExcelUploader';
+import { getActivePlanType } from '@/lib/plans';
 
 interface CreateCampaignModalProps {
   templates: any[];
@@ -109,6 +110,27 @@ export default function CreateCampaignModal({
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Plan capability check for campaign scheduling
+  const isSchedulePlanAllowed = useMemo(() => {
+    const active = getActivePlanType(planType);
+    return active === 'growth' || active === 'pro';
+  }, [planType]);
+
+  // Effective browser/system timezone
+  const effectiveTimezone = useMemo(() => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const offsetMinutes = -new Date().getTimezoneOffset();
+      const sign = offsetMinutes >= 0 ? '+' : '-';
+      const absMinutes = Math.abs(offsetMinutes);
+      const hours = String(Math.floor(absMinutes / 60)).padStart(2, '0');
+      const mins = String(absMinutes % 60).padStart(2, '0');
+      return `${tz} (UTC${sign}${hours}:${mins})`;
+    } catch (e) {
+      return 'Local Time';
+    }
+  }, []);
 
   // Close dropdown on outside click or Escape key
   useEffect(() => {
@@ -610,6 +632,16 @@ export default function CreateCampaignModal({
         }
       }
 
+      if (isScheduled) {
+        if (!scheduledAt) {
+          return { ready: false, text: 'Select a date and time for scheduled dispatch' };
+        }
+        const schedTime = new Date(scheduledAt).getTime();
+        if (isNaN(schedTime) || schedTime <= Date.now() + 30000) {
+          return { ready: false, text: 'Scheduled dispatch time must be in the future (min 1 min ahead)' };
+        }
+      }
+
       return {
         ready: true,
         text: `✓ ${count} unique recipient${count === 1 ? '' : 's'} ready`,
@@ -624,6 +656,16 @@ export default function CreateCampaignModal({
         const unmapped = varsDetected.filter((v) => !excelColMapping[v]);
         if (unmapped.length > 0) {
           return { ready: false, text: `Map column for variable {{${unmapped[0]}}}` };
+        }
+      }
+
+      if (isScheduled) {
+        if (!scheduledAt) {
+          return { ready: false, text: 'Select a date and time for scheduled dispatch' };
+        }
+        const schedTime = new Date(scheduledAt).getTime();
+        if (isNaN(schedTime) || schedTime <= Date.now() + 30000) {
+          return { ready: false, text: 'Scheduled dispatch time must be in the future (min 1 min ahead)' };
         }
       }
 
@@ -643,15 +685,30 @@ export default function CreateCampaignModal({
     resolvedContactsList,
     parsedExcelFile,
     excelColMapping,
+    isScheduled,
+    scheduledAt,
   ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !templateId || !readinessCheck.ready) return;
 
-    if (isScheduled && !scheduledAt) {
-      onToast('Please select a schedule time.', 'info');
-      return;
+    let finalScheduledAt: string | null = null;
+    if (isScheduled) {
+      if (!scheduledAt) {
+        onToast('Please select a schedule time.', 'info');
+        return;
+      }
+      const parsedDate = new Date(scheduledAt);
+      if (isNaN(parsedDate.getTime())) {
+        onToast('Invalid scheduled date/time.', 'error');
+        return;
+      }
+      if (parsedDate.getTime() <= Date.now() + 30000) {
+        onToast('Scheduled dispatch time must be in the future (at least 1 minute ahead).', 'error');
+        return;
+      }
+      finalScheduledAt = parsedDate.toISOString();
     }
 
     setSubmitting(true);
@@ -673,7 +730,7 @@ export default function CreateCampaignModal({
             group_id: selectedGroupIds[0] || 'DIRECT_CONTACTS',
             group_ids: selectedGroupIds,
             contact_ids: selectedContactIds,
-            scheduled_at: isScheduled ? scheduledAt : null,
+            scheduled_at: finalScheduledAt,
             excelData: directData,
             groupVarValues: null,
           });
@@ -684,7 +741,7 @@ export default function CreateCampaignModal({
             group_id: selectedGroupIds[0] || (selectedContactIds[0] ? 'DIRECT_CONTACTS' : ''),
             group_ids: selectedGroupIds,
             contact_ids: selectedContactIds,
-            scheduled_at: isScheduled ? scheduledAt : null,
+            scheduled_at: finalScheduledAt,
             excelData: null,
             groupVarValues: varsDetected.length > 0 ? sameVarValues : null,
           });
@@ -713,7 +770,7 @@ export default function CreateCampaignModal({
           group_id: 'EXCEL',
           group_ids: [],
           contact_ids: [],
-          scheduled_at: isScheduled ? scheduledAt : null,
+          scheduled_at: finalScheduledAt,
           excelData: directData,
           groupVarValues: null,
         });
@@ -1493,23 +1550,23 @@ export default function CreateCampaignModal({
                   <input
                     id="scheduled"
                     type="checkbox"
-                    disabled={planType !== 'growth'}
+                    disabled={!isSchedulePlanAllowed}
                     checked={isScheduled}
                     onChange={(e) => setIsScheduled(e.target.checked)}
-                    className="h-4 w-4 bg-glass-input border-glass-border rounded cursor-pointer text-zinc-900 dark:text-zinc-100"
+                    className="h-4 w-4 bg-glass-input border-glass-border rounded cursor-pointer text-zinc-900 dark:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <label htmlFor="scheduled" className="ml-2 block text-xs font-bold uppercase tracking-wider text-fg/70 cursor-pointer">
+                  <label htmlFor="scheduled" className={`ml-2 block text-xs font-bold uppercase tracking-wider text-fg/70 ${isSchedulePlanAllowed ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
                     Schedule Dispatch
                   </label>
-                  {planType === 'starter' && (
+                  {!isSchedulePlanAllowed && (
                     <span className="ml-3 px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[8px] font-bold rounded uppercase">
-                      Growth Required
+                      Growth / Pro Required
                     </span>
                   )}
                 </div>
               </div>
               {isScheduled && (
-                <div className="animate-in fade-in duration-200 mt-2">
+                <div className="animate-in fade-in duration-200 mt-2 space-y-1.5">
                   <input
                     type="datetime-local"
                     required
@@ -1517,6 +1574,10 @@ export default function CreateCampaignModal({
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
                   />
+                  <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 px-1">
+                    <span>Effective Timezone: <strong>{effectiveTimezone}</strong></span>
+                    <span>Dispatches automatically</span>
+                  </div>
                 </div>
               )}
             </div>

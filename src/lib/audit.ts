@@ -11,6 +11,7 @@ export type AuditAction =
   | 'AUTH_LOGOUT'
   | 'AUTH_REGISTER'
   | 'CAMPAIGN_SEND'
+  | 'CAMPAIGN_SCHEDULE'
   | 'CAMPAIGN_DELETE'
   | 'CONTACT_CREATE'
   | 'CONTACT_UPDATE'
