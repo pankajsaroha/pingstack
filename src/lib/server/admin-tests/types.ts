@@ -55,6 +55,7 @@ export interface TestEnvironmentConfig {
   wabaId?: string;
   senderPhone?: string;
   recipientPhone?: string;
+  allowedRecipients?: string[];
   isVerified: boolean;
   lastVerifiedAt?: string;
   notes?: string;

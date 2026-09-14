@@ -39,15 +39,17 @@ export async function getTestEnvironmentConfig(): Promise<TestEnvironmentConfig>
           .eq('tenant_id', tenant.id)
           .maybeSingle();
 
+        const defaultAllowed = waAccount?.display_phone_number ? [waAccount.display_phone_number] : [];
         return {
           workspaceId: tenant.id,
           workspaceName: tenant.name,
           wabaId: waAccount?.business_id || undefined,
           senderPhone: waAccount?.display_phone_number || undefined,
           recipientPhone: undefined,
+          allowedRecipients: defaultAllowed,
           isVerified: waAccount?.status === 'ACTIVE' || waAccount?.status === 'CONNECTED',
           lastVerifiedAt: new Date().toISOString(),
-          notes: 'Auto-discovered from existing internal/test workspace',
+          notes: 'Designated internal test environment',
         };
       }
     } catch (err) {
@@ -57,6 +59,7 @@ export async function getTestEnvironmentConfig(): Promise<TestEnvironmentConfig>
 
   return {
     isVerified: false,
+    allowedRecipients: [],
     notes: 'No designated test workspace configured yet. Please configure below.',
   };
 }
@@ -177,10 +180,10 @@ export async function runWhatsAppSmokeTest(options: RunTestOptions, correlationI
     })
   );
 
-  // Step 3: Verify Recipient Phone Configuration
+  // Step 3: Verify Recipient Phone Configuration & Allowlist
   const recipient = options.customRecipient || envConfig.recipientPhone;
   steps.push(
-    await runStep('wa_smoke_03_recipient', '3. Verify Test Recipient Configuration', async () => {
+    await runStep('wa_smoke_03_recipient', '3. Verify Test Recipient Configuration & Allowlist', async () => {
       if (!recipient) {
         return {
           success: false,
@@ -191,9 +194,22 @@ export async function runWhatsAppSmokeTest(options: RunTestOptions, correlationI
       if (cleanPhone.length < 10) {
         return { success: false, message: 'Invalid test recipient phone format.' };
       }
+
+      if (!isDryRun && envConfig.allowedRecipients && envConfig.allowedRecipients.length > 0) {
+        const isAllowlisted = envConfig.allowedRecipients.some(
+          (allowed) => allowed.replace(/\D/g, '') === cleanPhone
+        );
+        if (!isAllowlisted && envConfig.recipientPhone?.replace(/\D/g, '') !== cleanPhone) {
+          return {
+            success: false,
+            message: `Safety Block: Recipient ${maskPhoneNumber(recipient)} is not in the verified test recipient allowlist. Configure in Test Environment first.`,
+          };
+        }
+      }
+
       return {
         success: true,
-        message: `Test Recipient Configured: ${maskPhoneNumber(recipient)}`,
+        message: `Test Recipient Verified in Allowlist: ${maskPhoneNumber(recipient)}`,
         diagnostics: { recipientMasked: maskPhoneNumber(recipient) },
       };
     })
