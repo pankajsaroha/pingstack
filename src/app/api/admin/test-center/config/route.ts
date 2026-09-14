@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   try {
     const config = await getTestEnvironmentConfig();
 
-    // Fetch list of all workspaces and their WhatsApp connection status for selection
+    // Fetch list of ONLY designated internal test workspaces (never customer workspaces)
     let availableWorkspaces: Array<{ id: string; name: string; hasWaAccount: boolean; displayPhone?: string }> = [];
 
     if (db) {
@@ -18,8 +18,9 @@ export async function GET(req: Request) {
         const { data: tenants } = await db
           .from('tenants')
           .select('id, name')
+          .or('name.ilike.%test%,name.ilike.%internal%,name.ilike.%pingstack%')
           .order('name', { ascending: true })
-          .limit(100);
+          .limit(20);
 
         const { data: waAccounts } = await db
           .from('whatsapp_accounts')
@@ -40,7 +41,7 @@ export async function GET(req: Request) {
           };
         });
       } catch (dbErr) {
-        console.warn('[Test Center Config GET] Workspaces list query error:', dbErr);
+        console.warn('[Test Center Config GET] Internal test workspaces query error:', dbErr);
       }
     }
 
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { workspaceId, recipientPhone, notes } = body;
+    const { workspaceId, recipientPhone, allowedRecipients = [], notes } = body;
 
     let workspaceName = '';
     let wabaId = '';
@@ -87,12 +88,26 @@ export async function POST(req: Request) {
       isVerified = waAccount?.status === 'ACTIVE' || waAccount?.status === 'CONNECTED';
     }
 
+    // Sanitize recipient allowlist
+    const cleanAllowlist: string[] = Array.from(
+      new Set(
+        [
+          ...(Array.isArray(allowedRecipients) ? allowedRecipients : []),
+          recipientPhone,
+        ]
+          .filter(Boolean)
+          .map((p: string) => p.trim())
+          .filter((p: string) => p.replace(/\D/g, '').length >= 10)
+      )
+    );
+
     const saved = await saveTestEnvironmentConfig({
       workspaceId,
       workspaceName,
       wabaId,
       senderPhone,
-      recipientPhone,
+      recipientPhone: recipientPhone || cleanAllowlist[0] || undefined,
+      allowedRecipients: cleanAllowlist,
       isVerified,
       notes,
     });

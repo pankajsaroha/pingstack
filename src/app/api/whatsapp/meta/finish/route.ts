@@ -29,18 +29,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing configuration details (token, WABA ID, or Phone ID required)' }, { status: 400 });
     }
 
-    // 1. Subscribe WABA to Webhooks & Register Phone Number
-    const subRes = await subscribeWABAWebhooks(wabaId, tokenToUse);
-    if (!subRes.success && subRes.error) {
-       console.warn('Webhook subscription warning:', subRes.error);
-    }
+    // 1. Subscribe WABA to Webhooks & Register Phone Number concurrently
+    const [subRes, regRes] = await Promise.allSettled([
+      subscribeWABAWebhooks(wabaId, tokenToUse),
+      registerMetaPhoneNumber(phoneId, tokenToUse)
+    ]);
 
-    await registerMetaPhoneNumber(phoneId, tokenToUse);
+    if (subRes.status === 'fulfilled' && !subRes.value.success && subRes.value.error) {
+      console.warn('Webhook subscription warning:', subRes.value.error);
+    }
+    if (regRes.status === 'rejected') {
+      console.warn('Phone registration warning:', regRes.reason);
+    }
 
     const encryptedToken = encrypt(tokenToUse);
 
-    // 2. Prepare Base Payload (without portfolio_id)
-    const basePayload = {
+    // 2. Prepare Consolidated Payload
+    const accountPayload: Record<string, any> = {
+      tenant_id: tenantId,
       provider: 'META',
       business_id: wabaId,
       phone_number_id: phoneId,
@@ -49,43 +55,16 @@ export async function POST(req: Request) {
       updated_at: new Date().toISOString()
     };
 
-    // 3. Store in Database
-    const { data: existing } = await db
-      .from('whatsapp_accounts')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .maybeSingle();
-
-    if (existing) {
-      const { error: mainError } = await db
-        .from('whatsapp_accounts')
-        .update(basePayload)
-        .eq('id', existing.id);
-      
-      if (mainError) throw mainError;
-
-      // Optional: Try to update portfolio_id separately
-      if (portfolioId) {
-        await db
-          .from('whatsapp_accounts')
-          .update({ portfolio_id: portfolioId })
-          .eq('id', existing.id);
-      }
-    } else {
-      const { error: mainError } = await db
-        .from('whatsapp_accounts')
-        .insert({ ...basePayload, tenant_id: tenantId });
-      
-      if (mainError) throw mainError;
-
-      // Optional: Try to update portfolio_id separately
-      if (portfolioId) {
-        await db
-          .from('whatsapp_accounts')
-          .update({ portfolio_id: portfolioId })
-          .eq('tenant_id', tenantId);
-      }
+    if (portfolioId) {
+      accountPayload.portfolio_id = portfolioId;
     }
+
+    // 3. Store in Database in a single atomic upsert
+    const { error: dbError } = await db
+      .from('whatsapp_accounts')
+      .upsert(accountPayload, { onConflict: 'tenant_id' });
+
+    if (dbError) throw dbError;
 
     return NextResponse.json({ success: true });
 

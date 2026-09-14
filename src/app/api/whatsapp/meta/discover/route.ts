@@ -161,15 +161,17 @@ export async function POST(req: Request) {
     // Deduplicate WABAs by ID
     const uniqueWabas = Array.from(new Map(collectedWabas.filter(w => w.id && !w.error).map(w => [w.id, w])).values());
 
-    const wabas = [];
-    for (const waba of uniqueWabas) {
-      const phoneData = await getWABAPhoneNumbers(waba.id, accessToken);
-      wabas.push({
-        id: waba.id,
-        name: waba.name || `WABA ${waba.id}`,
-        phones: phoneData.data || []
-      });
-    }
+    // Parallelize phone discovery across all discovered unique WABAs
+    const wabas = await Promise.all(
+      uniqueWabas.map(async (waba) => {
+        const phoneData = await getWABAPhoneNumbers(waba.id, accessToken);
+        return {
+          id: waba.id,
+          name: waba.name || `WABA ${waba.id}`,
+          phones: phoneData.data || []
+        };
+      })
+    );
 
     return NextResponse.json({ 
       success: true, 

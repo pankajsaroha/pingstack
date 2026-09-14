@@ -4,6 +4,7 @@ export type TestSuiteType =
   | 'e2e'
   | 'ai_eval'
   | 'rate_limit'
+  | 'performance'
   | 'whatsapp_smoke'
   | 'whatsapp_e2e'
   | 'ai_real';
@@ -55,6 +56,7 @@ export interface TestEnvironmentConfig {
   wabaId?: string;
   senderPhone?: string;
   recipientPhone?: string;
+  allowedRecipients?: string[];
   isVerified: boolean;
   lastVerifiedAt?: string;
   notes?: string;
