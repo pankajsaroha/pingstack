@@ -265,7 +265,12 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       });
       const data = await res.json();
       if (res.ok) {
-        fireToast('Setup completed successfully! WhatsApp Business account linked.', 'success');
+        fireToast(
+          data.backgroundSync
+            ? 'WhatsApp Connected! Account active — template sync continuing in background.'
+            : 'Setup completed successfully! WhatsApp Business account linked.',
+          'success'
+        );
         setError(null);
         setIsSwitching(false);
         setDiscovery(null);

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown, CheckCircle2, ShieldCheck, Gauge, Zap, Info, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { Settings, Loader2, AlertCircle, RefreshCw, ExternalLink, ChevronDown, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 interface ConnectionManagerProps {
   tenant: any;
@@ -43,23 +43,6 @@ export default function ConnectionManager({
   const whatsappAccount = tenant?.whatsapp_account;
   const [showMore, setShowMore] = useState(false);
   const [showRecipientGuideModal, setShowRecipientGuideModal] = useState(false);
-  const [capacity, setCapacity] = useState<any>(null);
-  const [loadingCapacity, setLoadingCapacity] = useState(false);
-
-  useEffect(() => {
-    if (whatsappAccount?.phone_number_id && tenant?.id) {
-      setLoadingCapacity(true);
-      fetch('/api/whatsapp/meta/limits', {
-        headers: { 'x-tenant-id': tenant.id }
-      })
-        .then(r => r.json())
-        .then(d => {
-          if (d.capacity) setCapacity(d.capacity);
-        })
-        .catch(() => null)
-        .finally(() => setLoadingCapacity(false));
-    }
-  }, [whatsappAccount?.phone_number_id, tenant?.id, refreshing]);
 
   const [dismissedNotice, setDismissedNotice] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -248,89 +231,7 @@ export default function ConnectionManager({
             </div>
           </div>
 
-          {/* ── WHATSAPP MESSAGING CAPACITY (META VS PINGSTACK PLAN) ──── */}
-          <div className="my-4 p-4 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Gauge className="w-4 h-4 text-indigo-500" />
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-white">WhatsApp Messaging Capacity</h4>
-                <span className="text-[10px] font-mono text-zinc-400">Rolling 24h & Daily Limits</span>
-              </div>
 
-              {capacity?.effective && (
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase ${
-                    capacity.effective.status === 'HEALTHY'
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                      : (capacity.effective.status === 'NEAR_LIMIT'
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20')
-                  }`}>
-                    {capacity.effective.status.replace('_', ' ')}
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                    {capacity.effective.limitingFactor === 'META' ? 'Limited by Meta' : 'Governed by Plan'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-              {/* Meta Limit */}
-              <div className="p-3 bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-lg space-y-1">
-                <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 text-[11px]">
-                  <span>Meta Provider Limit</span>
-                  {capacity?.meta?.qualityRating && (
-                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
-                      capacity.meta.qualityRating === 'GREEN' ? 'text-emerald-500 bg-emerald-500/10' : (capacity.meta.qualityRating === 'YELLOW' ? 'text-amber-500 bg-amber-500/10' : 'text-rose-500 bg-rose-500/10')
-                    }`}>
-                      {capacity.meta.qualityRating}
-                    </span>
-                  )}
-                </div>
-                <div className="font-mono font-bold text-sm text-zinc-900 dark:text-white">
-                  {capacity?.meta?.tier && capacity.meta.tier !== 'UNKNOWN'
-                    ? (capacity.meta.limit !== null ? `${capacity.meta.limit.toLocaleString()} recipients` : capacity.meta.tier)
-                    : 'Meta limit unavailable'}
-                </div>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {capacity?.meta?.uniqueRecipients24h || 0} unique recipients / rolling 24h
-                </p>
-              </div>
-
-              {/* Pingstack Plan Limit */}
-              <div className="p-3 bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-lg space-y-1">
-                <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 text-[11px]">
-                  <span>Pingstack Plan Limit</span>
-                  <span className="font-mono text-[10px] text-indigo-500 font-semibold">{capacity?.pingstack?.planName || 'Plan'}</span>
-                </div>
-                <div className="font-mono font-bold text-sm text-zinc-900 dark:text-white">
-                  {capacity?.pingstack?.dailyLimit || 100} sends / day
-                </div>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {capacity?.pingstack?.remainingToday !== undefined ? `${capacity.pingstack.remainingToday} sends remaining today` : 'Daily reset at 00:00 UTC'}
-                </p>
-              </div>
-
-              {/* Effective Capacity */}
-              <div className="p-3 bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-lg space-y-1">
-                <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 text-[11px]">
-                  <span>Effective Capacity</span>
-                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                </div>
-                <div className="font-mono font-bold text-sm text-indigo-600 dark:text-indigo-400">
-                  {capacity?.effective?.remainingCapacity !== undefined ? `${capacity.effective.remainingCapacity.toLocaleString()} sends` : 'Calculating…'}
-                </div>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate" title={capacity?.effective?.explanation}>
-                  {capacity?.effective?.explanation || 'Subject to Meta limits & plan quota'}
-                </p>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              Pingstack limits are product-plan limits. WhatsApp/Meta may impose additional limits based on your business account and messaging quality. Your effective capacity is always subject to Meta's limits.
-            </p>
-          </div>
 
           {/* Required Meta Setup Guidance Notice */}
           {isNewOrTestUser && (

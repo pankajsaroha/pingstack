@@ -1,5 +1,14 @@
 import '../src/lib/load-env';
-import { runUnitTests, runIntegrationTests, runE2ETests, runAiEvaluationTests, runRateLimitTests, runPerformanceTests, runMetaMessagingLimitsTests } from '../src/lib/server/admin-tests/automated-suite';
+import {
+  runUnitTests,
+  runIntegrationTests,
+  runE2ETests,
+  runAiEvaluationTests,
+  runRateLimitTests,
+  runPerformanceTests,
+  runMetaMessagingLimitsTests,
+  runOnboardingPerformanceAndReliabilityTests,
+} from '../src/lib/server/admin-tests/automated-suite';
 
 async function main() {
   console.log('\n======================================================');
@@ -17,6 +26,7 @@ async function main() {
     { name: 'Pingstack API Rate Limit Tests', fn: () => runRateLimitTests(correlationId, adminEmail) },
     { name: 'Performance & Latency Benchmark Tests', fn: () => runPerformanceTests(correlationId, adminEmail) },
     { name: 'Meta WhatsApp Messaging Limits & Quotas Tests', fn: () => runMetaMessagingLimitsTests(correlationId, adminEmail) },
+    { name: 'WhatsApp Onboarding Performance & Reliability Tests', fn: () => runOnboardingPerformanceAndReliabilityTests(correlationId, adminEmail) },
   ];
 
   let totalAllTests = 0;

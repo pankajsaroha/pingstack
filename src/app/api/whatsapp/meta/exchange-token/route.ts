@@ -47,16 +47,32 @@ export async function POST(req: Request) {
 
     const encryptedToken = encrypt(tokenToUse);
 
+    const dbClient = db;
+
+    // Helper for safe, idempotent persistence without ON CONFLICT dependency
+    const saveAccountState = async (payload: Record<string, any>) => {
+      const { data: existing } = await dbClient
+        .from('whatsapp_accounts')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (existing) {
+        return dbClient.from('whatsapp_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', existing.id);
+      } else {
+        return dbClient.from('whatsapp_accounts').insert({ ...payload, tenant_id: tenantId, updated_at: new Date().toISOString() });
+      }
+    };
+
     // 3. Store Only Phase (New: Save token immediately)
     if (storeOnly) {
       console.log('Phase 1: Storing token only...');
-      await db.from('whatsapp_accounts').upsert({
-        tenant_id: tenantId,
+      const { error } = await saveAccountState({
         provider: 'META',
         access_token: encryptedToken,
-        status: 'PENDING_SETUP',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'tenant_id' });
+        status: 'PENDING_SETUP'
+      });
+      if (error) throw error;
       
       return NextResponse.json({ success: true, message: 'Token stored successfully' });
     }
@@ -68,13 +84,11 @@ export async function POST(req: Request) {
 
     if (!wabaData.data || wabaData.data.length === 0) {
       // Save progress
-      await db.from('whatsapp_accounts').upsert({
-        tenant_id: tenantId,
+      await saveAccountState({
         provider: 'META',
         access_token: encryptedToken,
-        status: 'PENDING_SETUP',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'tenant_id' });
+        status: 'PENDING_SETUP'
+      });
 
       return NextResponse.json({ 
         error: 'NO_WABA_FOUND', 
@@ -89,14 +103,12 @@ export async function POST(req: Request) {
     const phoneData = await phoneRes.json();
 
     if (!phoneData.data || phoneData.data.length === 0) {
-      await db.from('whatsapp_accounts').upsert({
-        tenant_id: tenantId,
+      await saveAccountState({
         provider: 'META',
         business_id: wabaId,
         access_token: encryptedToken,
-        status: 'PENDING_SETUP',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'tenant_id' });
+        status: 'PENDING_SETUP'
+      });
 
       return NextResponse.json({ 
         error: 'NO_PHONE_FOUND', 
@@ -114,15 +126,13 @@ export async function POST(req: Request) {
       console.warn('Auto registration during activation warning:', regErr);
     }
 
-    const { error: dbError } = await db.from('whatsapp_accounts').upsert({
-      tenant_id: tenantId,
+    const { error: dbError } = await saveAccountState({
       provider: 'META',
       business_id: wabaId,
       phone_number_id: phone.id,
       access_token: encryptedToken,
-      status: 'ACTIVE',
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'tenant_id' });
+      status: 'ACTIVE'
+    });
 
     if (dbError) throw dbError;
 

@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { encrypt } from '@/lib/encryption';
 import { getWABADetails, getWABAPhoneNumbers, subscribeWABAWebhooks } from '@/lib/whatsapp';
+import { fetchWithMetaRetry } from '@/lib/server/meta-retry';
+import { recordLatency } from '@/lib/server/latency-telemetry';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  const startTime = performance.now();
 
   try {
     const { code } = await req.json();
@@ -19,10 +23,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Meta App credentials not configured' }, { status: 500 });
     }
 
-    // 1. Exchange code for access_token
+    // 1. Exchange code for access_token with retries
+    const exchangeStart = performance.now();
     const exchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${code}`;
-    const exchangeRes = await fetch(exchangeUrl);
+    const exchangeRes = await fetchWithMetaRetry(exchangeUrl, {}, { operationName: 'direct_onboard_token_exchange' });
     const exchangeData = await exchangeRes.json();
+    recordLatency('WHATSAPP_ONBOARDING', 'token_exchange', 'external_api_latency', performance.now() - exchangeStart, !exchangeData.access_token);
 
     if (!exchangeData.access_token) {
       return NextResponse.json({ 
@@ -59,28 +65,70 @@ export async function POST(req: Request) {
       console.warn('Webhook subscription might have failed:', subRes);
     }
 
-    // 5. Store in Database
-    const { error: dbError } = await db.from('whatsapp_accounts').upsert({
-      tenant_id: tenantId,
-      provider: 'META',
-      business_id: wabaId,
-      phone_number_id: phoneNumberId,
-      access_token: encryptedToken,
-      status: 'ACTIVE',
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'tenant_id' });
+    // 5. Store in Database safely without relying on non-existent ON CONFLICT constraint
+    const { data: existingAccount } = await db
+      .from('whatsapp_accounts')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    let dbError;
+    if (existingAccount) {
+      const { error } = await db
+        .from('whatsapp_accounts')
+        .update({
+          provider: 'META',
+          business_id: wabaId,
+          phone_number_id: phoneNumberId,
+          access_token: encryptedToken,
+          status: 'ACTIVE',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingAccount.id);
+      dbError = error;
+    } else {
+      const { error } = await db
+        .from('whatsapp_accounts')
+        .insert({
+          tenant_id: tenantId,
+          provider: 'META',
+          business_id: wabaId,
+          phone_number_id: phoneNumberId,
+          access_token: encryptedToken,
+          status: 'ACTIVE',
+          updated_at: new Date().toISOString()
+        });
+      dbError = error;
+    }
 
     if (dbError) throw dbError;
+
+    // 6. Non-blocking background template & limits sync
+    const origin = req.headers.get('origin') || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    setTimeout(() => {
+      fetch(`${origin}/api/whatsapp/meta/templates`, {
+        headers: { 'x-tenant-id': tenantId }
+      }).catch(err => console.warn('[Background Template Sync] Warning:', err));
+
+      fetch(`${origin}/api/whatsapp/meta/limits`, {
+        method: 'POST',
+        headers: { 'x-tenant-id': tenantId }
+      }).catch(err => console.warn('[Background Limits Sync] Warning:', err));
+    }, 50);
+
+    recordLatency('WHATSAPP_ONBOARDING', 'onboard', 'request_latency', performance.now() - startTime, false);
 
     return NextResponse.json({ 
       success: true, 
       wabaId, 
       phoneNumberId, 
-      businessName 
+      businessName,
+      backgroundSync: true 
     });
 
   } catch (err: any) {
     console.error('Onboarding Error:', err);
+    recordLatency('WHATSAPP_ONBOARDING', 'onboard', 'request_latency', performance.now() - startTime, true);
     return NextResponse.json({ error: 'INTERNAL_ERROR', message: err.message }, { status: 500 });
   }
 }
