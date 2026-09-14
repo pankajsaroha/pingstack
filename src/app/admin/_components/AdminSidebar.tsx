@@ -16,6 +16,8 @@ import {
   Shield,
   Search,
   LogOut,
+  Sparkles,
+  FlaskConical,
 } from 'lucide-react';
 import { AdminUser } from '@/lib/server/admin-auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -35,8 +37,10 @@ export function AdminSidebar({ admin, onOpenSearch, onCloseMobile }: AdminSideba
     { label: 'Businesses', href: '/admin/businesses', icon: Building2 },
     { label: 'Messages', href: '/admin/messages', icon: MessageSquare },
     { label: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
+    { label: 'AI Templates', href: '/admin/ai-metrics', icon: Sparkles },
     { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Test Center', href: '/admin/test-center', icon: FlaskConical },
     { label: 'Feedback', href: '/admin/feedback', icon: MessageCircleQuestion },
     { label: 'System Health', href: '/admin/system', icon: Activity },
     { label: 'Settings & Audit', href: '/admin/settings', icon: Settings },

@@ -69,6 +69,7 @@ export async function POST(req: Request) {
     const preferredLanguage = typeof body?.language === 'string' ? body.language : 'en_US';
 
     // 5. OpenAI Structured Output Request
+    const startTime = performance.now();
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -116,9 +117,23 @@ Rules:
       })
     });
 
+    const latencyMs = Math.round(performance.now() - startTime);
+
     if (!response.ok) {
       const errText = await response.text();
       console.error('[OpenAI API Error Status]:', response.status, errText);
+      await logAuditEvent({
+        tenantId,
+        userId,
+        action: 'TEMPLATE_CREATE',
+        resource: 'ai:templates:generate',
+        details: {
+          error: response.status === 429 ? 'RATE_LIMITED' : 'OPENAI_ERROR',
+          statusCode: response.status,
+          latencyMs,
+          model: 'gpt-4o-mini',
+        }
+      });
       return NextResponse.json({ 
         error: response.status === 429 ? 'OpenAI capacity limit exceeded. Please try again shortly.' : 'OpenAI service temporarily unavailable.',
         code: 'OPENAI_ERROR'
@@ -148,6 +163,19 @@ Rules:
     const validation = validateAiTemplateOutput(parsedJson, preferredLanguage);
     if (!validation.valid || !validation.suggestions || validation.suggestions.length === 0) {
       console.warn('[AI Template Validation Failed]:', validation.error);
+      await logAuditEvent({
+        tenantId,
+        userId,
+        action: 'TEMPLATE_CREATE',
+        resource: 'ai:templates:generate',
+        details: {
+          error: 'VALIDATION_FAILED',
+          validationError: validation.error,
+          latencyMs,
+          model: 'gpt-4o-mini',
+          tokens: completion.usage?.total_tokens || 0,
+        }
+      });
       return NextResponse.json({
         error: validation.error || 'Generated template failed validation safety checks.',
         code: 'VALIDATION_FAILED'
@@ -157,7 +185,7 @@ Rules:
     // 7. Atomically Consume Monthly Quota (Only on Successful Generation & Validation)
     const usage = await consumeAiTemplateQuota(tenantId);
 
-    // 8. Audit Trail Logging
+    // 8. Audit Trail Logging with Telemetry
     await logAuditEvent({
       tenantId,
       userId,
@@ -167,7 +195,12 @@ Rules:
         promptLength: prompt.length,
         suggestionsCount: validation.suggestions.length,
         usedQuota: usage.used,
-        maxQuota: usage.max
+        maxQuota: usage.max,
+        latencyMs,
+        tokens: completion.usage?.total_tokens || 0,
+        inputTokens: completion.usage?.prompt_tokens || 0,
+        outputTokens: completion.usage?.completion_tokens || 0,
+        model: 'gpt-4o-mini',
       }
     });
 
