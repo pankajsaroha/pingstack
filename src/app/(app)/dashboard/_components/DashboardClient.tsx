@@ -267,13 +267,10 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       if (res.ok) {
         fireToast('Setup completed successfully! WhatsApp Business account linked.', 'success');
         setError(null);
+        setIsSwitching(false);
+        setDiscovery(null);
+        setTempToken('');
         await refreshTenantAndStats();
-        setTimeout(() => {
-          setIsSwitching(false);
-          setDiscovery(null);
-          setTempToken('');
-          window.location.reload();
-        }, 1000);
       } else {
         setError(data.message || data.error || 'Finalization failed');
       }

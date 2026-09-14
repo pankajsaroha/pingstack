@@ -1,5 +1,5 @@
 import '../src/lib/load-env';
-import { runUnitTests, runIntegrationTests, runE2ETests, runAiEvaluationTests, runRateLimitTests } from '../src/lib/server/admin-tests/automated-suite';
+import { runUnitTests, runIntegrationTests, runE2ETests, runAiEvaluationTests, runRateLimitTests, runPerformanceTests } from '../src/lib/server/admin-tests/automated-suite';
 
 async function main() {
   console.log('\n======================================================');
@@ -15,6 +15,7 @@ async function main() {
     { name: 'E2E Application Flow Tests', fn: () => runE2ETests(correlationId, adminEmail) },
     { name: 'AI Template Evaluation Tests', fn: () => runAiEvaluationTests(correlationId, adminEmail) },
     { name: 'Pingstack API Rate Limit Tests', fn: () => runRateLimitTests(correlationId, adminEmail) },
+    { name: 'Performance & Latency Benchmark Tests', fn: () => runPerformanceTests(correlationId, adminEmail) },
   ];
 
   let totalAllTests = 0;

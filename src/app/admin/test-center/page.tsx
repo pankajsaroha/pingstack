@@ -28,6 +28,7 @@ import {
   Workflow,
   BellRing,
   Code,
+  Gauge,
 } from 'lucide-react';
 import { TestSuiteType, TestSuiteResult, TestEnvironmentConfig } from '@/lib/server/admin-tests/types';
 
@@ -222,6 +223,7 @@ export default function AdminTestCenterPage() {
     { id: 'e2e', title: 'E2E Application Flow (7 Steps)', desc: 'Deterministic mock simulation: Contact Ingestion -> Template Selection -> Queue Dispatch -> Delivery Status -> Inbox.', icon: Radio },
     { id: 'ai_eval', title: 'AI Template Evaluation (11 Cases)', desc: 'Validates 10+ enterprise use cases against sequential numbering {{1}}, JSON schemas, category bounds, and prompt injection defense.', icon: Sparkles },
     { id: 'rate_limit', title: 'Pingstack API Rate Limits (5 Steps)', desc: 'Token-bucket bursts, sliding window endpoints, atomic concurrency, and plan tier differentiation.', icon: Zap },
+    { id: 'performance', title: 'Performance & Latency Benchmarks (8 Steps)', desc: 'Template regex speed, webhook parser throughput, batch phone normalization, JWT crypto, mocked AI & Onboarding orchestration, and 3x latency regression guardrails.', icon: Gauge },
   ];
 
   const providerSuites: Array<{ id: TestSuiteType; title: string; desc: string; isReal: boolean; icon: any }> = [
@@ -248,7 +250,7 @@ export default function AdminTestCenterPage() {
     },
   ];
 
-  // Launch Readiness Domains (14 Subsystems)
+  // Launch Readiness Domains (15 Subsystems)
   const launchReadinessDomains = [
     { name: 'Authentication', isPassing: results['unit']?.status === 'passed' && results['integration']?.status === 'passed', icon: KeyRound },
     { name: 'WhatsApp Setup', isPassing: envConfig.isVerified, liveCheckRequired: !envConfig.isVerified, icon: MessageSquare },
@@ -264,6 +266,7 @@ export default function AdminTestCenterPage() {
     { name: 'Developer API (/v1)', isPassing: results['integration']?.status === 'passed', icon: Code },
     { name: 'AI Templates', isPassing: results['ai_eval']?.status === 'passed', icon: Sparkles },
     { name: 'Rate Limits', isPassing: results['rate_limit']?.status === 'passed', icon: Zap },
+    { name: 'Performance & Budgets', isPassing: results['performance']?.status === 'passed', icon: Gauge },
   ];
 
   if (loading) {

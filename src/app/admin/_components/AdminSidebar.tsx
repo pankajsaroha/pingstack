@@ -18,6 +18,7 @@ import {
   LogOut,
   Sparkles,
   FlaskConical,
+  Gauge,
 } from 'lucide-react';
 import { AdminUser } from '@/lib/server/admin-auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -40,6 +41,7 @@ export function AdminSidebar({ admin, onOpenSearch, onCloseMobile }: AdminSideba
     { label: 'AI Templates', href: '/admin/ai-metrics', icon: Sparkles },
     { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Performance', href: '/admin/performance', icon: Gauge },
     { label: 'Test Center', href: '/admin/test-center', icon: FlaskConical },
     { label: 'Feedback', href: '/admin/feedback', icon: MessageCircleQuestion },
     { label: 'System Health', href: '/admin/system', icon: Activity },

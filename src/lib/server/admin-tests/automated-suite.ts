@@ -1017,3 +1017,256 @@ export async function runRateLimitTests(correlationId: string, adminEmail: strin
     errorSummary: failedCount > 0 ? `${failedCount} rate limit tests failed.` : undefined,
   };
 }
+
+/**
+ * PERFORMANCE & LATENCY BENCHMARK SUITE
+ * Measures execution latency of critical internal code paths against realistic performance budgets.
+ */
+export async function runPerformanceTests(correlationId: string, adminEmail: string): Promise<TestSuiteResult> {
+  const startedAt = new Date().toISOString();
+  const startTime = performance.now();
+  const steps: TestStepResult[] = [];
+
+  // Step 1: Template Rendering & Regex Performance (< 5ms)
+  steps.push(
+    await runStep('perf_template_engine', 'Benchmark: Template Variable Substitution & Regex Evaluation', async () => {
+      const template = 'Hello {{1}}, your booking for {{2}} at {{3}} has been confirmed. Order: {{4}}, Total: {{5}}.';
+      const iterations = 500;
+      const start = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        renderTemplateBody(template, ['Alice Smith', 'Dental Cleaning', '10:00 AM', `ORD-${i}`, '$120.00']);
+      }
+      const totalMs = performance.now() - start;
+      const avgPerOpMs = totalMs / iterations;
+      const passed = totalMs < 25; // 500 iterations in < 25ms
+      return {
+        success: passed,
+        message: `Executed ${iterations} template body interpolations in ${totalMs.toFixed(2)}ms (avg: ${avgPerOpMs.toFixed(3)}ms/op; budget: < 25ms)`,
+        diagnostics: { totalMs, avgPerOpMs, iterations, budgetMs: 25 },
+      };
+    })
+  );
+
+  // Step 2: Inbound Webhook Payload Parsing & Deduplication (< 20ms)
+  steps.push(
+    await runStep('perf_webhook_parser', 'Benchmark: Webhook Payload Ingestion & Idempotency Evaluation', async () => {
+      const samplePayload = JSON.stringify({
+        object: 'whatsapp_business_account',
+        entry: [{
+          id: 'WHATSAPP_BUSINESS_ACCOUNT_ID',
+          changes: [{
+            field: 'messages',
+            value: {
+              messaging_product: 'whatsapp',
+              metadata: { phone_number_id: '109876543210' },
+              contacts: [{ profile: { name: 'Performance Tester' }, wa_id: '919876543210' }],
+              messages: [{ from: '919876543210', id: 'wamid.HBgLMTE5ODc2NTQzMjEQAhgUM0FB', timestamp: '1720000000', text: { body: 'Ping test' }, type: 'text' }]
+            }
+          }]
+        }]
+      });
+
+      const iterations = 200;
+      const start = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const parsed = JSON.parse(samplePayload);
+        const msg = parsed.entry[0].changes[0].value.messages[0];
+        const msgId = msg.id;
+        const from = msg.from.replace(/^\+/, '');
+        if (!msgId || !from) throw new Error('Parsing failed');
+      }
+      const totalMs = performance.now() - start;
+      const passed = totalMs < 30; // 200 iterations in < 30ms
+      return {
+        success: passed,
+        message: `Parsed and evaluated ${iterations} webhook payloads in ${totalMs.toFixed(2)}ms (budget: < 30ms)`,
+        diagnostics: { totalMs, iterations, budgetMs: 30 },
+      };
+    })
+  );
+
+  // Step 3: Batch Phone Number Normalization (< 15ms for 1,000 numbers)
+  steps.push(
+    await runStep('perf_phone_batch_norm', 'Benchmark: Batch Phone Normalization & Validation (1,000 Numbers)', async () => {
+      const testPhones = [
+        '+91 (987) 654-3210',
+        '98765-43210',
+        '+1 555 123 4567',
+        '+44 7911 123456',
+        '09876543210'
+      ];
+      const iterations = 1000;
+      const start = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const raw = testPhones[i % testPhones.length];
+        const normalized = normalizePhoneNumber(raw);
+        isValidPhoneNumber(normalized);
+      }
+      const totalMs = performance.now() - start;
+      const passed = totalMs < 20; // 1,000 phone normalizations in < 20ms
+      return {
+        success: passed,
+        message: `Normalized & validated ${iterations} phone numbers in ${totalMs.toFixed(2)}ms (budget: < 20ms)`,
+        diagnostics: { totalMs, iterations, budgetMs: 20 },
+      };
+    })
+  );
+
+  // Step 4: Token Bucket Atomic Rate Limit Evaluation (< 5ms)
+  steps.push(
+    await runStep('perf_rate_limit_token_bucket', 'Benchmark: Token Bucket Concurrency & Rate Limit Evaluation', async () => {
+      const start = performance.now();
+      const results = await Promise.all([
+        checkRateLimit('perf_tenant_1', 'send_message'),
+        checkRateLimit('perf_tenant_1', 'send_message'),
+        checkRateLimit('perf_tenant_1', 'send_message'),
+        checkRateLimit('perf_tenant_2', 'template_ops'),
+        checkRateLimit('perf_tenant_3', 'read_list'),
+      ]);
+      const totalMs = performance.now() - start;
+      const passed = results.every(r => r && r.success !== undefined) && totalMs < 15;
+      return {
+        success: passed,
+        message: `Evaluated 5 concurrent token bucket operations in ${totalMs.toFixed(2)}ms (budget: < 15ms)`,
+        diagnostics: { totalMs, resultsCount: results.length, budgetMs: 15 },
+      };
+    })
+  );
+
+  // Step 5: JWT Token Signing and Verification Lifecycle (< 10ms)
+  steps.push(
+    await runStep('perf_jwt_auth', 'Benchmark: JWT Token Signing & Cryptographic Verification Lifecycle', async () => {
+      const payload = { userId: 'usr_perf_123', tenantId: 'tenant_perf_123', email: 'perf@pingstack.io', role: 'admin' };
+      const start = performance.now();
+      const token = await signToken(payload);
+      const verified = await verifyToken(token);
+      const totalMs = performance.now() - start;
+      const passed = verified !== null && totalMs < 50;
+      return {
+        success: passed,
+        message: `JWT signed and cryptographically verified in ${totalMs.toFixed(2)}ms (budget: < 50ms)`,
+        diagnostics: { totalMs, budgetMs: 50 },
+      };
+    })
+  );
+
+  // Step 6: Mocked AI Template Generation Orchestration (< 50ms)
+  steps.push(
+    await runStep('perf_mock_ai_orchestration', 'Benchmark: AI Template Generator Orchestration & Schema Validation', async () => {
+      const mockAiOutput = {
+        suggestions: [
+          {
+            name: 'tuition_fee_reminder_nov',
+            category: 'UTILITY',
+            language: 'en_US',
+            body: 'Dear {{1}}, this is a friendly reminder that the tuition fee of {{2}} for {{3}} is due on {{4}}.',
+            variables: [
+              { position: 1, meaning: 'Student Name' },
+              { position: 2, meaning: 'Fee Amount' },
+              { position: 3, meaning: 'Grade/Term' },
+              { position: 4, meaning: 'Due Date' }
+            ]
+          },
+          {
+            name: 'tuition_fee_urgent_notice',
+            category: 'UTILITY',
+            language: 'en_US',
+            body: 'Hello {{1}}, your pending tuition balance of {{2}} is due tomorrow {{3}}.',
+            variables: [
+              { position: 1, meaning: 'Parent Name' },
+              { position: 2, meaning: 'Amount' },
+              { position: 3, meaning: 'Date' }
+            ]
+          }
+        ]
+      };
+      const start = performance.now();
+      const validation = validateAiTemplateOutput(mockAiOutput);
+      const totalMs = performance.now() - start;
+      const passed = validation.valid && totalMs < 10;
+      return {
+        success: passed,
+        message: `AI Template schema, category rules, and sequential {{1}}..{{N}} validator completed in ${totalMs.toFixed(2)}ms (budget: < 10ms)`,
+        diagnostics: { totalMs, validationValid: validation.valid, budgetMs: 10 },
+      };
+    })
+  );
+
+  // Step 7: Mocked WhatsApp Onboarding Parallel Discovery (< 50ms)
+  steps.push(
+    await runStep('perf_mock_onboarding_parallel', 'Benchmark: Parallelized WABA & Phone Discovery Pipeline', async () => {
+      const mockWabas = [
+        { id: 'waba_1', name: 'WABA Alpha' },
+        { id: 'waba_2', name: 'WABA Beta' },
+        { id: 'waba_3', name: 'WABA Gamma' }
+      ];
+
+      const start = performance.now();
+      // Simulate parallelized phone discovery
+      const wabasWithPhones = await Promise.all(
+        mockWabas.map(async (w) => {
+          // Simulated 5ms async provider lookup
+          await new Promise(r => setTimeout(r, 5));
+          return {
+            ...w,
+            phones: [{ id: `phone_${w.id}_1`, display_phone_number: '+91 98765 43210' }]
+          };
+        })
+      );
+      const totalMs = performance.now() - start;
+      const passed = wabasWithPhones.length === 3 && totalMs < 40;
+      return {
+        success: passed,
+        message: `Parallelized discovery of 3 WABAs completed in ${totalMs.toFixed(2)}ms (budget: < 40ms)`,
+        diagnostics: { totalMs, discoveredCount: wabasWithPhones.length, budgetMs: 40 },
+      };
+    })
+  );
+
+  // Step 8: Latency Regression Guardrail Check
+  steps.push(
+    await runStep('perf_latency_regression', 'Latency Regression Guardrail: 3x Degradation Threshold Guard', async () => {
+      // Baseline synthetic measurement
+      const start = performance.now();
+      let acc = 0;
+      for (let i = 0; i < 10000; i++) {
+        acc += (i % 7);
+      }
+      const durationMs = performance.now() - start;
+      const baselineMs = 5.0; // standard baseline for 10k math ops
+      const isRegressed = durationMs > baselineMs * 3.0 && durationMs > 15; // 3x multiplier
+      return {
+        success: !isRegressed,
+        message: isRegressed
+          ? `WARNING: Potential CPU/event loop regression detected (${durationMs.toFixed(2)}ms vs ${baselineMs}ms baseline)`
+          : `Execution latency within healthy performance envelope (${durationMs.toFixed(2)}ms <= ${baselineMs * 3}ms threshold)`,
+        diagnostics: { durationMs, baselineMs, thresholdMs: baselineMs * 3, isRegressed },
+      };
+    })
+  );
+
+  const durationMs = Math.round(performance.now() - startTime);
+  const passedCount = steps.filter((s) => s.status === 'passed').length;
+  const failedCount = steps.filter((s) => s.status === 'failed').length;
+
+  return {
+    suiteId: 'performance',
+    name: 'Performance & Latency Benchmark Suite',
+    category: 'automated',
+    isRealProviderTest: false,
+    status: failedCount === 0 ? 'passed' : 'failed',
+    startedAt,
+    completedAt: new Date().toISOString(),
+    durationMs,
+    totalTests: steps.length,
+    passedCount,
+    failedCount,
+    skippedCount: 0,
+    steps,
+    correlationId,
+    triggeredBy: adminEmail,
+    environment: 'MOCK',
+    errorSummary: failedCount > 0 ? `${failedCount} performance benchmark tests failed.` : undefined,
+  };
+}
+

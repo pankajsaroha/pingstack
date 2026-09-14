@@ -29,6 +29,25 @@ import { deliverDeveloperWebhookJob } from './src/lib/server/developer-webhooks'
 import { checkLimit, incrementUsage } from './src/lib/limits';
 import { renderTemplateBody } from './src/lib/templates';
 
+// Short-lived in-memory template cache for worker (60s TTL) to prevent query storms
+const workerTemplateCache = new Map<string, { data: any[]; expiresAt: number }>();
+
+async function getCachedTenantTemplates(tenantId: string) {
+  const now = Date.now();
+  const cached = workerTemplateCache.get(tenantId);
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+  const { data: templates } = await db
+    .from('templates')
+    .select('name, category, content')
+    .eq('tenant_id', tenantId);
+
+  const templateList = templates || [];
+  workerTemplateCache.set(tenantId, { data: templateList, expiresAt: now + 60_000 });
+  return templateList;
+}
+
 // Helper to record billing transactions for outbound templates
 async function recordBillingIfNecessary(
   tenantId: string,
@@ -70,11 +89,8 @@ async function recordBillingIfNecessary(
 
     if (!isUserWindowOpen && !isBizWindowOpen) {
       // Start a new chargeable business-initiated conversation!
-      // Resolve templates for tenant to determine category/cost
-      const { data: templates } = await db
-        .from('templates')
-        .select('name, category, content')
-        .eq('tenant_id', tenantId);
+      // Resolve templates for tenant to determine category/cost using cache
+      const templates = await getCachedTenantTemplates(tenantId);
 
       const categoryCost: Record<string, number> = {
         UTILITY: 0.1150,
