@@ -1,5 +1,5 @@
 import { TestSuiteType, TestSuiteResult, RunTestOptions } from './types';
-import { runUnitTests, runIntegrationTests, runE2ETests, runAiEvaluationTests, runRateLimitTests, runPerformanceTests } from './automated-suite';
+import { runUnitTests, runIntegrationTests, runE2ETests, runAiEvaluationTests, runRateLimitTests, runPerformanceTests, runMetaMessagingLimitsTests } from './automated-suite';
 import { runWhatsAppSmokeTest, runRealWhatsAppE2ETest, runRealAiTest } from './provider-tests';
 import { logAdminAudit } from '@/lib/server/admin-audit';
 import { connection } from '@/lib/queue';
@@ -54,6 +54,7 @@ export async function getAllLatestResults(): Promise<Record<TestSuiteType, TestS
     'ai_eval',
     'rate_limit',
     'performance',
+    'meta_limits',
     'whatsapp_smoke',
     'whatsapp_e2e',
     'ai_real',
@@ -93,6 +94,9 @@ export async function runTestSuite(options: RunTestOptions): Promise<TestSuiteRe
       break;
     case 'performance':
       result = await runPerformanceTests(correlationId, options.adminEmail);
+      break;
+    case 'meta_limits':
+      result = await runMetaMessagingLimitsTests(correlationId, options.adminEmail);
       break;
     case 'whatsapp_smoke':
       result = await runWhatsAppSmokeTest(options, correlationId);
@@ -135,7 +139,7 @@ export async function runTestSuite(options: RunTestOptions): Promise<TestSuiteRe
  * Run all automated test suites sequentially
  */
 export async function runAllAutomatedSuites(adminEmail: string, adminUserId: string): Promise<TestSuiteResult[]> {
-  const automatedSuites: TestSuiteType[] = ['unit', 'integration', 'e2e', 'ai_eval', 'rate_limit', 'performance'];
+  const automatedSuites: TestSuiteType[] = ['unit', 'integration', 'e2e', 'ai_eval', 'rate_limit', 'performance', 'meta_limits'];
   const results: TestSuiteResult[] = [];
 
   for (const suiteId of automatedSuites) {

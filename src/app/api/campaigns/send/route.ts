@@ -38,13 +38,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Campaign not found or access denied' }, { status: 404 });
     }
 
-    // 2.1 Daily Template Send Limit Check
+    // 2.1 Daily Template Send Limit & Meta Capacity Pre-Flight Check
     const canSend = await checkTemplateSendLimit(tenantId, 1);
     if (!canSend) {
       return NextResponse.json({ 
         error: 'Daily template send limit reached for your plan. Please upgrade to Growth for 500 sends/day.',
         code: 'LIMIT_EXCEEDED'
       }, { status: 403 });
+    }
+
+    // 2.1.1 Meta Provider Capacity Pre-Flight Inspection
+    let metaCapacityWarning: string | null = null;
+    try {
+      const { getEffectiveMessagingCapacity } = await import('@/lib/server/meta-limits');
+      const capacity = await getEffectiveMessagingCapacity(tenantId);
+      const estimatedCount = (contactIds?.length || 0) + (directData?.length || 0);
+
+      if (
+        capacity.meta.limit !== null &&
+        capacity.meta.remainingRecipients !== null &&
+        estimatedCount > capacity.meta.remainingRecipients
+      ) {
+        metaCapacityWarning = `Campaign targets ~${estimatedCount} recipients, but Meta portfolio capacity has ${capacity.meta.remainingRecipients} remaining recipient slots in the rolling 24-hour window (Tier: ${capacity.meta.tier}).`;
+      }
+    } catch {
+      // Non-blocking fallback
     }
 
     // 2.2 Scheduled Campaign Plan Entitlement & Validation
@@ -127,6 +145,7 @@ export async function POST(req: Request) {
       success: true,
       status: targetStatus === 'scheduled' ? 'scheduled' : 'queued',
       scheduledAt: scheduledAt || null,
+      metaWarning: metaCapacityWarning || undefined,
       message: scheduledAt 
         ? `Campaign successfully scheduled for ${scheduledAt}` 
         : 'Campaign processing has been scheduled in the background.'

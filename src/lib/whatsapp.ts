@@ -282,11 +282,12 @@ export const fetchMetaPhoneNumberStatus = async (
   verifiedName?: string;
   verificationStatus?: string;
   qualityRating?: string;
+  messagingLimitTier?: string;
   isApproved: boolean;
   raw?: any;
   error?: string;
 }> => {
-  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name,code_verification_status,quality_rating,status`;
+  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name,code_verification_status,quality_rating,messaging_limit_tier,status`;
   try {
     const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -300,6 +301,7 @@ export const fetchMetaPhoneNumberStatus = async (
         verifiedName: data.verified_name,
         verificationStatus: data.code_verification_status,
         qualityRating: data.quality_rating,
+        messagingLimitTier: data.messaging_limit_tier,
         isApproved,
         raw: data
       };
@@ -308,6 +310,32 @@ export const fetchMetaPhoneNumberStatus = async (
   } catch (err: any) {
     return { isApproved: false, error: err.message || 'Network error checking phone status' };
   }
+};
+
+/**
+ * Fetches authoritative Meta messaging limit and business portfolio context from Meta Graph API
+ */
+export const fetchMetaMessagingLimitDetails = async (
+  phoneNumberId: string,
+  accessToken: string,
+  wabaId?: string
+): Promise<{
+  tier: string;
+  qualityRating: string;
+  verifiedName?: string;
+  raw: any;
+}> => {
+  const phoneUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=messaging_limit_tier,quality_rating,verified_name,code_verification_status,status`;
+  const res = await fetch(phoneUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const data = await res.json();
+  return {
+    tier: data.messaging_limit_tier || 'UNKNOWN',
+    qualityRating: data.quality_rating || 'UNKNOWN',
+    verifiedName: data.verified_name,
+    raw: data,
+  };
 };
 
 export const getWABADetails = async (accessToken: string, retryOpts?: RetryOptions) => {

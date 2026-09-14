@@ -5,6 +5,7 @@ export type TestSuiteType =
   | 'ai_eval'
   | 'rate_limit'
   | 'performance'
+  | 'meta_limits'
   | 'whatsapp_smoke'
   | 'whatsapp_e2e'
   | 'ai_real';

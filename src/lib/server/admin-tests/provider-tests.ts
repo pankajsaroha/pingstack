@@ -559,3 +559,143 @@ export async function runRealAiTest(options: RunTestOptions, correlationId: stri
     },
   };
 }
+
+/**
+ * REAL META PROVIDER TEST: Verify Meta Messaging Limit
+ * Queries Meta Cloud API for the designated Internal Test Workspace and verifies the authoritative messaging limit tier.
+ */
+export async function runVerifyMetaMessagingLimitTest(
+  options: RunTestOptions,
+  correlationId: string
+): Promise<TestSuiteResult> {
+  const startedAt = new Date().toISOString();
+  const startTime = performance.now();
+  const steps: TestStepResult[] = [];
+  const envConfig = await getTestEnvironmentConfig();
+
+  let returnedTier = 'UNKNOWN';
+  let qualityRating = 'UNKNOWN';
+  let limitNumber: number | null = null;
+
+  // Step 1: Verify Internal Test Workspace Context
+  steps.push(
+    await runStep('meta_limit_01_workspace', '1. Resolve Internal Test Workspace Context', async () => {
+      if (!envConfig.workspaceId) {
+        return {
+          success: false,
+          message: 'Safety Guard: No designated internal test workspace configured in Admin Test Center.',
+        };
+      }
+      return {
+        success: true,
+        message: `Resolved Test Environment: ${envConfig.workspaceName || envConfig.workspaceId}`,
+        diagnostics: { workspaceId: envConfig.workspaceId },
+      };
+    })
+  );
+
+  // Step 2: Query Live Meta Graph API for Phone Number Limits
+  steps.push(
+    await runStep('meta_limit_02_graph_query', '2. Query Meta Graph API (messaging_limit_tier & quality_rating)', async () => {
+      if (options.dryRun) {
+        return {
+          success: true,
+          message: 'Dry Run Mode: Simulated Meta Graph API query for messaging_limit_tier without network call.',
+          diagnostics: { simulatedTier: 'TIER_250', quality: 'GREEN' },
+        };
+      }
+
+      if (!db || !envConfig.workspaceId) {
+        return { success: false, message: 'Database client or workspace ID unavailable' };
+      }
+
+      const { data: waAccount } = await db
+        .from('whatsapp_accounts')
+        .select('phone_number_id, access_token, business_id')
+        .eq('tenant_id', envConfig.workspaceId)
+        .maybeSingle();
+
+      if (!waAccount?.phone_number_id || !waAccount?.access_token) {
+        return {
+          success: false,
+          message: 'Test workspace does not have active Meta WhatsApp Cloud API credentials configured.',
+        };
+      }
+
+      const { decrypt } = await import('@/lib/encryption');
+      const token = decrypt(waAccount.access_token);
+      const { fetchMetaMessagingLimitDetails } = await import('@/lib/whatsapp');
+      const { parseMetaMessagingTier } = await import('@/lib/server/meta-limits');
+
+      const details = await fetchMetaMessagingLimitDetails(waAccount.phone_number_id, token, waAccount.business_id);
+      const tierInfo = parseMetaMessagingTier(details.tier);
+
+      returnedTier = tierInfo.tier;
+      limitNumber = tierInfo.limit;
+      qualityRating = details.qualityRating;
+
+      return {
+        success: returnedTier !== 'UNKNOWN',
+        message: `Meta Graph API responded: Tier=${returnedTier} (${limitNumber !== null ? `${limitNumber.toLocaleString()} recipients / 24h` : 'Unlimited'}), Quality=${qualityRating}`,
+        diagnostics: {
+          fieldQueried: 'messaging_limit_tier, quality_rating',
+          apiVersion: 'v19.0',
+          tier: returnedTier,
+          limit: limitNumber,
+          qualityRating,
+          verifiedName: details.verifiedName,
+        },
+      };
+    })
+  );
+
+  // Step 3: Verify Cache & Effective Capacity Synchronization
+  steps.push(
+    await runStep('meta_limit_03_sync', '3. Sync & Compute Effective Messaging Capacity', async () => {
+      if (!envConfig.workspaceId) {
+        return { success: false, message: 'Workspace ID required' };
+      }
+
+      const { getEffectiveMessagingCapacity } = await import('@/lib/server/meta-limits');
+      const capacity = await getEffectiveMessagingCapacity(envConfig.workspaceId, false);
+
+      return {
+        success: true,
+        message: `Effective Capacity: ${capacity.effective.remainingCapacity} sends remaining (${capacity.effective.explanation})`,
+        diagnostics: {
+          limitingFactor: capacity.effective.limitingFactor,
+          status: capacity.effective.status,
+          planLimit: capacity.pingstack.dailyLimit,
+          metaLimit: capacity.meta.limit,
+        },
+      };
+    })
+  );
+
+  const durationMs = Math.round(performance.now() - startTime);
+  const passedCount = steps.filter((s) => s.status === 'passed').length;
+  const failedCount = steps.filter((s) => s.status === 'failed').length;
+
+  return {
+    suiteId: 'whatsapp_smoke',
+    name: 'Verify Meta Messaging Limit',
+    category: 'provider',
+    isRealProviderTest: true,
+    status: failedCount === 0 ? 'passed' : 'failed',
+    startedAt,
+    completedAt: new Date().toISOString(),
+    durationMs,
+    totalTests: steps.length,
+    passedCount,
+    failedCount,
+    skippedCount: 0,
+    steps,
+    correlationId,
+    triggeredBy: options.adminEmail,
+    environment: 'REAL_PROVIDER',
+    errorSummary: failedCount > 0 ? `${failedCount} messaging limit verification steps failed.` : undefined,
+    metrics: {
+      latencyMs: durationMs,
+    },
+  };
+}
