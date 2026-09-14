@@ -1,4 +1,4 @@
-import { validateAiTemplateOutput, AiTemplateSuggestion } from 'c:/ProjectData/pingstack/src/lib/ai-template-validator';
+import { validateAiTemplateOutput, AiTemplateSuggestion } from '@/lib/ai-template-validator';
 
 /**
  * Quality & Evaluation Dataset of Representative Pingstack Use Cases

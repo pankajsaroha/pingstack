@@ -1,8 +1,8 @@
-import { validateAiTemplateOutput } from 'c:/ProjectData/pingstack/src/lib/ai-template-validator';
-import { PLANS } from 'c:/ProjectData/pingstack/src/lib/plans';
-import { getAiTemplateQuota, checkAiTemplateRateLimit, consumeAiTemplateQuota } from 'c:/ProjectData/pingstack/src/lib/limits';
-import { connection } from 'c:/ProjectData/pingstack/src/lib/queue';
-import { db } from 'c:/ProjectData/pingstack/src/lib/db';
+import { validateAiTemplateOutput } from '@/lib/ai-template-validator';
+import { PLANS } from '@/lib/plans';
+import { getAiTemplateQuota, checkAiTemplateRateLimit, consumeAiTemplateQuota } from '@/lib/limits';
+import { connection } from '@/lib/queue';
+import { db } from '@/lib/db';
 
 async function runAiTestSuite() {
   console.log('🧪 ========================================================');
