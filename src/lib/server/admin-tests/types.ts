@@ -7,6 +7,7 @@ export type TestSuiteType =
   | 'performance'
   | 'meta_limits'
   | 'onboarding_perf'
+  | 'teams_and_assignments'
   | 'whatsapp_smoke'
   | 'whatsapp_e2e'
   | 'ai_real';

@@ -31,6 +31,7 @@ import {
 import { useTenant } from '@/context/tenant-context';
 import { getPlatformInfo, PlatformInfo } from '@/lib/push-client';
 import { PLANS, getActivePlanType, PLAN_CONFIGS } from '@/lib/plans';
+import TeamManagementSection from './_components/TeamManagementSection';
 
 export default function WorkspaceSettingsPage() {
   const { tenant, refreshTenant } = useTenant();
@@ -345,7 +346,10 @@ export default function WorkspaceSettingsPage() {
           </div>
         </form>
 
-        {/* Section 3: WhatsApp Connection & Business Profile */}
+        {/* Section 3: Teams & Workspace Members (Pro Feature) */}
+        <TeamManagementSection tenant={tenant} />
+
+        {/* Section 4: WhatsApp Connection & Business Profile */}
         <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800/60">
             <div className="flex items-center gap-2.5">

@@ -376,6 +376,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
 
   const whatsappAccount = tenant?.whatsapp_account;
   const isConnected = whatsappAccount?.status === 'ACTIVE' || whatsappAccount?.status === 'CONNECTED';
+  const isWorkspaceAdmin = tenant?.workspace_role === 'admin' || tenant?.user_role === 'admin' || tenant?.user_role === 'superadmin';
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -491,8 +492,8 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
       {/* ── Overview Tab ──────────────────────────────────────────────── */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Onboarding wizard — only when not connected */}
-          {!isConnected && (
+          {/* Onboarding wizard — only for Workspace Admins when not connected */}
+          {!isConnected && isWorkspaceAdmin && (
             <Suspense fallback={
               <div className="flex items-center justify-center py-16 opacity-40">
                 <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
@@ -519,6 +520,17 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
                 onError={setError}
               />
             </Suspense>
+          )}
+
+          {/* Team Member View when WhatsApp is not connected */}
+          {!isConnected && !isWorkspaceAdmin && (
+            <div className="p-6 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-center space-y-2">
+              <MessageCircle className="w-8 h-8 text-indigo-500 mx-auto" />
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Workspace WhatsApp Setup Pending</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
+                Your Workspace Administrator has not connected the WhatsApp Business Account yet. As a Team Member, you will automatically be able to send and receive messages once your administrator connects the number.
+              </p>
+            </div>
           )}
 
           {/* Connected — management row */}

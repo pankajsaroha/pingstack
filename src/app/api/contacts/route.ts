@@ -105,6 +105,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
   }
 
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canManageContacts = await hasWorkspacePermission(userId, tenantId, 'contacts_manage');
+    if (!canManageContacts) {
+      return NextResponse.json({ 
+        error: 'Forbidden: You do not have permission to add or modify contacts.',
+        code: 'PERMISSION_DENIED'
+      }, { status: 403 });
+    }
+  }
+
   try {
     const body = await req.json();
     const { name, phone_number } = body;

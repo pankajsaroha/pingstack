@@ -7,6 +7,8 @@ interface UseInboxDataProps {
   initialConversations: any[];
   initialContacts: any[];
   initialTemplates: any[];
+  initialTeams?: any[];
+  initialMembers?: any[];
   tenant: any;
 }
 
@@ -14,6 +16,8 @@ export function useInboxData({
   initialConversations,
   initialContacts,
   initialTemplates,
+  initialTeams = [],
+  initialMembers = [],
   tenant,
 }: UseInboxDataProps) {
   // ── Data states ──────────────────────────────────────────────────
@@ -21,6 +25,12 @@ export function useInboxData({
   const [allContacts, setAllContacts] = useState<any[]>(initialContacts);
   const [messages, setMessages] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>(initialTemplates);
+  const [teams, setTeams] = useState<any[]>(initialTeams);
+  const [members, setMembers] = useState<any[]>(initialMembers);
+
+  // ── Team & Assignment Filter states ─────────────────────────────
+  const [activeFilter, setActiveFilter] = useState<'all' | 'mine' | 'unassigned' | 'team'>('all');
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
 
   // ── UI states ────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
@@ -503,6 +513,50 @@ export function useInboxData({
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
+  const handleAssignConversation = useCallback(async (contactId: string, teamId: string | null, assignedUserId: string | null) => {
+    try {
+      // Optimistically update conversation assignment in state
+      const targetTeam = teams.find(t => t.id === teamId) || null;
+      const targetUser = members.find(m => m.id === assignedUserId) || null;
+
+      const updatedAssignment = {
+        tenant_id: tenant?.id || '',
+        contact_id: contactId,
+        team_id: teamId,
+        assigned_user_id: assignedUserId,
+        status: 'open',
+        team: targetTeam ? { id: targetTeam.id, name: targetTeam.name, color: targetTeam.color } : null,
+        assigned_user: targetUser ? { id: targetUser.id, name: targetUser.name, email: targetUser.email } : null
+      };
+
+      setConversations(prev => prev.map(c => {
+        if (c.contact.id === contactId) {
+          return { ...c, assignment: updatedAssignment };
+        }
+        return c;
+      }));
+
+      const res = await fetch(`/api/chat/${contactId}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || ''
+        },
+        body: JSON.stringify({ teamId, assignedUserId })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setToast({ message: errData.error || 'Failed to update conversation assignment', type: 'error' });
+      } else {
+        setToast({ message: 'Conversation assignment updated', type: 'success' });
+      }
+    } catch (e) {
+      console.error('Assignment error:', e);
+      setToast({ message: 'Network error updating assignment', type: 'error' });
+    }
+  }, [teams, members, tenant?.id]);
+
   return {
     // states
     conversations,
@@ -510,6 +564,14 @@ export function useInboxData({
     allContacts,
     messages,
     templates,
+    teams,
+    setTeams,
+    members,
+    setMembers,
+    activeFilter,
+    setActiveFilter,
+    activeTeamId,
+    setActiveTeamId,
     loading,
     sending,
     uploading,
@@ -549,5 +611,7 @@ export function useInboxData({
     handleToggleMessageSelect,
     handleFileSelect,
     handleFileChange,
+    handleAssignConversation,
   };
 }
+

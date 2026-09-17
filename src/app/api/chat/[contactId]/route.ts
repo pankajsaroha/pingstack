@@ -3,10 +3,34 @@ import { db } from '@/lib/db';
 
 export async function GET(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   const { contactId } = await params;
+
+  if (userId) {
+    const { hasWorkspacePermission, getUserTeamIdsServer } = await import('@/lib/server/teams');
+    const canViewInbox = await hasWorkspacePermission(userId, tenantId, 'inbox_view');
+    if (!canViewInbox) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to view conversations.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+
+    const { data: userRecord } = await db.from('users').select('role, workspace_role').eq('id', userId).eq('tenant_id', tenantId).maybeSingle();
+    const isWorkspaceAdmin = userRecord?.role === 'admin' || userRecord?.role === 'superadmin' || userRecord?.workspace_role === 'admin';
+    if (!isWorkspaceAdmin) {
+      const { data: assignment } = await db.from('conversation_assignments').select('team_id, assigned_user_id').eq('tenant_id', tenantId).eq('contact_id', contactId).maybeSingle();
+      if (assignment && assignment.team_id) {
+        const userTeams = await getUserTeamIdsServer(userId, tenantId);
+        const isAssignedDirectly = assignment.assigned_user_id === userId;
+        const isInAssignedTeam = userTeams.includes(assignment.team_id);
+        if (!isAssignedDirectly && !isInAssignedTeam) {
+          return NextResponse.json({ error: 'Forbidden: You do not have access to this conversation.', code: 'PERMISSION_DENIED' }, { status: 403 });
+        }
+      }
+    }
+  }
+
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get('limit') || '50');
   const before = searchParams.get('before');
@@ -31,10 +55,33 @@ export async function GET(req: Request, { params }: { params: Promise<{ contactI
 
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { contactId } = await params;
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  if (userId) {
+    const { hasWorkspacePermission, getUserTeamIdsServer } = await import('@/lib/server/teams');
+    const canReply = await hasWorkspacePermission(userId, tenantId, 'inbox_reply');
+    if (!canReply) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to reply to conversations.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+
+    const { data: userRecord } = await db.from('users').select('role, workspace_role').eq('id', userId).eq('tenant_id', tenantId).maybeSingle();
+    const isWorkspaceAdmin = userRecord?.role === 'admin' || userRecord?.role === 'superadmin' || userRecord?.workspace_role === 'admin';
+    if (!isWorkspaceAdmin) {
+      const { data: assignment } = await db.from('conversation_assignments').select('team_id, assigned_user_id').eq('tenant_id', tenantId).eq('contact_id', contactId).maybeSingle();
+      if (assignment && assignment.team_id) {
+        const userTeams = await getUserTeamIdsServer(userId, tenantId);
+        const isAssignedDirectly = assignment.assigned_user_id === userId;
+        const isInAssignedTeam = userTeams.includes(assignment.team_id);
+        if (!isAssignedDirectly && !isInAssignedTeam) {
+          return NextResponse.json({ error: 'Forbidden: You do not have access to this conversation.', code: 'PERMISSION_DENIED' }, { status: 403 });
+        }
+      }
+    }
+  }
 
   const { content } = await req.json();
   if (!content) return NextResponse.json({ error: 'Message content required' }, { status: 400 });

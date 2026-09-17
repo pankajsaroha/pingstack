@@ -38,6 +38,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Campaign not found or access denied' }, { status: 404 });
     }
 
+    if (userId) {
+      const { hasWorkspacePermission } = await import('@/lib/server/teams');
+      const canSendCampaign = await hasWorkspacePermission(userId, tenantId, 'campaigns_send');
+      if (!canSendCampaign) {
+        return NextResponse.json({ 
+          error: 'Forbidden: You do not have permission to send campaigns.',
+          code: 'PERMISSION_DENIED'
+        }, { status: 403 });
+      }
+    }
+
     // 2.1 Daily Template Send Limit & Meta Capacity Pre-Flight Check
     const canSend = await checkTemplateSendLimit(tenantId, 1);
     if (!canSend) {

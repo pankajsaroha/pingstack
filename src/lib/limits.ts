@@ -354,7 +354,7 @@ export async function consumeAiTemplateQuota(tenantId: string): Promise<{ succes
 
 export async function isFeatureAllowed(
   tenantId: string, 
-  feature: 'scheduled_campaigns' | 'csv_export' | 'pause_resume' | 'custom_fields' | 'automation' | 'advanced_automation' | 'advanced_analytics' | 'ai_templates'
+  feature: 'scheduled_campaigns' | 'csv_export' | 'pause_resume' | 'custom_fields' | 'automation' | 'advanced_automation' | 'advanced_analytics' | 'ai_templates' | 'teams' | 'shared_team_inbox'
 ): Promise<boolean> {
   if (!db) return true;
   const { data: tenant } = await db.from('tenants').select('plan_type, subscription_status').eq('id', tenantId).single();
@@ -369,7 +369,7 @@ export async function isFeatureAllowed(
   if (feature === 'automation') {
     return planType === 'growth' || planType === 'pro';
   }
-  if (feature === 'advanced_automation') {
+  if (feature === 'advanced_automation' || feature === 'teams' || feature === 'shared_team_inbox') {
     return planType === 'pro';
   }
   if (feature === 'advanced_analytics') {

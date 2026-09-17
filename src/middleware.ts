@@ -18,6 +18,8 @@ const publicPaths = [
   '/api/support/contact',
   '/api/v1/messages/send', // Public API — auth is handled by API key, not JWT cookie
   '/api/health', // Health check endpoint for deployment monitoring
+  '/api/team-members/invite/validate',
+  '/api/team-members/invite/accept',
 ];
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -155,6 +157,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Exclude static resources and unauthenticated auth routes from middleware execution
-    '/((?!api/webhook/gupshup|api/webhooks/meta|_next/static|_next/image|favicon.ico|[^?]*\\.(?:html|css|js|jpe?g|png|gif|svg|ico|woff2?|map|json|txt)$|login|register|forgot-password|docs|contact(?!s)|api/auth/login|api/auth/logout|api/auth/register-tenant|api/auth/forgot-password|api/support/contact).*)'
+    '/((?!api/webhook/gupshup|api/webhooks/meta|_next/static|_next/image|favicon.ico|[^?]*\\.(?:html|css|js|jpe?g|png|gif|svg|ico|woff2?|map|json|txt)$|login|register|forgot-password|docs|invite|contact(?!s)|api/auth/login|api/auth/logout|api/auth/register-tenant|api/auth/forgot-password|api/support/contact|api/team-members/invite/validate|api/team-members/invite/accept).*)'
   ],
 };
