@@ -11,6 +11,8 @@ interface InboxClientProps {
   initialConversations: any[];
   initialContacts: any[];
   initialTemplates: any[];
+  initialTeams?: any[];
+  initialMembers?: any[];
   tenant: any;
 }
 
@@ -18,6 +20,8 @@ export default function InboxClient({
   initialConversations,
   initialContacts,
   initialTemplates,
+  initialTeams = [],
+  initialMembers = [],
   tenant,
 }: InboxClientProps) {
   const {
@@ -25,6 +29,12 @@ export default function InboxClient({
     allContacts,
     messages,
     templates,
+    teams,
+    members,
+    activeFilter,
+    setActiveFilter,
+    activeTeamId,
+    setActiveTeamId,
     sending,
     uploading,
     loadingMore,
@@ -60,10 +70,13 @@ export default function InboxClient({
     handleToggleMessageSelect,
     handleFileSelect,
     handleFileChange,
+    handleAssignConversation,
   } = useInboxData({
     initialConversations,
     initialContacts,
     initialTemplates,
+    initialTeams,
+    initialMembers,
     tenant,
   });
 
@@ -155,6 +168,13 @@ export default function InboxClient({
           allContacts={allContacts}
           activeContactId={activeContactId}
           searchQuery={searchQuery}
+          teams={teams}
+          members={members}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          activeTeamId={activeTeamId}
+          onTeamFilterChange={setActiveTeamId}
+          currentUserId={tenant?.user_id}
           onSearchChange={setSearchQuery}
           onSelectContact={handleSelectContact}
           onDeleteConversation={handleDeleteConversation}
@@ -178,6 +198,8 @@ export default function InboxClient({
           stagedFile={stagedFile}
           showTemplates={showTemplates}
           templates={templates}
+          teams={teams}
+          members={members}
           tenant={tenant}
           selectedMessageIds={selectedMessageIds}
           messagesEndRef={messagesEndRef}
@@ -187,6 +209,7 @@ export default function InboxClient({
           onMessageChange={setNewMessage}
           onSend={handleSendMessage}
           onSendTemplate={handleSendTemplate}
+          onAssignConversation={handleAssignConversation}
           onFileSelect={handleFileSelect}
           onFileChange={handleFileChange}
           onClearFile={() => setStagedFile(null)}

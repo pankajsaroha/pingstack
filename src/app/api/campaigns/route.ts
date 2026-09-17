@@ -124,8 +124,20 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canCreateCampaign = await hasWorkspacePermission(userId, tenantId, 'campaigns_create');
+    if (!canCreateCampaign) {
+      return NextResponse.json({ 
+        error: 'Forbidden: You do not have permission to create campaigns.',
+        code: 'PERMISSION_DENIED'
+      }, { status: 403 });
+    }
+  }
 
   const { name, template_id, scheduled_at } = await req.json() as CreateCampaignBody;
   if (!name || !template_id) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });

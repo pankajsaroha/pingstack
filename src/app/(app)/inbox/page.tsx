@@ -4,6 +4,7 @@ import { getTenantServer } from '@/lib/server/tenant';
 import { getConversationsServer } from '@/lib/server/chat';
 import { getContactsServer } from '@/lib/server/contacts';
 import { getTemplatesServer } from '@/lib/server/templates';
+import { getTeamsServer, getWorkspaceMembersServer } from '@/lib/server/teams';
 import InboxClient from './_components/InboxClient';
 
 export default async function InboxPage() {
@@ -15,11 +16,13 @@ export default async function InboxPage() {
   }
 
   // Pre-fetch all layout states in parallel to prevent database query waterfalls
-  const [tenant, conversations, contactsData, templates] = await Promise.all([
+  const [tenant, conversations, contactsData, templates, teams, members] = await Promise.all([
     getTenantServer(),
     getConversationsServer(tenantId),
     getContactsServer(tenantId, 50),
-    getTemplatesServer(tenantId)
+    getTemplatesServer(tenantId),
+    getTeamsServer(tenantId),
+    getWorkspaceMembersServer(tenantId)
   ]);
 
   const contacts = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || []);
@@ -33,6 +36,8 @@ export default async function InboxPage() {
       initialConversations={conversations}
       initialContacts={contacts}
       initialTemplates={templates}
+      initialTeams={teams}
+      initialMembers={members}
       tenant={tenant}
     />
   );

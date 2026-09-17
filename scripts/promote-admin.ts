@@ -8,6 +8,7 @@
  *   npx tsx scripts/promote-admin.ts --list
  */
 
+import '../src/lib/load-env';
 import { dbAdmin as db } from '../src/lib/db';
 import { isPlatformAdminEmail } from '../src/lib/server/admin-auth';
 

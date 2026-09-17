@@ -12,7 +12,7 @@ export async function getConversationsServer(tenantId: string): Promise<Conversa
     const latestMessages = (latestMessagesRes.data || []).filter(m => m.contact_id !== null && m.contact_id !== undefined);
     const candidateContactIds = Array.from(new Set(latestMessages.map(m => m.contact_id).filter(Boolean)));
 
-    const [contactsRes, unreadCountsRes, activeInteractionsRes] = await Promise.all([
+    const [contactsRes, unreadCountsRes, activeInteractionsRes, assignmentsMap] = await Promise.all([
       candidateContactIds.length > 0
         ? db.from('contacts').select('*').in('id', candidateContactIds).eq('tenant_id', tenantId)
         : Promise.resolve({ data: [], error: null }),
@@ -23,7 +23,8 @@ export async function getConversationsServer(tenantId: string): Promise<Conversa
             .in('contact_id', candidateContactIds)
             .eq('tenant_id', tenantId)
             .or('direction.eq.inbound,campaign_id.is.null')
-        : Promise.resolve({ data: [], error: null })
+        : Promise.resolve({ data: [], error: null }),
+      import('@/lib/server/teams').then(m => m.getConversationAssignmentsServer(tenantId, candidateContactIds)).catch(() => new Map())
     ]);
 
     if (contactsRes.error) throw contactsRes.error;
@@ -47,10 +48,12 @@ export async function getConversationsServer(tenantId: string): Promise<Conversa
         name: 'Client ' + (message.contact_id ? message.contact_id.slice(-4) : 'unknown')
       };
       const unreadCount = unreadCountMap.get(message.contact_id) || 0;
+      const assignment = assignmentsMap.get(message.contact_id) || null;
       return {
         contact,
         latestMessage: message,
-        unreadCount
+        unreadCount,
+        assignment
       };
     }).sort((a: any, b: any) => new Date(b.latestMessage.created_at).getTime() - new Date(a.latestMessage.created_at).getTime());
 

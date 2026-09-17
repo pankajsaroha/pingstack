@@ -10,6 +10,13 @@ interface ConversationListProps {
   allContacts: any[];
   activeContactId: string | null;
   searchQuery: string;
+  teams?: any[];
+  members?: any[];
+  activeFilter?: 'all' | 'mine' | 'unassigned' | 'team';
+  onFilterChange?: (filter: 'all' | 'mine' | 'unassigned' | 'team') => void;
+  activeTeamId?: string | null;
+  onTeamFilterChange?: (teamId: string | null) => void;
+  currentUserId?: string;
   onSearchChange: (q: string) => void;
   onSelectContact: (contactId: string) => void;
   onDeleteConversation?: (contactId: string) => void;
@@ -25,6 +32,13 @@ export default function ConversationList({
   allContacts,
   activeContactId,
   searchQuery,
+  teams = [],
+  members = [],
+  activeFilter = 'all',
+  onFilterChange,
+  activeTeamId,
+  onTeamFilterChange,
+  currentUserId,
   onSearchChange,
   onSelectContact,
   onDeleteConversation,
@@ -90,12 +104,25 @@ export default function ConversationList({
   const { listItems, itemHeights, filteredConversationsCount, matchingNewContactsCount } = useMemo(() => {
     const conversationsContactIds = new Set(conversations.map((c) => c.contact.id));
 
-    const filteredConversations = conversations.filter((conv) => {
+    // 1. Filter by Team / Assignment Tab
+    let assignmentFiltered = conversations;
+    if (activeFilter === 'mine' && currentUserId) {
+      assignmentFiltered = conversations.filter(c => c.assignment?.assigned_user_id === currentUserId);
+    } else if (activeFilter === 'unassigned') {
+      assignmentFiltered = conversations.filter(c => !c.assignment?.assigned_user_id && !c.assignment?.team_id);
+    } else if (activeFilter === 'team' && activeTeamId) {
+      assignmentFiltered = conversations.filter(c => c.assignment?.team_id === activeTeamId);
+    }
+
+    // 2. Search query filter
+    const filteredConversations = assignmentFiltered.filter((conv) => {
       const query = searchQuery.toLowerCase().trim();
       if (!query) return true;
       const name = (conv.contact.name || '').toLowerCase();
       const phone = (conv.contact.phone_number || '').toLowerCase();
-      return name.includes(query) || phone.includes(query);
+      const teamName = (conv.assignment?.team?.name || '').toLowerCase();
+      const agentName = (conv.assignment?.assigned_user?.name || '').toLowerCase();
+      return name.includes(query) || phone.includes(query) || teamName.includes(query) || agentName.includes(query);
     });
 
     const matchingNewContacts = searchQuery.trim()
@@ -136,9 +163,11 @@ export default function ConversationList({
       });
     }
 
-    // Pre-calculate heights
+    // Pre-calculate heights (slightly larger if assignment chip present)
     const itemHeights = listItems.map((item) => {
-      if (item.type === 'conversation') return 82;
+      if (item.type === 'conversation') {
+        return item.data?.assignment?.team || item.data?.assignment?.assigned_user ? 92 : 82;
+      }
       if (item.type === 'header') return 37;
       return 72;
     });
@@ -149,7 +178,7 @@ export default function ConversationList({
       filteredConversationsCount: filteredConversations.length,
       matchingNewContactsCount: matchingNewContacts.length
     };
-  }, [conversations, allContacts, searchQuery]);
+  }, [conversations, allContacts, searchQuery, activeFilter, activeTeamId, currentUserId]);
 
   const renderListElement = (item: ListElement) => {
     if (item.type === 'conversation') {
@@ -160,6 +189,8 @@ export default function ConversationList({
         name: conv.contact.name || conv.contact.phone_number,
         phone: conv.contact.phone_number
       };
+
+      const hasAssignment = conv.assignment?.team || conv.assignment?.assigned_user;
 
       return (
         <div
@@ -173,12 +204,12 @@ export default function ConversationList({
             e.preventDefault();
             setDeleteConfirmContact(contactInfo);
           }}
-          className={`group px-3.5 py-3 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 flex items-center gap-3 select-none ${
+          className={`group px-3.5 py-2.5 cursor-pointer transition-colors relative border-b border-zinc-100 dark:border-zinc-800/60 flex items-center gap-3 select-none ${
             isActive
               ? 'bg-zinc-100 dark:bg-zinc-800 border-l-3 border-l-indigo-600 dark:border-l-indigo-500'
               : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
           }`}
-          style={{ height: 82 }}
+          style={{ height: hasAssignment ? 92 : 82 }}
         >
           <ContactAvatar
             name={conv.contact.name}
@@ -187,7 +218,7 @@ export default function ConversationList({
             size="md"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex justify-between items-start mb-1">
+            <div className="flex justify-between items-start mb-0.5">
               <h3
                 className={`font-semibold text-xs truncate pr-2 ${
                   isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'
@@ -205,6 +236,31 @@ export default function ConversationList({
                 })}
               </span>
             </div>
+
+            {/* Assignment Tags Chip (if assigned to a team or member) */}
+            {hasAssignment && (
+              <div className="flex items-center gap-1.5 my-0.5">
+                {conv.assignment.team && (
+                  <span 
+                    className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-bold rounded-md uppercase tracking-wider"
+                    style={{
+                      backgroundColor: `${conv.assignment.team.color || '#4F46E5'}15`,
+                      color: conv.assignment.team.color || '#4F46E5',
+                      border: `1px solid ${conv.assignment.team.color || '#4F46E5'}30`
+                    }}
+                  >
+                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: conv.assignment.team.color || '#4F46E5' }} />
+                    {conv.assignment.team.name}
+                  </span>
+                )}
+                {conv.assignment.assigned_user && (
+                  <span className="inline-flex items-center px-1.5 py-0.2 text-[9px] font-medium rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                    👤 {conv.assignment.assigned_user.name}
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-between items-end">
               <p
                 className={`text-xs truncate w-full ${
@@ -310,8 +366,71 @@ export default function ConversationList({
     return null;
   };
 
+  const showTeamsFilter = teams.length > 0;
+
   return (
-    <div className="flex-1 overflow-hidden relative">
+    <div className="flex-1 flex flex-col overflow-hidden relative">
+      {/* Team / Assignment Filter Tabs */}
+      {showTeamsFilter && (
+        <div className="px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/70 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+          <button
+            onClick={() => {
+              onFilterChange?.('all');
+              onTeamFilterChange?.(null);
+            }}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+              activeFilter === 'all'
+                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
+            }`}
+          >
+            All ({conversations.length})
+          </button>
+          <button
+            onClick={() => {
+              onFilterChange?.('mine');
+              onTeamFilterChange?.(null);
+            }}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+              activeFilter === 'mine'
+                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
+            }`}
+          >
+            Assigned to Me
+          </button>
+          <button
+            onClick={() => {
+              onFilterChange?.('unassigned');
+              onTeamFilterChange?.(null);
+            }}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+              activeFilter === 'unassigned'
+                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
+            }`}
+          >
+            Unassigned
+          </button>
+          {teams.map(team => (
+            <button
+              key={team.id}
+              onClick={() => {
+                onFilterChange?.('team');
+                onTeamFilterChange?.(team.id);
+              }}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                activeFilter === 'team' && activeTeamId === team.id
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: team.color || '#4F46E5' }} />
+              {team.name}
+            </button>
+          ))}
+        </div>
+      )}
       {conversations.length === 0 && allContacts.length === 0 ? (
         <div className="p-8 text-xs text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-center mt-16">
           <MessageCircle className="w-10 h-10 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />

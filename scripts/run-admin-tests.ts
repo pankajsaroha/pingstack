@@ -8,6 +8,7 @@ import {
   runPerformanceTests,
   runMetaMessagingLimitsTests,
   runOnboardingPerformanceAndReliabilityTests,
+  runTeamsAndSharedInboxTests,
 } from '../src/lib/server/admin-tests/automated-suite';
 
 async function main() {
@@ -27,6 +28,7 @@ async function main() {
     { name: 'Performance & Latency Benchmark Tests', fn: () => runPerformanceTests(correlationId, adminEmail) },
     { name: 'Meta WhatsApp Messaging Limits & Quotas Tests', fn: () => runMetaMessagingLimitsTests(correlationId, adminEmail) },
     { name: 'WhatsApp Onboarding Performance & Reliability Tests', fn: () => runOnboardingPerformanceAndReliabilityTests(correlationId, adminEmail) },
+    { name: 'Teams, Shared Inbox & Conversation Assignment Tests', fn: () => runTeamsAndSharedInboxTests(correlationId, adminEmail) },
   ];
 
   let totalAllTests = 0;
