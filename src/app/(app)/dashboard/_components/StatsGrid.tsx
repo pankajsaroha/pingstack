@@ -1,31 +1,32 @@
 'use client';
 
-import { MessageSquare, LayoutTemplate, ArrowDownLeft } from 'lucide-react';
+import { MessageSquare, Users, ArrowDownLeft } from 'lucide-react';
 
 interface StatsGridProps {
   stats: {
-    conversations: number;
-    templatesApproved: number;
-    inboundMessages: number;
+    conversations?: number;
+    totalContacts?: number;
+    templatesApproved?: number;
+    inboundMessages?: number;
   };
 }
 
 export default function StatsGrid({ stats }: StatsGridProps) {
   const items = [
     { 
-      label: 'Total Conversations', 
+      label: 'Active Conversations', 
       value: (stats.conversations || 0).toLocaleString(),
       icon: MessageSquare,
-      subtext: 'Active chat threads'
+      subtext: 'Unique customer threads'
     },
     { 
-      label: 'Templates Approved', 
-      value: (stats.templatesApproved || 0).toLocaleString(),
-      icon: LayoutTemplate,
-      subtext: 'Verified with Meta Cloud API'
+      label: 'Total Audience Contacts', 
+      value: (stats.totalContacts || 0).toLocaleString(),
+      icon: Users,
+      subtext: 'Registered phone profiles'
     },
     { 
-      label: 'Inbound Logged Messages', 
+      label: 'Inbound Customer Replies', 
       value: (stats.inboundMessages || 0).toLocaleString(),
       icon: ArrowDownLeft,
       subtext: 'Received via Webhook'
@@ -33,9 +34,9 @@ export default function StatsGrid({ stats }: StatsGridProps) {
   ];
 
   return (
-    <div className="mb-8">
+    <div className="mb-6">
       <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold mb-3">
-        Messaging Activity Metrics
+        Messaging Activity Overview
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         {items.map((stat, i) => {

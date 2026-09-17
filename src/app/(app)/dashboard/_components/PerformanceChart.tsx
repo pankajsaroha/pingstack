@@ -16,15 +16,15 @@ export default function PerformanceChart({ stats }: PerformanceChartProps) {
   const readRate = stats.delivered ? Math.round((stats.read / stats.delivered) * 100) : 0;
 
   return (
-    <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 p-5 rounded-xl shadow-2xs">
+    <div className="bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 p-5 rounded-xl shadow-2xs mb-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-indigo-500" />
           <h3 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
-            Dispatch Performance Analytics
+            Dispatch Performance Snapshot
           </h3>
         </div>
-        <span className="text-[11px] font-mono text-zinc-400">Real-time stats</span>
+        <span className="text-[11px] font-mono text-zinc-400">Workspace Metrics</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
