@@ -8,6 +8,7 @@ export type TestSuiteType =
   | 'meta_limits'
   | 'onboarding_perf'
   | 'teams_and_assignments'
+  | 'advanced_analytics'
   | 'whatsapp_smoke'
   | 'whatsapp_e2e'
   | 'ai_real';
