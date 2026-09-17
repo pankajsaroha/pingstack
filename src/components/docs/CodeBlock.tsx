@@ -18,7 +18,7 @@ export function CodeBlock({ snippets, code, language = 'bash', title }: CodeBloc
   const activeSnippets: CodeSnippet[] = snippets || [
     {
       language,
-      label: language === 'bash' ? 'cURL' : language === 'javascript' ? 'Node.js' : language === 'python' ? 'Python' : language.toUpperCase(),
+      label: language === 'bash' ? 'cURL' : language === 'javascript' ? 'Node.js' : language === 'python' ? 'Python' : language === 'java' ? 'Java' : language === 'go' ? 'Go' : language.toUpperCase(),
       code: code || '',
     }
   ];
