@@ -15,7 +15,17 @@ type CreateCampaignBody = {
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canView = await hasWorkspacePermission(userId, tenantId, 'campaigns_view');
+    if (!canView) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to view campaigns.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+  }
+
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
   try {
@@ -174,8 +184,20 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canDelete = await hasWorkspacePermission(userId, tenantId, 'campaigns_create');
+    if (!canDelete) {
+      return NextResponse.json({ 
+        error: 'Forbidden: You do not have permission to delete campaigns.',
+        code: 'PERMISSION_DENIED'
+      }, { status: 403 });
+    }
+  }
 
   try {
     const { id, deleteMessages } = await req.json();

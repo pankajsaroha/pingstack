@@ -15,7 +15,7 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
     return null;
   }
 
-  const cacheKey = `tenant:me:${tenantId}`;
+  const cacheKey = `tenant:me:${tenantId}:${userId || 'anon'}`;
 
   // 1. Read cached tenant profile from Redis across soft page navigations
   if (connection && connection.status === 'ready') {
@@ -36,7 +36,7 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
         .select('*, whatsapp_accounts(id, provider, status, phone_number_id, business_id)')
         .eq('id', tenantId)
         .single(),
-      userId ? db.from('users').select('name, email, role').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
+      userId ? db.from('users').select('id, name, email, role, workspace_role, tenant_id').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
     ]);
 
     if (tenantResult.error || !tenantResult.data) {
@@ -87,20 +87,72 @@ export const getTenantServer = cache(async (): Promise<Tenant | null> => {
     let userName = 'User';
     let userEmail = '';
     let userRole = 'user';
+    let workspaceRole: 'admin' | 'member' = 'member';
+    let isAuthorizedMember = false;
+
     if (userResult.data) {
-      if (userResult.data.name) userName = userResult.data.name;
-      if (userResult.data.email) userEmail = userResult.data.email;
-      if (userResult.data.role) userRole = userResult.data.role;
+      const u = userResult.data;
+      if (u.name) userName = u.name;
+      if (u.email) userEmail = u.email;
+      if (u.role) userRole = u.role;
+
+      // 1. Platform Admin
+      if (u.role === 'admin' || u.role === 'superadmin') {
+        isAuthorizedMember = true;
+      }
+
+      // 2. Primary workspace membership
+      if (u.tenant_id === tenantId && u.workspace_role !== 'removed' && u.workspace_role !== 'inactive' && u.workspace_role !== 'none') {
+        isAuthorizedMember = true;
+        workspaceRole = u.workspace_role === 'admin' ? 'admin' : 'member';
+      } else if (u.email) {
+        // 3. Multi-workspace invitation membership
+        const { data: acceptedInvite } = await db
+          .from('workspace_invitations')
+          .select('role')
+          .eq('tenant_id', tenantId)
+          .eq('email', u.email.toLowerCase().trim())
+          .eq('status', 'accepted')
+          .maybeSingle();
+
+        if (acceptedInvite) {
+          isAuthorizedMember = true;
+          workspaceRole = acceptedInvite.role === 'admin' ? 'admin' : 'member';
+        }
+      }
+
+      // 4. Team membership fallback
+      if (!isAuthorizedMember) {
+        const { data: teamMembership } = await db
+          .from('team_members')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('user_id', u.id)
+          .limit(1);
+
+        if (teamMembership && teamMembership.length > 0) {
+          isAuthorizedMember = true;
+        }
+      }
+    }
+
+    // When userId is provided, non-members MUST NOT resolve the workspace
+    if (userId && !isAuthorizedMember) {
+      console.warn(`[getTenantServer] Unauthorized workspace access attempt by user ${userId} for tenant ${tenantId}`);
+      return null;
     }
 
     const fullTenant: Tenant = {
       ...tenant,
+      id: tenantId,
       name: tenant?.name || 'PingStack Workspace',
       plan_type: planType,
       pending_plan_type: pendingPlanType,
+      user_id: userId || (userResult.data ? userResult.data.id : undefined),
       user_name: userName,
       user_email: userEmail,
       user_role: userRole,
+      workspace_role: workspaceRole,
       is_trial: isTrial,
       trial_expires_at: trialExpiresAt.toISOString(),
       trial_days_left: trialDaysLeft,

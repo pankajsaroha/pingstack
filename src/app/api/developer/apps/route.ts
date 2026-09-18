@@ -24,8 +24,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canManage = await hasWorkspacePermission(userId, tenantId, 'settings_manage');
+    if (!canManage) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to manage API keys.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+  }
 
   try {
     const body = await req.json();
@@ -67,8 +76,17 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canManage = await hasWorkspacePermission(userId, tenantId, 'settings_manage');
+    if (!canManage) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to manage API keys.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+  }
 
   try {
     const { searchParams } = new URL(req.url);

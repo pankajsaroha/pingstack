@@ -42,10 +42,13 @@ export function TenantProvider({
   }, []);
 
   const refreshUnreadCount = useCallback(async () => {
+    if (!tenant?.id) return;
     try {
-      const headers: Record<string, string> = { credentials: 'include' };
-      if (tenant?.id) {
-        headers['x-tenant-id'] = tenant.id;
+      const headers: Record<string, string> = {
+        'x-tenant-id': tenant.id,
+      };
+      if (tenant.user_id) {
+        headers['x-user-id'] = tenant.user_id;
       }
       const res = await fetch('/api/chat/unread-count', {
         headers,
@@ -60,7 +63,7 @@ export function TenantProvider({
     } catch (e) {
       console.error('[TenantContext] Failed to fetch unread count:', e);
     }
-  }, [tenant?.id]);
+  }, [tenant?.id, tenant?.user_id]);
 
   // Initial load of unread count & periodic visibility re-sync
   useEffect(() => {

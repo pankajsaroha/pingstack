@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { dbAdmin as db } from '@/lib/db';
 import { isFeatureAllowed } from '@/lib/limits';
 import { generateInvitationToken, hasWorkspacePermission, DEFAULT_TEAM_MEMBER_PERMISSIONS, ADMIN_PERMISSIONS } from '@/lib/server/teams';
+import { sendWorkspaceInvitationEmail } from '@/lib/email-service';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -49,8 +50,20 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (existingUser) {
-      // User is already a member of this workspace — update their teams and permissions
+      // Check if user was already assigned to the requested teams
+      let allAlreadyAssigned = false;
       if (Array.isArray(teamIds) && teamIds.length > 0) {
+        const { data: existingTm } = await db
+          .from('team_members')
+          .select('team_id')
+          .eq('tenant_id', tenantId)
+          .eq('user_id', existingUser.id)
+          .in('team_id', teamIds);
+
+        if (existingTm && existingTm.length === teamIds.length) {
+          allAlreadyAssigned = true;
+        }
+
         for (const tid of teamIds) {
           await db
             .from('team_members')
@@ -67,10 +80,15 @@ export async function POST(req: Request) {
         .eq('id', existingUser.id)
         .eq('tenant_id', tenantId);
 
+      const message = allAlreadyAssigned
+        ? `${cleanEmail} is already a member of this team. Permissions and role have been refreshed.`
+        : `${cleanEmail} is already in the workspace and has been added to the team.`;
+
       return NextResponse.json({
         success: true,
-        message: `${cleanEmail} is already in the workspace and team assignments have been updated.`,
-        isExistingMember: true
+        message,
+        isExistingMember: true,
+        alreadyInTeam: allAlreadyAssigned
       });
     }
 
@@ -117,14 +135,48 @@ export async function POST(req: Request) {
       }
     }
 
+    // Fetch tenant, inviter, and team details for email template
+    const [tenantRes, inviterRes, teamsRes] = await Promise.all([
+      db.from('tenants').select('name').eq('id', tenantId).maybeSingle(),
+      db.from('users').select('name, email').eq('id', userId).maybeSingle(),
+      Array.isArray(teamIds) && teamIds.length > 0
+        ? db.from('teams').select('name, color').in('id', teamIds).eq('tenant_id', tenantId)
+        : Promise.resolve({ data: [] })
+    ]);
+
+    const workspaceName = tenantRes.data?.name || 'PingStack Workspace';
+    const inviterName = inviterRes.data?.name || inviterRes.data?.email || undefined;
+    const assignedTeams = (teamsRes.data || []).map((t: any) => ({ name: t.name, color: t.color }));
+
+    const origin = req.headers.get('origin') || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const inviteUrl = `${origin}/invite/${token}`;
+
+    // Dispatch invitation email via Resend
+    const emailResult = await sendWorkspaceInvitationEmail({
+      email: cleanEmail,
+      workspaceName,
+      inviterName,
+      role: normalizedRole,
+      teams: assignedTeams,
+      inviteUrl,
+      expiresAt
+    });
+
+    const isEmailSent = Boolean(emailResult.success);
+
     return NextResponse.json({
       success: true,
-      message: `Invitation generated for ${cleanEmail}`,
+      emailSent: isEmailSent,
+      emailError: emailResult.error || undefined,
+      message: isEmailSent
+        ? `Invitation sent successfully to ${cleanEmail}`
+        : `Invitation created, but email dispatch failed (${emailResult.error || 'Check Resend configuration'}). You can copy the invite link.`,
       invitation: {
         email: cleanEmail,
         role: normalizedRole,
         permissions: effectivePermissions,
         token,
+        inviteUrl,
         expiresAt
       }
     });

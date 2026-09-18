@@ -8,9 +8,18 @@ import { normalizePhoneNumber } from '@/lib/phone';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId || tenantId === 'undefined') {
     console.error('API GET contacts: Missing or invalid x-tenant-id', { tenantId });
     return NextResponse.json({ error: 'Unauthorized: Missing tenant context' }, { status: 401 });
+  }
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canViewContacts = await hasWorkspacePermission(userId, tenantId, 'contacts_view');
+    if (!canViewContacts) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to view contacts.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
   }
 
   if (!db) {
@@ -189,6 +198,17 @@ export async function PUT(req: Request) {
   if (!tenantId || tenantId === 'undefined') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
 
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canManageContacts = await hasWorkspacePermission(userId, tenantId, 'contacts_manage');
+    if (!canManageContacts) {
+      return NextResponse.json({ 
+        error: 'Forbidden: You do not have permission to modify contacts.',
+        code: 'PERMISSION_DENIED'
+      }, { status: 403 });
+    }
+  }
+
   try {
     const { id, name, phone_number } = await req.json();
     if (!id || !phone_number) return NextResponse.json({ error: 'ID and Phone number are required' }, { status: 400 });
@@ -225,6 +245,17 @@ export async function DELETE(req: Request) {
   const userId = req.headers.get('x-user-id');
   if (!tenantId || tenantId === 'undefined') return NextResponse.json({ error: 'Unauthorized: Session missing' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canManageContacts = await hasWorkspacePermission(userId, tenantId, 'contacts_manage');
+    if (!canManageContacts) {
+      return NextResponse.json({ 
+        error: 'Forbidden: You do not have permission to delete contacts.',
+        code: 'PERMISSION_DENIED'
+      }, { status: 403 });
+    }
+  }
 
   try {
     const body = await req.json().catch(() => ({}));

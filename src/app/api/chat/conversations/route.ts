@@ -51,20 +51,30 @@ export async function GET(req: Request) {
     const unreadCountMap = new Map<string, number>(unreadCounts.map(c => [c.contact_id, c.unread_count]));
 
     const userId = req.headers.get('x-user-id');
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized: Missing user identity' }, { status: 401 });
+    }
+
+    const { hasWorkspacePermission, getUserTeamIdsServer, getEffectiveWorkspaceRole } = await import('@/lib/server/teams');
+    const canViewInbox = await hasWorkspacePermission(userId, tenantId, 'inbox_view');
+    if (!canViewInbox) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to view inbox conversations.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+
+    const role = await getEffectiveWorkspaceRole(userId, tenantId);
+    const isWorkspaceAdmin = role === 'admin';
     let userTeamIds: string[] = [];
-    let isWorkspaceAdmin = true;
+    if (!isWorkspaceAdmin) {
+      userTeamIds = await getUserTeamIdsServer(userId, tenantId);
+    }
 
-    if (userId) {
-      const { hasWorkspacePermission, getUserTeamIdsServer } = await import('@/lib/server/teams');
-      const canViewInbox = await hasWorkspacePermission(userId, tenantId, 'inbox_view');
-      if (!canViewInbox) {
-        return NextResponse.json([]);
-      }
+    const { searchParams } = new URL(req.url);
+    const requestedTeamId = searchParams.get('teamId');
 
-      const { data: userRecord } = await db.from('users').select('role, workspace_role').eq('id', userId).eq('tenant_id', tenantId).maybeSingle();
-      isWorkspaceAdmin = userRecord?.role === 'admin' || userRecord?.role === 'superadmin' || userRecord?.workspace_role === 'admin';
-      if (!isWorkspaceAdmin) {
-        userTeamIds = await getUserTeamIdsServer(userId, tenantId);
+    // If client requested a specific team filter, verify membership
+    if (requestedTeamId) {
+      if (!isWorkspaceAdmin && !userTeamIds.includes(requestedTeamId)) {
+        return NextResponse.json({ error: 'Forbidden: You do not have access to this team.', code: 'PERMISSION_DENIED' }, { status: 403 });
       }
     }
 
@@ -85,15 +95,31 @@ export async function GET(req: Request) {
         };
       })
       .filter((conv: any) => {
-        if (isWorkspaceAdmin || !userId) return true;
         const a = conv.assignment;
-        // If conversation is assigned to a specific team, member must belong to that team
+
+        // If client requested a specific team, filter to that team
+        if (requestedTeamId) {
+          return a?.team_id === requestedTeamId;
+        }
+
+        // Workspace Admin can see all tenant conversations
+        if (isWorkspaceAdmin) return true;
+
+        // Team Member filtering:
+        // 1. If assigned to a team:
         if (a && a.team_id) {
           const isAssignedToUser = a.assigned_user_id === userId;
           const isInAssignedTeam = userTeamIds.includes(a.team_id);
+          // Member can see conversations of their authorized teams or directly assigned to them
           return isAssignedToUser || isInAssignedTeam;
         }
-        // Unassigned or general queue: accessible if user has inbox_view
+
+        // 2. If assigned directly to another agent with no team:
+        if (a && a.assigned_user_id && !a.team_id) {
+          return a.assigned_user_id === userId;
+        }
+
+        // 3. Unassigned queue (no team, no agent): accessible to member
         return true;
       })
       .sort((a: any, b: any) => new Date(b.latestMessage.created_at).getTime() - new Date(a.latestMessage.created_at).getTime());

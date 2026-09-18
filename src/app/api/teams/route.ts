@@ -5,6 +5,7 @@ import { getTeamsServer } from '@/lib/server/teams';
 
 export async function GET(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Database client unavailable' }, { status: 500 });
 
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
       }, { status: 403 });
     }
 
-    const teams = await getTeamsServer(tenantId);
+    const teams = await getTeamsServer(tenantId, userId || undefined);
     return NextResponse.json({ teams });
   } catch (err: any) {
     console.error('[GET /api/teams] Error:', err);

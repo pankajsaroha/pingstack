@@ -32,6 +32,7 @@ import { useTenant } from '@/context/tenant-context';
 import { getPlatformInfo, PlatformInfo } from '@/lib/push-client';
 import { PLANS, getActivePlanType, PLAN_CONFIGS } from '@/lib/plans';
 import TeamManagementSection from './_components/TeamManagementSection';
+import { PendingInvitationsCard } from '@/components/workspace/PendingInvitationsCard';
 
 export default function WorkspaceSettingsPage() {
   const { tenant, refreshTenant } = useTenant();
@@ -236,6 +237,9 @@ export default function WorkspaceSettingsPage() {
           <span className="text-xs font-medium">{saveStatus.text}</span>
         </div>
       )}
+
+      {/* In-App Pending Invitations for this User */}
+      <PendingInvitationsCard />
 
       {/* Grid of Settings Cards */}
       <div className="grid grid-cols-1 gap-6">

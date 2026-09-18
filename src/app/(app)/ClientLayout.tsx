@@ -12,6 +12,7 @@ import { FeedbackModal } from '@/components/feedback/FeedbackModal';
 import { SiteTour } from '@/components/tour/SiteTour';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { PushNotificationManager } from '@/components/notifications/PushNotificationManager';
+import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
 
 interface ClientLayoutProps {
   tenant: TenantContextValue['tenant'] | null;
@@ -169,7 +170,7 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
               className="w-64 h-full bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 flex flex-col animate-in slide-in-from-left duration-200 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="h-14 px-4 border-b border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
+              <div className="h-14 px-4 border-b border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between shrink-0">
                 <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Workspace Navigation
                 </span>
@@ -179,6 +180,9 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+              <div className="p-3 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/30 shrink-0">
+                <WorkspaceSwitcher variant="mobile" />
               </div>
               <div className="flex-1 overflow-y-auto">
                 <Sidebar 
@@ -203,22 +207,24 @@ export default function ClientLayout({ tenant, children }: ClientLayoutProps) {
         <div className="flex-1 flex flex-col min-w-0 bg-zinc-50 dark:bg-zinc-950">
           {/* Top Header Bar */}
           <header className="h-14 border-b border-zinc-200 dark:border-zinc-800/60 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-10">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
                 className="p-1.5 -ml-1.5 md:hidden hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-zinc-400 dark:text-zinc-500 hidden sm:inline">Workspace</span>
-                <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">/</span>
-                <span className="font-semibold text-zinc-900 dark:text-zinc-200 capitalize">
-                  {pathname === '/dashboard'
-                    ? 'Dashboard'
-                    : pathname.split('/')[1]?.replace('-', ' ') || 'Overview'}
-                </span>
+
+              <div className="hidden md:block">
+                <WorkspaceSwitcher variant="header" />
               </div>
+
+              <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline text-xs">/</span>
+              <span className="font-semibold text-zinc-900 dark:text-zinc-200 capitalize text-xs">
+                {pathname === '/dashboard'
+                  ? 'Dashboard'
+                  : pathname.split('/')[1]?.replace('-', ' ') || 'Overview'}
+              </span>
             </div>
 
             <div className="flex items-center gap-2.5">

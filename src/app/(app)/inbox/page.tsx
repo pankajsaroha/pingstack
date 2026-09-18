@@ -10,6 +10,7 @@ import InboxClient from './_components/InboxClient';
 export default async function InboxPage() {
   const reqHeaders = await headers();
   const tenantId = reqHeaders.get('x-tenant-id');
+  const userId = reqHeaders.get('x-user-id');
 
   if (!tenantId) {
     redirect('/login');
@@ -18,10 +19,10 @@ export default async function InboxPage() {
   // Pre-fetch all layout states in parallel to prevent database query waterfalls
   const [tenant, conversations, contactsData, templates, teams, members] = await Promise.all([
     getTenantServer(),
-    getConversationsServer(tenantId),
+    getConversationsServer(tenantId, userId || undefined),
     getContactsServer(tenantId, 50),
     getTemplatesServer(tenantId),
-    getTeamsServer(tenantId),
+    getTeamsServer(tenantId, userId || undefined),
     getWorkspaceMembersServer(tenantId)
   ]);
 

@@ -58,11 +58,50 @@ export function useInboxData({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialSelectionMade = useRef(initialConversations.length > 0);
   const activeContactIdRef = useRef<string | null>(activeContactId);
+  const pendingAssignmentsRef = useRef<Map<string, {
+    assignment: any;
+    sequence: number;
+    previousAssignment: any;
+  }>>(new Map());
+  const assignmentSeqRef = useRef<number>(0);
 
   // Sync ref
   useEffect(() => {
     activeContactIdRef.current = activeContactId;
   }, [activeContactId]);
+
+  // Sync active conversation with current filter transition
+  useEffect(() => {
+    if (!activeContactId) return;
+
+    let filtered = conversations;
+    const currentUserId = tenant?.user_id;
+
+    if (activeFilter === 'mine' && currentUserId) {
+      filtered = conversations.filter(c => c.assignment?.assigned_user_id === currentUserId);
+    } else if (activeFilter === 'unassigned') {
+      filtered = conversations.filter(c => !c.assignment?.assigned_user_id && !c.assignment?.team_id);
+    } else if (activeFilter === 'team' && activeTeamId) {
+      filtered = conversations.filter(c => c.assignment?.team_id === activeTeamId);
+    }
+
+    const stillVisible = filtered.some(c => c.contact?.id === activeContactId);
+    if (!stillVisible) {
+      setActiveContactId(null);
+      setMessages([]);
+      setShowChatOnMobile(false);
+    }
+  }, [activeFilter, activeTeamId, conversations, tenant?.user_id, activeContactId]);
+
+  // Gracefully reset team filter if activeTeamId is no longer in authorized teams list
+  useEffect(() => {
+    if (activeFilter === 'team' && activeTeamId) {
+      if (teams && teams.length > 0 && !teams.some(t => t.id === activeTeamId)) {
+        setActiveFilter('all');
+        setActiveTeamId(null);
+      }
+    }
+  }, [teams, activeFilter, activeTeamId]);
 
   // ── Scroll to bottom helper ──────────────────────────────────────
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -102,7 +141,7 @@ export function useInboxData({
       const before = isLoadMore && messages.length > 0 ? messages[0].created_at : '';
       const limit = isLoadMore ? 30 : 15;
       const url = `/api/chat/${contactId}?limit=${limit}${before ? `&before=${before}` : ''}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         if (data.length < limit) setHasMore(false);
@@ -117,6 +156,10 @@ export function useInboxData({
           setMessages(data);
           setTimeout(() => scrollToBottom('auto'), 50);
         }
+      } else if (res.status === 403 || res.status === 404) {
+        setActiveContactId(null);
+        setMessages([]);
+        setShowChatOnMobile(false);
       }
     } catch (e) {
       console.error(e);
@@ -130,11 +173,26 @@ export function useInboxData({
     try {
       const convsRes = await fetch('/api/chat/conversations', { credentials: 'include' });
       if (convsRes.ok) {
-        const data = await convsRes.json();
-        setConversations(data);
-        if (!activeContactId && data.length > 0 && !initialSelectionMade.current) {
-          setActiveContactId(data[0].contact.id);
+        const data: any[] = await convsRes.json();
+        
+        // Reconcile with any in-flight optimistic assignments so background polling NEVER overwrites newer user intent
+        const merged = data.map((conv: any) => {
+          const pending = pendingAssignmentsRef.current.get(conv.contact.id);
+          if (pending) {
+            return { ...conv, assignment: pending.assignment };
+          }
+          return conv;
+        });
+
+        setConversations(merged);
+        if (!activeContactId && merged.length > 0 && !initialSelectionMade.current) {
+          setActiveContactId(merged[0].contact.id);
           initialSelectionMade.current = true;
+        } else if (activeContactId && !merged.some((c: any) => c.contact?.id === activeContactId)) {
+          // If active conversation is no longer present in authorized conversations list, clear selection
+          setActiveContactId(null);
+          setMessages([]);
+          setShowChatOnMobile(false);
         }
       }
 
@@ -144,6 +202,10 @@ export function useInboxData({
         if (msgRes.ok) {
           const freshMsgs = await msgRes.json();
           setMessages(freshMsgs);
+        } else if (msgRes.status === 403 || msgRes.status === 404) {
+          setActiveContactId(null);
+          setMessages([]);
+          setShowChatOnMobile(false);
         }
       }
     } catch (e) {
@@ -514,28 +576,41 @@ export function useInboxData({
   }, []);
 
   const handleAssignConversation = useCallback(async (contactId: string, teamId: string | null, assignedUserId: string | null) => {
+    // 1. Capture current assignment state as rollback anchor
+    const currentConv = conversations.find(c => c.contact?.id === contactId);
+    const previousAssignment = currentConv?.assignment || null;
+
+    // 2. Resolve team and user objects from teams/members lists
+    const targetTeam = teams.find(t => t.id === teamId) || null;
+    const targetUser = members.find(m => m.id === assignedUserId) || null;
+
+    const optimisticAssignment = {
+      tenant_id: tenant?.id || '',
+      contact_id: contactId,
+      team_id: teamId,
+      assigned_user_id: assignedUserId,
+      status: 'open',
+      team: targetTeam ? { id: targetTeam.id, name: targetTeam.name, color: targetTeam.color } : null,
+      assigned_user: targetUser ? { id: targetUser.id, name: targetUser.name, email: targetUser.email } : null
+    };
+
+    // 3. Increment monotonic sequence and record pending assignment
+    const seq = ++assignmentSeqRef.current;
+    pendingAssignmentsRef.current.set(contactId, {
+      assignment: optimisticAssignment,
+      sequence: seq,
+      previousAssignment
+    });
+
+    // 4. Immediately apply local-first optimistic state to conversations list
+    setConversations(prev => prev.map(c => {
+      if (c.contact?.id === contactId) {
+        return { ...c, assignment: optimisticAssignment };
+      }
+      return c;
+    }));
+
     try {
-      // Optimistically update conversation assignment in state
-      const targetTeam = teams.find(t => t.id === teamId) || null;
-      const targetUser = members.find(m => m.id === assignedUserId) || null;
-
-      const updatedAssignment = {
-        tenant_id: tenant?.id || '',
-        contact_id: contactId,
-        team_id: teamId,
-        assigned_user_id: assignedUserId,
-        status: 'open',
-        team: targetTeam ? { id: targetTeam.id, name: targetTeam.name, color: targetTeam.color } : null,
-        assigned_user: targetUser ? { id: targetUser.id, name: targetUser.name, email: targetUser.email } : null
-      };
-
-      setConversations(prev => prev.map(c => {
-        if (c.contact.id === contactId) {
-          return { ...c, assignment: updatedAssignment };
-        }
-        return c;
-      }));
-
       const res = await fetch(`/api/chat/${contactId}/assign`, {
         method: 'POST',
         headers: {
@@ -545,17 +620,49 @@ export function useInboxData({
         body: JSON.stringify({ teamId, assignedUserId })
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setToast({ message: errData.error || 'Failed to update conversation assignment', type: 'error' });
-      } else {
-        setToast({ message: 'Conversation assignment updated', type: 'success' });
+      const data = await res.json().catch(() => ({}));
+
+      // Check if this request is still the newest user selection for this contact
+      const pending = pendingAssignmentsRef.current.get(contactId);
+      if (pending && pending.sequence === seq) {
+        if (!res.ok) {
+          // Revert to confirmed previous assignment on failure
+          pendingAssignmentsRef.current.delete(contactId);
+          setConversations(prev => prev.map(c => {
+            if (c.contact?.id === contactId) {
+              return { ...c, assignment: pending.previousAssignment };
+            }
+            return c;
+          }));
+          setToast({ message: data.error || 'Failed to update conversation assignment', type: 'error' });
+        } else {
+          // Confirm authoritative server assignment
+          const serverAssignment = data.assignment || optimisticAssignment;
+          pendingAssignmentsRef.current.delete(contactId);
+          setConversations(prev => prev.map(c => {
+            if (c.contact?.id === contactId) {
+              return { ...c, assignment: serverAssignment };
+            }
+            return c;
+          }));
+          setToast({ message: 'Conversation assignment updated', type: 'success' });
+        }
       }
     } catch (e) {
       console.error('Assignment error:', e);
-      setToast({ message: 'Network error updating assignment', type: 'error' });
+      const pending = pendingAssignmentsRef.current.get(contactId);
+      if (pending && pending.sequence === seq) {
+        pendingAssignmentsRef.current.delete(contactId);
+        setConversations(prev => prev.map(c => {
+          if (c.contact?.id === contactId) {
+            return { ...c, assignment: pending.previousAssignment };
+          }
+          return c;
+        }));
+        setToast({ message: 'Network error updating assignment', type: 'error' });
+      }
     }
-  }, [teams, members, tenant?.id]);
+  }, [conversations, teams, members, tenant?.id]);
 
   return {
     // states
