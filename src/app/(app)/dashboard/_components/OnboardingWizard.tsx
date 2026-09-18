@@ -367,14 +367,38 @@ export default function OnboardingWizard({
 
                   {error && (
                     <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-1">Auth Error</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-1">
+                        {onboardingStep === 2 ? 'Setup Error' : 'Auth Error'}
+                      </p>
                       <p className="text-xs font-bold leading-snug mb-3 text-fg/70">{error}</p>
-                      <button
-                        onClick={onEmbeddedConnect}
-                        className="px-3 py-1.5 bg-fg text-bg rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 transition-all cursor-pointer"
-                      >
-                        Retry Auth
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {onboardingStep === 2 ? (
+                          <>
+                            <button
+                              onClick={onFinishOnboarding}
+                              disabled={connecting || !selectedPhone}
+                              className="px-3 py-1.5 bg-fg text-bg rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 disabled:opacity-40 transition-all cursor-pointer"
+                            >
+                              Try Again
+                            </button>
+                            <button
+                              onClick={onEmbeddedConnect}
+                              disabled={connecting}
+                              className="px-3 py-1.5 bg-glass-input text-fg/70 hover:text-fg border border-glass-border rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer"
+                            >
+                              Re-Authenticate
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={onEmbeddedConnect}
+                            disabled={connecting}
+                            className="px-3 py-1.5 bg-fg text-bg rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-neutral-100 transition-all cursor-pointer"
+                          >
+                            Retry Auth
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

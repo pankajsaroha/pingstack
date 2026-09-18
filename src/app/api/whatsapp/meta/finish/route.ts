@@ -4,6 +4,7 @@ import { encrypt } from '@/lib/encryption';
 import { subscribeWABAWebhooks, registerMetaPhoneNumber } from '@/lib/whatsapp';
 import { recordLatency } from '@/lib/server/latency-telemetry';
 import { recordOnboardingRun } from '@/lib/server/onboarding-telemetry';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
@@ -43,12 +44,12 @@ export async function POST(req: Request) {
     let subSuccess = true;
     let regSuccess = true;
 
-    if (subRes.status === 'fulfilled' && !subRes.value.success && subRes.value.error) {
-      console.warn('Webhook subscription warning:', subRes.value.error);
+    if (subRes.status === 'rejected' || (subRes.status === 'fulfilled' && subRes.value && !subRes.value.success && subRes.value.error)) {
+      console.warn('Webhook subscription warning:', subRes.status === 'rejected' ? subRes.reason : subRes.value.error);
       subSuccess = false;
     }
-    if (regRes.status === 'rejected') {
-      console.warn('Phone registration warning:', regRes.reason);
+    if (regRes.status === 'rejected' || (regRes.status === 'fulfilled' && regRes.value && !regRes.value.success)) {
+      console.warn('Phone registration warning:', regRes.status === 'rejected' ? regRes.reason : regRes.value?.error);
       regSuccess = false;
     }
 
@@ -88,6 +89,10 @@ export async function POST(req: Request) {
     }
 
     if (dbError) throw dbError;
+
+    // Invalidate cached tenant data so subsequent GET /api/tenant/me returns authoritative ACTIVE status
+    await invalidateTenantCache(tenantId);
+
     const dbDuration = performance.now() - dbStart;
     const criticalPathDuration = performance.now() - criticalStart;
 
@@ -151,6 +156,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: true, 
       status: 'ACTIVE',
+      account: {
+        id: existingAccount?.id,
+        provider: 'META',
+        business_id: wabaId,
+        phone_number_id: phoneId,
+        status: 'ACTIVE'
+      },
       backgroundSync: true 
     });
 

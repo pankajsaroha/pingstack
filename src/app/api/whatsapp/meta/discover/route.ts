@@ -4,6 +4,7 @@ import { getWABAPhoneNumbers } from '@/lib/whatsapp';
 import { db } from '@/lib/db';
 import { fetchWithMetaRetry } from '@/lib/server/meta-retry';
 import { recordLatency } from '@/lib/server/latency-telemetry';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 type GranularScope = {
   scope?: string;
@@ -86,6 +87,8 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString()
           });
       }
+
+      await invalidateTenantCache(tenantId);
     } else {
       const { data: existing } = await db.from('whatsapp_accounts')
         .select('access_token')

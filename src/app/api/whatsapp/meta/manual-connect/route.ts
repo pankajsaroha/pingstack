@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { encrypt } from '@/lib/encryption';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-    if (!db) {
-      return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
-    }
+  if (!db) {
+    return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+  }
 
   try {
     const { accessToken, wabaId, phoneNumberId } = await req.json();
@@ -51,6 +52,8 @@ export async function POST(req: Request) {
     }
 
     if (dbResult.error) throw dbResult.error;
+
+    await invalidateTenantCache(tenantId);
 
     return NextResponse.json({ success: true, message: 'WhatsApp manually connected successfully.' });
 

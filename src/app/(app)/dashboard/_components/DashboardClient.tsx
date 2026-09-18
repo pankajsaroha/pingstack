@@ -264,7 +264,20 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
         })
       });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && (data.success || data.status === 'ACTIVE')) {
+        if (tenant) {
+          setTenant({
+            ...tenant,
+            whatsapp_account: {
+              ...(tenant.whatsapp_account || {}),
+              id: data.account?.id || tenant.whatsapp_account?.id,
+              provider: 'META',
+              business_id: selectedWaba,
+              phone_number_id: selectedPhone,
+              status: 'ACTIVE'
+            }
+          });
+        }
         fireToast(
           data.backgroundSync
             ? 'WhatsApp Connected! Account active — template sync continuing in background.'
@@ -277,10 +290,10 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
         setTempToken('');
         await refreshTenantAndStats();
       } else {
-        setError(data.message || data.error || 'Finalization failed');
+        setError(data.message || data.error || 'Failed to complete WhatsApp setup. Please check your selections and try again.');
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Connection error while completing setup. Please try again.');
     } finally {
       setConnecting(false);
     }
