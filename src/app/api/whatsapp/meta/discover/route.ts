@@ -4,6 +4,7 @@ import { getWABAPhoneNumbers } from '@/lib/whatsapp';
 import { db } from '@/lib/db';
 import { fetchWithMetaRetry } from '@/lib/server/meta-retry';
 import { recordLatency } from '@/lib/server/latency-telemetry';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 type GranularScope = {
   scope?: string;
@@ -18,8 +19,17 @@ type WabaSummary = {
 
 export async function POST(req: Request) {
   const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  if (userId) {
+    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const canManage = await hasWorkspacePermission(userId, tenantId, 'settings_manage');
+    if (!canManage) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to manage WhatsApp settings.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+  }
 
   const startTime = performance.now();
 
@@ -86,6 +96,8 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString()
           });
       }
+
+      await invalidateTenantCache(tenantId);
     } else {
       const { data: existing } = await db.from('whatsapp_accounts')
         .select('access_token')

@@ -108,11 +108,44 @@ export default function ChatThread({
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
+  const assignButtonRef = useRef<HTMLButtonElement>(null);
+  const assignMenuRef = useRef<HTMLDivElement>(null);
   const measuredHeightsRef = useRef<Record<string, number>>({});
   const [renderTrigger, setRenderTrigger] = useState(0);
 
-  // Reset measurements when shifting conversations to avoid stale coordinates
+  // Close assignment popup on outside click or Escape key
   useEffect(() => {
+    if (!showAssignMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (assignButtonRef.current && assignButtonRef.current.contains(target)) {
+        return;
+      }
+      if (assignMenuRef.current && assignMenuRef.current.contains(target)) {
+        return;
+      }
+      setShowAssignMenu(false);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAssignMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showAssignMenu]);
+
+  // Reset measurements & close popup when shifting conversations to avoid stale coordinates
+  useEffect(() => {
+    setShowAssignMenu(false);
     measuredHeightsRef.current = {};
     setRenderTrigger(0);
     setScrollTop(0);
@@ -270,98 +303,119 @@ export default function ChatThread({
         </div>
 
         <div className="flex items-center space-x-2 sm:space-x-3">
-          {/* Assignment dropdown (visible if teams or members exist) */}
-          {(teams.length > 0 || members.length > 0) && activeConversation?.contact?.id && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowAssignMenu(v => !v)}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700/80 border border-zinc-200 dark:border-zinc-700/80 rounded-lg text-[11px] font-medium text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-                title="Assign conversation to team or member"
-              >
-                <Users className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="truncate max-w-[120px] sm:max-w-[160px]">
-                  {activeConversation.assignment?.team?.name 
-                    ? `${activeConversation.assignment.team.name}${activeConversation.assignment.assigned_user ? ` • ${activeConversation.assignment.assigned_user.name}` : ''}`
-                    : (activeConversation.assignment?.assigned_user?.name || 'Unassigned')}
-                </span>
-                <ChevronDown className="w-3 h-3 text-zinc-400" />
-              </button>
+          {/* Assignment dropdown (Progressive disclosure: visible only if teams exist or multiple members exist) */}
+          {(teams.length > 0 || members.length > 1) && activeConversation?.contact?.id && (() => {
+            const currentAssignment = activeConversation.assignment;
+            const currentTeamId = currentAssignment?.team_id || null;
+            const currentUserId = currentAssignment?.assigned_user_id || null;
 
-              {/* Assignment popover */}
-              {showAssignMenu && (
-                <div 
-                  className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 p-2 text-xs animate-in fade-in zoom-in-95 duration-100"
-                  onClick={e => e.stopPropagation()}
+            const assignedTeam = teams.find(t => t.id === currentTeamId) || currentAssignment?.team;
+            const assignedUser = members.find(m => m.id === currentUserId) || currentAssignment?.assigned_user;
+
+            const triggerText = assignedTeam?.name
+              ? `${assignedTeam.name}${assignedUser?.name ? ` • ${assignedUser.name}` : ''}`
+              : (assignedUser?.name || 'Unassigned');
+
+            return (
+              <div className="relative">
+                <button
+                  ref={assignButtonRef}
+                  type="button"
+                  onClick={() => setShowAssignMenu(v => !v)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700/80 border border-zinc-200 dark:border-zinc-700/80 rounded-lg text-[11px] font-medium text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                  title="Assign conversation to team or member"
                 >
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                    Assign to Team
-                  </div>
-                  <div className="space-y-0.5 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onAssignConversation?.(activeConversation.contact.id, null, activeConversation.assignment?.assigned_user_id || null);
-                        setShowAssignMenu(false);
-                      }}
-                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
-                    >
-                      <span className="text-zinc-600 dark:text-zinc-400">No Team</span>
-                      {!activeConversation.assignment?.team_id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                    </button>
-                    {teams.map(t => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          onAssignConversation?.(activeConversation.contact.id, t.id, activeConversation.assignment?.assigned_user_id || null);
-                          setShowAssignMenu(false);
-                        }}
-                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
-                      >
-                        <span className="flex items-center gap-1.5 font-medium text-zinc-800 dark:text-zinc-200">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color || '#4F46E5' }} />
-                          {t.name}
-                        </span>
-                        {activeConversation.assignment?.team_id === t.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                      </button>
-                    ))}
-                  </div>
+                  <Users className="w-3.5 h-3.5 text-zinc-500" />
+                  <span className="truncate max-w-[120px] sm:max-w-[160px]">
+                    {triggerText}
+                  </span>
+                  <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-150 ${showAssignMenu ? 'rotate-180' : ''}`} />
+                </button>
 
-                  <div className="border-t border-zinc-100 dark:border-zinc-800 pt-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                    Assign to Agent
+                {/* Assignment popover */}
+                {showAssignMenu && (
+                  <div 
+                    ref={assignMenuRef}
+                    className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 p-2 text-xs animate-in fade-in zoom-in-95 duration-100"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {teams.length > 0 && (
+                      <>
+                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                          Assign to Team
+                        </div>
+                        <div className="space-y-0.5 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onAssignConversation?.(activeConversation.contact.id, null, currentUserId);
+                              setShowAssignMenu(false);
+                            }}
+                            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
+                          >
+                            <span className="text-zinc-600 dark:text-zinc-400">No Team</span>
+                            {!currentTeamId && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                          </button>
+                          {teams.map(t => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                onAssignConversation?.(activeConversation.contact.id, t.id, currentUserId);
+                                setShowAssignMenu(false);
+                              }}
+                              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5 font-medium text-zinc-800 dark:text-zinc-200">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color || '#4F46E5' }} />
+                                {t.name}
+                              </span>
+                              {currentTeamId === t.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {members.length > 1 && (
+                      <>
+                        <div className="border-t border-zinc-100 dark:border-zinc-800 pt-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                          Assign to Agent
+                        </div>
+                        <div className="space-y-0.5 max-h-36 overflow-y-auto custom-scrollbar">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onAssignConversation?.(activeConversation.contact.id, currentTeamId, null);
+                              setShowAssignMenu(false);
+                            }}
+                            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
+                          >
+                            <span className="text-zinc-600 dark:text-zinc-400">Unassigned</span>
+                            {!currentUserId && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                          </button>
+                          {members.map(m => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                onAssignConversation?.(activeConversation.contact.id, currentTeamId, m.id);
+                                setShowAssignMenu(false);
+                              }}
+                              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
+                            >
+                              <span className="truncate text-zinc-800 dark:text-zinc-200">{m.name}</span>
+                              {currentUserId === m.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div className="space-y-0.5 max-h-36 overflow-y-auto custom-scrollbar">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onAssignConversation?.(activeConversation.contact.id, activeConversation.assignment?.team_id || null, null);
-                        setShowAssignMenu(false);
-                      }}
-                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
-                    >
-                      <span className="text-zinc-600 dark:text-zinc-400">Unassigned</span>
-                      {!activeConversation.assignment?.assigned_user_id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                    </button>
-                    {members.map(m => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => {
-                          onAssignConversation?.(activeConversation.contact.id, activeConversation.assignment?.team_id || null, m.id);
-                          setShowAssignMenu(false);
-                        }}
-                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer"
-                      >
-                        <span className="truncate text-zinc-800 dark:text-zinc-200">{m.name}</span>
-                        {activeConversation.assignment?.assigned_user_id === m.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
 
           {/* Bulk-delete toolbar */}
           {selectedMessageIds.size > 0 && (

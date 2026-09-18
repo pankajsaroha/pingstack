@@ -13,9 +13,11 @@ export interface Tenant {
   pending_plan_type: string | null;
   subscription_status?: string;
   created_at?: string;
+  user_id?: string;
   user_name: string;
   user_email?: string;
   user_role?: string;
+  workspace_role?: 'admin' | 'member';
   is_trial: boolean;
   trial_expires_at: string;
   trial_days_left: number;
@@ -135,6 +137,7 @@ export interface WorkspaceInvitation {
   status: 'pending' | 'accepted' | 'expired' | 'revoked';
   expires_at: string;
   created_at: string;
+  teams?: Team[];
 }
 
 export interface ConversationAssignment {

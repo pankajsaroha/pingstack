@@ -23,7 +23,7 @@ export async function POST(
       }, { status: 403 });
     }
 
-    const { hasWorkspacePermission } = await import('@/lib/server/teams');
+    const { hasWorkspacePermission, getUserTeamIdsServer, getEffectiveWorkspaceRole } = await import('@/lib/server/teams');
     const canAssign = await hasWorkspacePermission(userId, tenantId, 'inbox_assign');
     if (!canAssign) {
       return NextResponse.json({ 
@@ -32,8 +32,9 @@ export async function POST(
       }, { status: 403 });
     }
 
-    const body = await req.json();
-    const { teamId, assignedUserId, status = 'open' } = body;
+    const effectiveRole = await getEffectiveWorkspaceRole(userId, tenantId);
+    const isWorkspaceAdmin = effectiveRole === 'admin';
+    const userTeamIds = await getUserTeamIdsServer(userId, tenantId);
 
     // Verify contact belongs to tenant
     const { data: contact } = await db
@@ -47,6 +48,32 @@ export async function POST(
       return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
     }
 
+    // Check if the caller is authorized to access the current conversation
+    if (!isWorkspaceAdmin) {
+      const { data: currentAssignment } = await db
+        .from('conversation_assignments')
+        .select('team_id, assigned_user_id')
+        .eq('tenant_id', tenantId)
+        .eq('contact_id', contactId)
+        .maybeSingle();
+
+      if (currentAssignment) {
+        const isAssignedToCaller = currentAssignment.assigned_user_id === userId;
+        const isInAssignedTeam = currentAssignment.team_id && userTeamIds.includes(currentAssignment.team_id);
+        const isUnassigned = !currentAssignment.team_id && !currentAssignment.assigned_user_id;
+
+        if (!isAssignedToCaller && !isInAssignedTeam && !isUnassigned) {
+          return NextResponse.json({
+            error: 'Forbidden: You are not authorized to access or reassign this conversation.',
+            code: 'PERMISSION_DENIED'
+          }, { status: 403 });
+        }
+      }
+    }
+
+    const body = await req.json();
+    const { teamId, assignedUserId, status = 'open' } = body;
+
     // Validate teamId if provided
     if (teamId) {
       const { data: team } = await db
@@ -59,19 +86,27 @@ export async function POST(
       if (!team) {
         return NextResponse.json({ error: 'Specified team not found' }, { status: 400 });
       }
+
+      // If user is not Workspace Admin and does not have teams_manage permission, they can only assign to their own teams
+      if (!isWorkspaceAdmin) {
+        const canManageTeams = await hasWorkspacePermission(userId, tenantId, 'teams_manage');
+        if (!canManageTeams && !userTeamIds.includes(teamId)) {
+          return NextResponse.json({
+            error: 'Forbidden: You cannot assign conversations to a team you are not a member of.',
+            code: 'PERMISSION_DENIED'
+          }, { status: 403 });
+        }
+      }
     }
 
     // Validate assignedUserId if provided
     if (assignedUserId) {
-      const { data: user } = await db
-        .from('users')
-        .select('id')
-        .eq('id', assignedUserId)
-        .eq('tenant_id', tenantId)
-        .maybeSingle();
+      const { getWorkspaceMembersServer } = await import('@/lib/server/teams');
+      const allMembers = await getWorkspaceMembersServer(tenantId);
+      const isMember = allMembers.some(m => m.id === assignedUserId);
 
-      if (!user) {
-        return NextResponse.json({ error: 'Specified agent/user not found' }, { status: 400 });
+      if (!isMember) {
+        return NextResponse.json({ error: 'Specified agent/user not found in this workspace' }, { status: 400 });
       }
     }
 

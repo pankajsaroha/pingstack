@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { MessageCircle, Trash2, AlertTriangle, X } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { MessageCircle, Trash2, AlertTriangle, X, ChevronDown, Check, Users } from 'lucide-react';
 import VirtualList from '@/components/VirtualList';
 import ContactAvatar from '@/components/ContactAvatar';
 
@@ -44,6 +45,82 @@ export default function ConversationList({
   onDeleteConversation,
 }: ConversationListProps) {
   const [deleteConfirmContact, setDeleteConfirmContact] = useState<{ id: string; name: string; phone: string } | null>(null);
+  const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  const teamButtonRef = useRef<HTMLButtonElement>(null);
+  const teamPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updateDropdownPosition = useCallback(() => {
+    if (!teamButtonRef.current) return;
+    const rect = teamButtonRef.current.getBoundingClientRect();
+    const popoverWidth = 224; // 14rem / 224px (w-56)
+    const popoverEstimatedHeight = 260;
+
+    // Position below button if space allows, otherwise above
+    let top = rect.bottom + 4;
+    if (top + popoverEstimatedHeight > window.innerHeight && rect.top > popoverEstimatedHeight) {
+      top = Math.max(8, rect.top - popoverEstimatedHeight - 4);
+    }
+
+    // Align with button left, but keep fully within viewport boundaries
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - popoverWidth - 8);
+    }
+    if (left < 8) {
+      left = 8;
+    }
+
+    setDropdownPos({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!teamDropdownOpen) return;
+
+    updateDropdownPosition();
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (teamButtonRef.current && teamButtonRef.current.contains(target)) {
+        return;
+      }
+      if (teamPopoverRef.current && teamPopoverRef.current.contains(target)) {
+        return;
+      }
+      setTeamDropdownOpen(false);
+      setTeamSearchQuery('');
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setTeamDropdownOpen(false);
+        setTeamSearchQuery('');
+      }
+    };
+
+    const handleScrollOrResize = () => {
+      updateDropdownPosition();
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+    };
+  }, [teamDropdownOpen, updateDropdownPosition]);
 
   // Long-press detection for conversations
   const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -166,7 +243,9 @@ export default function ConversationList({
     // Pre-calculate heights (slightly larger if assignment chip present)
     const itemHeights = listItems.map((item) => {
       if (item.type === 'conversation') {
-        return item.data?.assignment?.team || item.data?.assignment?.assigned_user ? 92 : 82;
+        const aTeam = teams.find(t => t.id === item.data?.assignment?.team_id) || item.data?.assignment?.team;
+        const aUser = members.find(m => m.id === item.data?.assignment?.assigned_user_id) || item.data?.assignment?.assigned_user;
+        return aTeam || aUser ? 92 : 82;
       }
       if (item.type === 'header') return 37;
       return 72;
@@ -190,7 +269,9 @@ export default function ConversationList({
         phone: conv.contact.phone_number
       };
 
-      const hasAssignment = conv.assignment?.team || conv.assignment?.assigned_user;
+      const assignedTeam = teams.find(t => t.id === conv.assignment?.team_id) || conv.assignment?.team;
+      const assignedUser = members.find(m => m.id === conv.assignment?.assigned_user_id) || conv.assignment?.assigned_user;
+      const hasAssignment = Boolean(assignedTeam || assignedUser);
 
       return (
         <div
@@ -240,22 +321,22 @@ export default function ConversationList({
             {/* Assignment Tags Chip (if assigned to a team or member) */}
             {hasAssignment && (
               <div className="flex items-center gap-1.5 my-0.5">
-                {conv.assignment.team && (
+                {assignedTeam && (
                   <span 
                     className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-bold rounded-md uppercase tracking-wider"
                     style={{
-                      backgroundColor: `${conv.assignment.team.color || '#4F46E5'}15`,
-                      color: conv.assignment.team.color || '#4F46E5',
-                      border: `1px solid ${conv.assignment.team.color || '#4F46E5'}30`
+                      backgroundColor: `${assignedTeam.color || '#4F46E5'}15`,
+                      color: assignedTeam.color || '#4F46E5',
+                      border: `1px solid ${assignedTeam.color || '#4F46E5'}30`
                     }}
                   >
-                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: conv.assignment.team.color || '#4F46E5' }} />
-                    {conv.assignment.team.name}
+                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: assignedTeam.color || '#4F46E5' }} />
+                    {assignedTeam.name}
                   </span>
                 )}
-                {conv.assignment.assigned_user && (
+                {assignedUser && (
                   <span className="inline-flex items-center px-1.5 py-0.2 text-[9px] font-medium rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-                    👤 {conv.assignment.assigned_user.name}
+                    👤 {assignedUser.name}
                   </span>
                 )}
               </div>
@@ -366,12 +447,25 @@ export default function ConversationList({
     return null;
   };
 
-  const showTeamsFilter = teams.length > 0;
+  const hasMultipleMembers = members.length > 1;
+  const hasTeams = teams.length > 0;
+  const showFilterTabs = hasMultipleMembers || hasTeams;
+
+  const countAll = conversations.length;
+  const countMine = currentUserId ? conversations.filter(c => c.assignment?.assigned_user_id === currentUserId).length : 0;
+  const countUnassigned = conversations.filter(c => !c.assignment?.assigned_user_id && !c.assignment?.team_id).length;
+  const teamCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    teams.forEach(t => {
+      map.set(t.id, conversations.filter(c => c.assignment?.team_id === t.id).length);
+    });
+    return map;
+  }, [teams, conversations]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
-      {/* Team / Assignment Filter Tabs */}
-      {showTeamsFilter && (
+      {/* Team / Assignment Filter Tabs (Progressive Disclosure) */}
+      {showFilterTabs && (
         <div className="px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/70 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           <button
             onClick={() => {
@@ -384,21 +478,25 @@ export default function ConversationList({
                 : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
             }`}
           >
-            All ({conversations.length})
+            All ({countAll})
           </button>
-          <button
-            onClick={() => {
-              onFilterChange?.('mine');
-              onTeamFilterChange?.(null);
-            }}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
-              activeFilter === 'mine'
-                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
-            }`}
-          >
-            Assigned to Me
-          </button>
+          
+          {hasMultipleMembers && (
+            <button
+              onClick={() => {
+                onFilterChange?.('mine');
+                onTeamFilterChange?.(null);
+              }}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+                activeFilter === 'mine'
+                  ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xs'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
+              }`}
+            >
+              Assigned to Me ({countMine})
+            </button>
+          )}
+
           <button
             onClick={() => {
               onFilterChange?.('unassigned');
@@ -410,26 +508,139 @@ export default function ConversationList({
                 : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
             }`}
           >
-            Unassigned
+            Unassigned ({countUnassigned})
           </button>
-          {teams.map(team => (
+
+          {hasTeams && (
             <button
-              key={team.id}
+              ref={teamButtonRef}
+              type="button"
               onClick={() => {
-                onFilterChange?.('team');
-                onTeamFilterChange?.(team.id);
+                if (!teamDropdownOpen) {
+                  updateDropdownPosition();
+                }
+                setTeamDropdownOpen(v => !v);
+                if (teamDropdownOpen) setTeamSearchQuery('');
               }}
-              className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
-                activeFilter === 'team' && activeTeamId === team.id
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                activeFilter === 'team' && activeTeamId
                   ? 'bg-indigo-600 text-white shadow-2xs'
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: team.color || '#4F46E5' }} />
-              {team.name}
+              {activeFilter === 'team' && activeTeamId ? (
+                <>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      backgroundColor: teams.find(t => t.id === activeTeamId)?.color || '#4F46E5',
+                    }}
+                  />
+                  <span className="truncate max-w-[120px]">
+                    Team: {teams.find(t => t.id === activeTeamId)?.name || 'Team'}
+                  </span>
+                </>
+              ) : (
+                <span>Team: All</span>
+              )}
+              <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${teamDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
-          ))}
+          )}
         </div>
+      )}
+
+      {/* Floating Team Selector Popover via Portal */}
+      {mounted && teamDropdownOpen && createPortal(
+        <div
+          ref={teamPopoverRef}
+          style={{
+            position: 'fixed',
+            top: `${dropdownPos.top}px`,
+            left: `${dropdownPos.left}px`,
+          }}
+          className="w-56 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xl py-1.5 z-[9999] animate-in fade-in zoom-in-95 duration-150"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+            Filter by Team
+          </div>
+
+          {teams.length >= 5 && (
+            <div className="px-2 py-1">
+              <input
+                type="text"
+                value={teamSearchQuery}
+                onChange={e => setTeamSearchQuery(e.target.value)}
+                placeholder="Search teams..."
+                className="w-full px-2 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                autoFocus
+              />
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              onFilterChange?.('all');
+              onTeamFilterChange?.(null);
+              setTeamDropdownOpen(false);
+              setTeamSearchQuery('');
+            }}
+            className={`w-full px-3 py-1.5 flex items-center justify-between text-left text-xs font-semibold cursor-pointer transition-colors ${
+              activeFilter !== 'team' || !activeTeamId
+                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400'
+                : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+            }`}
+          >
+            <span>All Teams ({countAll})</span>
+            {(activeFilter !== 'team' || !activeTeamId) && (
+              <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            )}
+          </button>
+
+          <div className="my-1 border-t border-zinc-100 dark:border-zinc-800/80" />
+
+          <div className="max-h-52 overflow-y-auto custom-scrollbar">
+            {teams
+              .filter(t => !teamSearchQuery || t.name.toLowerCase().includes(teamSearchQuery.toLowerCase().trim()))
+              .map(team => {
+                const tCount = teamCounts.get(team.id) || 0;
+                const isSelected = activeFilter === 'team' && activeTeamId === team.id;
+                return (
+                  <button
+                    key={team.id}
+                    type="button"
+                    onClick={() => {
+                      onFilterChange?.('team');
+                      onTeamFilterChange?.(team.id);
+                      setTeamDropdownOpen(false);
+                      setTeamSearchQuery('');
+                    }}
+                    className={`w-full px-3 py-1.5 flex items-center justify-between text-left text-xs font-medium cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold'
+                        : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: team.color || '#4F46E5' }} />
+                      <span className="truncate">{team.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-mono text-zinc-400">({tCount})</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />}
+                    </div>
+                  </button>
+                );
+              })}
+            {teams.filter(t => !teamSearchQuery || t.name.toLowerCase().includes(teamSearchQuery.toLowerCase().trim())).length === 0 && (
+              <div className="px-3 py-2 text-xs text-zinc-400 text-center">
+                No matching teams
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
       {conversations.length === 0 && allContacts.length === 0 ? (
         <div className="p-8 text-xs text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-center mt-16">

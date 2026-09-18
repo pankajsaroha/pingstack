@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     // 3. Check for existing user records with this email
     const { data: existingUser } = await db
       .from('users')
-      .select('id, name, email, password_hash, role')
+      .select('id, name, email, password_hash, role, tenant_id')
       .eq('email', cleanEmail)
       .limit(1)
       .maybeSingle();
@@ -60,6 +60,14 @@ export async function POST(req: Request) {
     let finalRole = 'user';
 
     if (existingUser) {
+      // If user is logged in with a different email, block acceptance
+      if (authenticatedEmail && authenticatedEmail !== cleanEmail) {
+        return NextResponse.json({ 
+          error: `You are currently logged in as ${authenticatedEmail}, but this invitation was sent to ${cleanEmail}. Please log out and sign in with ${cleanEmail} to accept.`,
+          code: 'EMAIL_MISMATCH'
+        }, { status: 403 });
+      }
+
       // Existing user: Verify session or verify password
       if (authenticatedEmail && authenticatedEmail === cleanEmail) {
         // Authenticated session matches invited email — seamless acceptance
@@ -77,17 +85,10 @@ export async function POST(req: Request) {
       }
 
       finalRole = existingUser.role || 'user';
+      targetUserId = existingUser.id;
 
-      // Check if user already has a record in this specific tenant
-      const { data: tenantUser } = await db
-        .from('users')
-        .select('id')
-        .eq('email', cleanEmail)
-        .eq('tenant_id', tenantId)
-        .maybeSingle();
-
-      if (tenantUser) {
-        targetUserId = tenantUser.id;
+      // If this is the user's primary registered workspace, update role/permissions in users table
+      if (existingUser.tenant_id === tenantId) {
         await db
           .from('users')
           .update({
@@ -95,27 +96,8 @@ export async function POST(req: Request) {
             permissions: assignedPermissions
           })
           .eq('id', targetUserId);
-      } else {
-        // Create user record scoped to this workspace
-        const { data: newUserInTenant, error: insertErr } = await db
-          .from('users')
-          .insert({
-            tenant_id: tenantId,
-            name: existingUser.name,
-            email: cleanEmail,
-            password_hash: existingUser.password_hash,
-            role: 'user',
-            workspace_role: assignedRole,
-            permissions: assignedPermissions
-          })
-          .select('id')
-          .single();
-
-        if (insertErr || !newUserInTenant) {
-          return NextResponse.json({ error: insertErr?.message || 'Failed to join workspace' }, { status: 500 });
-        }
-        targetUserId = newUserInTenant.id;
       }
+      // For a secondary/new workspace: existingUser is REUSED cleanly without inserting duplicate user row!
     } else {
       // Brand new user: Name and password required
       if (!name || typeof name !== 'string' || !name.trim()) {
@@ -147,7 +129,7 @@ export async function POST(req: Request) {
       targetUserId = createdUser.id;
     }
 
-    // 4. Create team memberships
+    // 4. Create team memberships in this workspace
     if (teamIds.length > 0) {
       for (const tid of teamIds) {
         await db
@@ -156,10 +138,15 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Mark invitation as accepted
+    // 5. Mark invitation as accepted with role & permissions recorded
     await db
       .from('workspace_invitations')
-      .update({ status: 'accepted' })
+      .update({ 
+        status: 'accepted',
+        role: assignedRole,
+        permissions: assignedPermissions,
+        team_ids: teamIds
+      })
       .eq('id', invitation.id);
 
     // 6. Generate JWT session for the accepted workspace

@@ -58,13 +58,14 @@ export default function ConnectionManager({
     }
   };
 
-  const isWorkspaceAdmin = tenant?.workspace_role === 'admin' || tenant?.user_role === 'admin' || tenant?.user_role === 'superadmin';
+  const isWorkspaceAdmin = tenant?.workspace_role === 'admin';
   const statusUpper = (whatsappAccount?.status || '').toUpperCase();
   const isApproved = statusUpper === 'APPROVED' || statusUpper === 'ACTIVE';
   const isTest = whatsappAccount?.is_test_number === true;
 
-  // Show notice ONLY for newly added users (hasSentMessages = false) or pending/test accounts
+  // Show notice ONLY for Workspace Admins on newly added / test accounts
   const isNewOrTestUser =
+    isWorkspaceAdmin &&
     !dismissedNotice &&
     (!hasSentMessages || !isApproved || isTest);
 
@@ -189,7 +190,9 @@ export default function ConnectionManager({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Active WhatsApp Connection</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Meta Cloud API infrastructure link verified.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {isWorkspaceAdmin ? 'Meta Cloud API infrastructure link verified.' : 'Managed by a Workspace Admin.'}
+                </p>
               </div>
             </div>
 
@@ -231,8 +234,6 @@ export default function ConnectionManager({
               </p>
             </div>
           </div>
-
-
 
           {/* Required Meta Setup Guidance Notice */}
           {isNewOrTestUser && (
@@ -281,56 +282,54 @@ export default function ConnectionManager({
             </div>
           )}
 
-          {/* Primary actions row */}
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            <button
-              onClick={onRefreshAccount}
-              disabled={refreshing}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>{refreshing ? 'Refreshing…' : 'Refresh Sync'}</span>
-            </button>
+          {/* Primary actions row (Workspace Admin ONLY) */}
+          {isWorkspaceAdmin && (
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <button
+                onClick={onRefreshAccount}
+                disabled={refreshing}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>{refreshing ? 'Refreshing…' : 'Refresh Sync'}</span>
+              </button>
 
-            {isWorkspaceAdmin && (
-              <>
-                <button
-                  onClick={onSwitchAccount}
-                  disabled={refreshing}
-                  className="px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors cursor-pointer"
-                >
-                  Switch Account
-                </button>
+              <button
+                onClick={onSwitchAccount}
+                disabled={refreshing}
+                className="px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors cursor-pointer"
+              >
+                Switch Account
+              </button>
 
-                <button
-                  onClick={handleRegisterPhone}
-                  disabled={registering}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {registering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                  <span>Register Number</span>
-                </button>
+              <button
+                onClick={handleRegisterPhone}
+                disabled={registering}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {registering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>Register Number</span>
+              </button>
 
-                <a
-                  href={metaManagerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
-                  <span>Meta Hub</span>
-                </a>
+              <a
+                href={metaManagerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white shadow-2xs transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Meta Hub</span>
+              </a>
 
-                <button
-                  onClick={() => setShowMore(v => !v)}
-                  className="ml-auto flex items-center gap-1 px-2.5 py-1.5 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                >
-                  <span>More</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showMore ? 'rotate-180' : ''}`} />
-                </button>
-              </>
-            )}
-          </div>
+              <button
+                onClick={() => setShowMore(v => !v)}
+                className="ml-auto flex items-center gap-1 px-2.5 py-1.5 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+              >
+                <span>More</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showMore ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+          )}
 
           {/* Expanded more options */}
           {showMore && (

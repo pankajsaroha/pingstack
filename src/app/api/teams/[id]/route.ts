@@ -29,7 +29,25 @@ export async function PATCH(
     const { name, description, color, is_active } = body;
 
     const updateData: any = { updated_at: new Date().toISOString() };
-    if (name !== undefined) updateData.name = name.trim();
+    if (name !== undefined) {
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return NextResponse.json({ error: 'Team name cannot be empty' }, { status: 400 });
+      }
+      const cleanName = name.trim();
+      // Check for duplicate team name in same tenant excluding current team
+      const { data: existing } = await db
+        .from('teams')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .ilike('name', cleanName)
+        .neq('id', teamId)
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json({ error: `A team named "${cleanName}" already exists.` }, { status: 400 });
+      }
+      updateData.name = cleanName;
+    }
     if (description !== undefined) updateData.description = description?.trim() || null;
     if (color !== undefined) updateData.color = color;
     if (is_active !== undefined) updateData.is_active = Boolean(is_active);

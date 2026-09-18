@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const cacheKey = `tenant:me:${tenantId}`;
+    const cacheKey = `tenant:me:${tenantId}:${userId || 'anon'}`;
     let cachedProfile: any = null;
 
     try {
@@ -35,6 +35,7 @@ export async function GET(req: Request) {
     let userName = 'User';
     let userEmail = '';
     let userRole = 'user';
+    let workspaceRole: 'admin' | 'member' = 'member';
 
     if (cachedProfile) {
       tenantData = cachedProfile.tenantData;
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
       userName = cachedProfile.userName || 'User';
       userEmail = cachedProfile.userEmail || '';
       userRole = cachedProfile.userRole || 'user';
+      workspaceRole = cachedProfile.workspaceRole || 'member';
     } else {
       // Single joined query for tenant + whatsapp_accounts & parallel user lookup
       const [tenantResult, userResult] = await Promise.all([
@@ -49,7 +51,7 @@ export async function GET(req: Request) {
           .select('*, whatsapp_accounts(id, provider, status, phone_number_id, business_id)')
           .eq('id', tenantId)
           .single(),
-        userId ? db.from('users').select('name, email, role').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
+        userId ? db.from('users').select('name, email, role, workspace_role, tenant_id').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null })
       ]);
 
       if (tenantResult.error) {
@@ -68,13 +70,26 @@ export async function GET(req: Request) {
         if (userResult.data.name) userName = userResult.data.name;
         if (userResult.data.email) userEmail = userResult.data.email;
         if (userResult.data.role) userRole = userResult.data.role;
+
+        if (userResult.data.tenant_id === tenantId) {
+          workspaceRole = userResult.data.workspace_role === 'member' ? 'member' : 'admin';
+        } else if (userResult.data.email) {
+          const { data: acceptedInvite } = await db
+            .from('workspace_invitations')
+            .select('role')
+            .eq('tenant_id', tenantId)
+            .eq('email', userResult.data.email.toLowerCase().trim())
+            .eq('status', 'accepted')
+            .maybeSingle();
+          workspaceRole = acceptedInvite?.role === 'admin' ? 'admin' : 'member';
+        }
       }
 
       // Cache profile values for 30 seconds
       try {
         await redis.set(
           cacheKey,
-          JSON.stringify({ tenantData, whatsappAccount, userName, userEmail, userRole }),
+          JSON.stringify({ tenantData, whatsappAccount, userName, userEmail, userRole, workspaceRole, userId }),
           'EX',
           30
         );
@@ -97,14 +112,19 @@ export async function GET(req: Request) {
     const trialDaysLeft = Math.max(0, Math.ceil((trialExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
     const trialExpired = isTrial && now > trialExpiresAt;
 
+    const effectiveUserId = userId || cachedProfile?.userId || undefined;
+
     return NextResponse.json({
       ...tenant,
+      id: tenantId,
       name: tenant?.name || 'PingStack Workspace',
       plan_type: planType,
       pending_plan_type: pendingPlanType,
+      user_id: effectiveUserId,
       user_name: userName,
       user_email: userEmail,
       user_role: userRole,
+      workspace_role: workspaceRole,
       is_trial: isTrial,
       trial_expires_at: trialExpiresAt.toISOString(),
       trial_days_left: trialDaysLeft,

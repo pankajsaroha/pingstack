@@ -264,7 +264,20 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
         })
       });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && (data.success || data.status === 'ACTIVE')) {
+        if (tenant) {
+          setTenant({
+            ...tenant,
+            whatsapp_account: {
+              ...(tenant.whatsapp_account || {}),
+              id: data.account?.id || tenant.whatsapp_account?.id,
+              provider: 'META',
+              business_id: selectedWaba,
+              phone_number_id: selectedPhone,
+              status: 'ACTIVE'
+            }
+          });
+        }
         fireToast(
           data.backgroundSync
             ? 'WhatsApp Connected! Account active — template sync continuing in background.'
@@ -277,10 +290,10 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
         setTempToken('');
         await refreshTenantAndStats();
       } else {
-        setError(data.message || data.error || 'Finalization failed');
+        setError(data.message || data.error || 'Failed to complete WhatsApp setup. Please check your selections and try again.');
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Connection error while completing setup. Please try again.');
     } finally {
       setConnecting(false);
     }
@@ -376,7 +389,8 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
 
   const whatsappAccount = tenant?.whatsapp_account;
   const isConnected = whatsappAccount?.status === 'ACTIVE' || whatsappAccount?.status === 'CONNECTED';
-  const isWorkspaceAdmin = tenant?.workspace_role === 'admin' || tenant?.user_role === 'admin' || tenant?.user_role === 'superadmin';
+  const isWorkspaceAdmin = tenant?.workspace_role === 'admin';
+  const canManageSettings = isWorkspaceAdmin || Boolean(tenant?.permissions?.settings_manage);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -476,17 +490,19 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
           <span>Advanced Analytics</span>
           <span className="px-1.5 py-0.2 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 rounded text-[8px] font-black uppercase">PRO</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('developer')}
-          className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none shrink-0 ${
-            activeTab === 'developer' 
-              ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' 
-              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-          }`}
-        >
-          API Keys &amp; Integrations
-        </button>
+        {canManageSettings && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('developer')}
+            className={`pb-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer bg-transparent border-0 outline-none shrink-0 ${
+              activeTab === 'developer' 
+                ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' 
+                : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            API Keys &amp; Integrations
+          </button>
+        )}
       </div>
 
       {/* ── Overview Tab ──────────────────────────────────────────────── */}
@@ -561,6 +577,7 @@ export default function DashboardClient({ initialTenant, initialStats }: Dashboa
               />
               <MetaCostCard
                 stats={stats}
+                isWorkspaceAdmin={isWorkspaceAdmin}
                 onConfigureClick={() => setShowBillingModal(true)}
               />
             </div>

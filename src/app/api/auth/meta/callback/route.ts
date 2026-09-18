@@ -4,6 +4,7 @@ import { encrypt } from '@/lib/encryption';
 import { getWABADetails, getWABAPhoneNumbers, subscribeWABAWebhooks } from '@/lib/whatsapp';
 import { fetchWithMetaRetry } from '@/lib/server/meta-retry';
 import { recordLatency } from '@/lib/server/latency-telemetry';
+import { invalidateTenantCache } from '@/lib/rate-limit';
 
 export async function GET(req: Request) {
   const { searchParams, origin } = new URL(req.url);
@@ -107,6 +108,8 @@ export async function GET(req: Request) {
     }
 
     if (dbError) throw dbError;
+
+    await invalidateTenantCache(state);
 
     // 6. Asynchronous non-blocking background template & limits sync
     setTimeout(() => {

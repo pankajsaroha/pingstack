@@ -195,6 +195,7 @@ export function Sidebar({
           </Link>
         )}
 
+
         {/* User / Workspace Identity Card */}
         <div className={`flex items-center justify-between p-2 rounded-lg bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/40 ${
           isCollapsed ? 'flex-col gap-2 p-1.5' : ''
