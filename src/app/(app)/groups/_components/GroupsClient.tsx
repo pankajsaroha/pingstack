@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 const GroupDetailModal = lazy(() => import('./GroupDetailModal'));
 const ImportModal = lazy(() => import('./ImportModal'));
 const ExportFormatModal = lazy(() => import('./ExportFormatModal'));
+const EditGroupModal = lazy(() => import('./EditGroupModal'));
 
 interface GroupsClientProps {
   initialGroups: any[];
@@ -21,6 +22,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [activeGroup, setActiveGroup] = useState<any>(null);
+  const [editingGroup, setEditingGroup] = useState<any | null>(null);
   const [exportingGroup, setExportingGroup] = useState<any | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -256,6 +258,7 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
               onManage={handleManageGroup}
+              onEdit={(g) => setEditingGroup(g)}
               onDownloadExcel={(g) => setExportingGroup(g)}
               onLaunchCampaign={(g) => {
                 window.location.href = `/campaigns?groupId=${g.id}`;
@@ -310,6 +313,27 @@ export default function GroupsClient({ initialGroups }: GroupsClientProps) {
             }}
             onToast={fireToast}
             onUpdated={fetchGroups}
+          />
+        </Suspense>
+      )}
+
+      {/* Edit Group Name Modal */}
+      {editingGroup && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+          </div>
+        }>
+          <EditGroupModal
+            group={editingGroup}
+            onClose={() => setEditingGroup(null)}
+            onToast={fireToast}
+            onSuccess={(updatedGroup) => {
+              setGroups((prev) =>
+                prev.map((g) => (g.id === updatedGroup.id ? { ...g, name: updatedGroup.name } : g))
+              );
+              setEditingGroup(null);
+            }}
           />
         </Suspense>
       )}
