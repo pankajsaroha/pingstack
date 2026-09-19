@@ -9,6 +9,7 @@ import { MessageCircle, Search, X, AlertCircle } from 'lucide-react';
 
 interface InboxClientProps {
   initialConversations: any[];
+  initialMessages?: any[];
   initialContacts: any[];
   initialTemplates: any[];
   initialTeams?: any[];
@@ -18,6 +19,7 @@ interface InboxClientProps {
 
 export default function InboxClient({
   initialConversations,
+  initialMessages = [],
   initialContacts,
   initialTemplates,
   initialTeams = [],
@@ -73,6 +75,7 @@ export default function InboxClient({
     handleAssignConversation,
   } = useInboxData({
     initialConversations,
+    initialMessages,
     initialContacts,
     initialTemplates,
     initialTeams,

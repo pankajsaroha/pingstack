@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, Re
 import { dbPublic } from '@/lib/db';
 import { updateAppBadge } from '@/lib/push-client';
 
+import { getRealtimeToken } from '@/lib/realtime-token';
+
 export interface TenantContextValue {
   tenant: any;
   setTenant: (tenant: any) => void;
@@ -113,9 +115,7 @@ export function TenantProvider({
 
     const subscribeToRealtime = async () => {
       try {
-        const res = await fetch('/api/realtime/token', { method: 'POST', credentials: 'include' });
-        if (!res.ok) return;
-        const { token } = await res.json();
+        const token = await getRealtimeToken(tenant.id);
         if (!token || !isMounted) return;
 
         dbPublic.realtime.setAuth(token);

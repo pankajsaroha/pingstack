@@ -34,86 +34,18 @@ export const ADMIN_PERMISSIONS: WorkspacePermissions = {
   settings_manage: true,
 };
 
-/**
- * Check if a user has a specific functional workspace permission within a tenant.
- */
-export async function hasWorkspacePermission(
-  userId: string,
-  tenantId: string,
-  permission: keyof WorkspacePermissions
-): Promise<boolean> {
-  if (!db || !userId || !tenantId) return false;
+import { cache } from 'react';
 
-  try {
-    const { data: user, error } = await db
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error || !user) return false;
-
-    const cleanEmail = user.email.toLowerCase().trim();
-
-    // 1. If this is the user's primary/registered workspace:
-    if (user.tenant_id === tenantId) {
-      if (user.workspace_role === 'removed' || user.workspace_role === 'inactive' || user.workspace_role === 'none') {
-        return false;
-      }
-      if (user.workspace_role === 'admin') return true;
-
-      const userPermissions = user.permissions;
-      if (userPermissions && typeof userPermissions === 'object' && typeof userPermissions[permission] === 'boolean') {
-        return userPermissions[permission];
-      }
-
-      return DEFAULT_TEAM_MEMBER_PERMISSIONS[permission] ?? false;
-    }
-
-    // 2. If user joined this workspace via invitation (multi-workspace membership):
-    const { data: acceptedInvite } = await db
-      .from('workspace_invitations')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .eq('email', cleanEmail)
-      .eq('status', 'accepted')
-      .maybeSingle();
-
-    if (acceptedInvite) {
-      if (acceptedInvite.role === 'admin') return true;
-
-      const invPermissions = acceptedInvite.permissions;
-      if (invPermissions && typeof invPermissions === 'object' && typeof invPermissions[permission] === 'boolean') {
-        return invPermissions[permission];
-      }
-
-      return DEFAULT_TEAM_MEMBER_PERMISSIONS[permission] ?? false;
-    }
-
-    // 3. Fallback: check if user has team membership in this workspace
-    const { data: teamMembership } = await db
-      .from('team_members')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .eq('user_id', userId)
-      .limit(1);
-
-    if (teamMembership && teamMembership.length > 0) {
-      return DEFAULT_TEAM_MEMBER_PERMISSIONS[permission] ?? false;
-    }
-
-    return false;
-  } catch (err) {
-    console.error('[hasWorkspacePermission] error:', err);
-    return false;
-  }
+export interface UserWorkspaceAuth {
+  isAuthorized: boolean;
+  role: 'admin' | 'member';
+  isWorkspaceAdmin: boolean;
+  permissions: WorkspacePermissions;
+  userTeamIds: string[];
 }
 
-/**
- * Get assigned team IDs for a user in a tenant.
- */
-export async function getUserTeamIdsServer(userId: string, tenantId: string): Promise<string[]> {
-  if (!db || !userId || !tenantId) return [];
+async function fetchTeamIdsDirect(userId: string, tenantId: string): Promise<string[]> {
+  if (!db) return [];
   try {
     const { data, error } = await db
       .from('team_members')
@@ -137,9 +69,144 @@ export async function getUserTeamIdsServer(userId: string, tenantId: string): Pr
     }
 
     return [];
-  } catch (err) {
+  } catch {
     return [];
   }
+}
+
+/**
+ * Unified request-scoped workspace authorization resolver.
+ * Deduplicates user, role, permissions, and team ID lookups across a single request lifecycle.
+ */
+export const getUserWorkspaceAuthServer = cache(async (
+  userId: string,
+  tenantId: string
+): Promise<UserWorkspaceAuth> => {
+  const unauthorized: UserWorkspaceAuth = {
+    isAuthorized: false,
+    role: 'member',
+    isWorkspaceAdmin: false,
+    permissions: { ...DEFAULT_TEAM_MEMBER_PERMISSIONS, inbox_view: false, inbox_reply: false, contacts_view: false, templates_view: false },
+    userTeamIds: [],
+  };
+
+  if (!db || !userId || !tenantId) return unauthorized;
+
+  try {
+    const { data: user, error } = await db
+      .from('users')
+      .select('id, email, tenant_id, workspace_role, role, permissions')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error || !user) return unauthorized;
+
+    const isPlatformAdmin = user.role === 'admin' || user.role === 'superadmin';
+    const cleanEmail = (user.email || '').toLowerCase().trim();
+
+    // 1. If this is the user's primary/registered workspace:
+    if (user.tenant_id === tenantId) {
+      if (user.workspace_role === 'removed' || user.workspace_role === 'inactive' || user.workspace_role === 'none') {
+        if (!isPlatformAdmin) return unauthorized;
+      }
+
+      const isWorkspaceAdmin = isPlatformAdmin || user.workspace_role === 'admin';
+      const role: 'admin' | 'member' = isWorkspaceAdmin ? 'admin' : 'member';
+      const rawPerms = user.permissions;
+      const basePerms = isWorkspaceAdmin ? ADMIN_PERMISSIONS : DEFAULT_TEAM_MEMBER_PERMISSIONS;
+      const permissions: WorkspacePermissions = rawPerms && typeof rawPerms === 'object'
+        ? { ...basePerms, ...rawPerms }
+        : basePerms;
+
+      let userTeamIds: string[] = [];
+      if (!isWorkspaceAdmin) {
+        userTeamIds = await fetchTeamIdsDirect(userId, tenantId);
+      }
+
+      return {
+        isAuthorized: true,
+        role,
+        isWorkspaceAdmin,
+        permissions,
+        userTeamIds,
+      };
+    }
+
+    // 2. If user joined this workspace via invitation (multi-workspace membership):
+    let acceptedInvite: any = null;
+    if (cleanEmail) {
+      const { data: inv } = await db
+        .from('workspace_invitations')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('email', cleanEmail)
+        .eq('status', 'accepted')
+        .maybeSingle();
+      acceptedInvite = inv;
+    }
+
+    if (acceptedInvite) {
+      const isWorkspaceAdmin = isPlatformAdmin || acceptedInvite.role === 'admin';
+      const role: 'admin' | 'member' = isWorkspaceAdmin ? 'admin' : 'member';
+      const rawPerms = acceptedInvite.permissions;
+      const basePerms = isWorkspaceAdmin ? ADMIN_PERMISSIONS : DEFAULT_TEAM_MEMBER_PERMISSIONS;
+      const permissions: WorkspacePermissions = rawPerms && typeof rawPerms === 'object'
+        ? { ...basePerms, ...rawPerms }
+        : basePerms;
+
+      let userTeamIds: string[] = [];
+      if (!isWorkspaceAdmin) {
+        userTeamIds = await fetchTeamIdsDirect(userId, tenantId);
+      }
+
+      return {
+        isAuthorized: true,
+        role,
+        isWorkspaceAdmin,
+        permissions,
+        userTeamIds,
+      };
+    }
+
+    // 3. Fallback: check if user has team membership in this workspace
+    const teamIds = await fetchTeamIdsDirect(userId, tenantId);
+    if (teamIds.length > 0 || isPlatformAdmin) {
+      const isWorkspaceAdmin = isPlatformAdmin;
+      return {
+        isAuthorized: true,
+        role: isWorkspaceAdmin ? 'admin' : 'member',
+        isWorkspaceAdmin,
+        permissions: isWorkspaceAdmin ? ADMIN_PERMISSIONS : DEFAULT_TEAM_MEMBER_PERMISSIONS,
+        userTeamIds: teamIds,
+      };
+    }
+
+    return unauthorized;
+  } catch (err) {
+    console.error('[getUserWorkspaceAuthServer] error:', err);
+    return unauthorized;
+  }
+});
+
+/**
+ * Check if a user has a specific functional workspace permission within a tenant.
+ */
+export async function hasWorkspacePermission(
+  userId: string,
+  tenantId: string,
+  permission: keyof WorkspacePermissions
+): Promise<boolean> {
+  const auth = await getUserWorkspaceAuthServer(userId, tenantId);
+  if (!auth.isAuthorized) return false;
+  return Boolean(auth.permissions[permission]);
+}
+
+/**
+ * Get assigned team IDs for a user in a tenant.
+ */
+export async function getUserTeamIdsServer(userId: string, tenantId: string): Promise<string[]> {
+  const auth = await getUserWorkspaceAuthServer(userId, tenantId);
+  return auth.userTeamIds;
 }
 
 /**
@@ -206,30 +273,52 @@ export async function getTeamsServer(tenantId: string, userId?: string): Promise
   }
 }
 
+export interface TeamManagementData {
+  teams: Team[];
+  members: WorkspaceMember[];
+  invitations: WorkspaceInvitation[];
+}
+
 /**
- * Get all workspace members (users) along with their assigned teams and permissions.
- * Seamlessly supports both primary workspace members and invited multi-workspace members.
+ * Unified resolver for Workspace Settings: Teams & Members.
+ * Fetches users, invitations, teams, and team memberships in a single parallel database pass.
  */
-export async function getWorkspaceMembersServer(tenantId: string): Promise<WorkspaceMember[]> {
-  if (!db || !tenantId) return [];
+export async function getTeamManagementDataServer(tenantId: string, userId?: string): Promise<TeamManagementData> {
+  const empty: TeamManagementData = { teams: [], members: [], invitations: [] };
+  if (!db || !tenantId) return empty;
 
   try {
-    const [primaryUsersRes, acceptedInvitesRes, teamsRes, teamMembersRes] = await Promise.all([
+    let authorizedTeamIds: string[] | null = null;
+    if (userId) {
+      const auth = await getUserWorkspaceAuthServer(userId, tenantId);
+      if (!auth.isWorkspaceAdmin) {
+        authorizedTeamIds = auth.userTeamIds;
+      }
+    }
+
+    const [primaryUsersRes, allInvitesRes, teamsRes, teamMembersRes] = await Promise.all([
       db.from('users').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: true }),
-      db.from('workspace_invitations').select('*').eq('tenant_id', tenantId).eq('status', 'accepted'),
-      db.from('teams').select('*').eq('tenant_id', tenantId).eq('is_active', true),
+      db.from('workspace_invitations').select('*').eq('tenant_id', tenantId),
+      db.from('teams').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('name', { ascending: true }),
       db.from('team_members').select('team_id, user_id').eq('tenant_id', tenantId)
     ]);
 
     const primaryUsers = primaryUsersRes.data || [];
-    const acceptedInvites = acceptedInvitesRes.data || [];
-    const teams = teamsRes.data || [];
+    const allInvites = allInvitesRes.data || [];
+    let teamsData = teamsRes.data || [];
     const teamMembers = teamMembersRes.data || [];
 
-    const teamMap = new Map<string, Team>(teams.map((t: any) => [t.id, t]));
+    // Filter teams if user is a Team Member with restricted teams
+    if (authorizedTeamIds !== null) {
+      teamsData = teamsData.filter((t: any) => authorizedTeamIds!.includes(t.id));
+    }
+
+    const teamMap = new Map<string, Team>(teamsData.map((t: any) => [t.id, t]));
     const userTeamsMap = new Map<string, Team[]>();
+    const teamMemberCountMap = new Map<string, number>();
 
     teamMembers.forEach((tm: any) => {
+      teamMemberCountMap.set(tm.team_id, (teamMemberCountMap.get(tm.team_id) || 0) + 1);
       const team = teamMap.get(tm.team_id);
       if (team) {
         const existing = userTeamsMap.get(tm.user_id) || [];
@@ -238,7 +327,16 @@ export async function getWorkspaceMembersServer(tenantId: string): Promise<Works
       }
     });
 
-    // Map of userId -> WorkspaceMember
+    const teams: Team[] = teamsData.map((team: any) => ({
+      ...team,
+      member_count: teamMemberCountMap.get(team.id) || 0,
+    }));
+
+    const acceptedInvites = allInvites.filter((i: any) => i.status === 'accepted');
+    const now = new Date().toISOString();
+    const pendingInvites = allInvites.filter((i: any) => i.status === 'pending' && i.expires_at > now)
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
     const memberMap = new Map<string, WorkspaceMember>();
 
     // 1. Add primary users
@@ -297,40 +395,42 @@ export async function getWorkspaceMembersServer(tenantId: string): Promise<Works
       });
     }
 
-    return Array.from(memberMap.values());
+    // 3. Format pending invitations with assigned team objects
+    const invitations: WorkspaceInvitation[] = pendingInvites.map((inv: any) => {
+      const teamIds: string[] = Array.isArray(inv.team_ids) ? inv.team_ids : [];
+      const assignedTeams = teamIds.map((tid) => teamMap.get(tid)).filter(Boolean) as Team[];
+      return {
+        ...inv,
+        teams: assignedTeams
+      };
+    });
+
+    return {
+      teams,
+      members: Array.from(memberMap.values()),
+      invitations
+    };
   } catch (err) {
-    console.warn('[getWorkspaceMembersServer] warning:', err);
-    return [];
+    console.error('[getTeamManagementDataServer] error:', err);
+    return empty;
   }
+}
+
+/**
+ * Get all workspace members (users) along with their assigned teams and permissions.
+ * Seamlessly supports both primary workspace members and invited multi-workspace members.
+ */
+export async function getWorkspaceMembersServer(tenantId: string): Promise<WorkspaceMember[]> {
+  const data = await getTeamManagementDataServer(tenantId);
+  return data.members;
 }
 
 /**
  * Get effective workspace role for a user in a tenant.
  */
 export async function getEffectiveWorkspaceRole(userId: string, tenantId: string): Promise<'admin' | 'member'> {
-  if (!db || !userId || !tenantId) return 'member';
-  try {
-    const { data: user } = await db.from('users').select('id, email, tenant_id, workspace_role, role').eq('id', userId).maybeSingle();
-    if (!user) return 'member';
-
-    if (user.tenant_id === tenantId) {
-      if (user.workspace_role === 'removed' || user.workspace_role === 'inactive' || user.workspace_role === 'none') {
-        return 'member';
-      }
-      return user.workspace_role === 'admin' ? 'admin' : 'member';
-    }
-    const cleanEmail = (user.email || '').toLowerCase().trim();
-    const { data: invite } = await db
-      .from('workspace_invitations')
-      .select('role')
-      .eq('tenant_id', tenantId)
-      .eq('email', cleanEmail)
-      .eq('status', 'accepted')
-      .maybeSingle();
-    return invite?.role === 'admin' ? 'admin' : 'member';
-  } catch {
-    return 'member';
-  }
+  const auth = await getUserWorkspaceAuthServer(userId, tenantId);
+  return auth.role;
 }
 
 export interface UserWorkspaceInfo {
@@ -423,38 +523,8 @@ export async function getUserWorkspacesServer(userId: string, currentTenantId?: 
  * Get pending invitations for a workspace.
  */
 export async function getWorkspaceInvitationsServer(tenantId: string): Promise<WorkspaceInvitation[]> {
-  if (!db || !tenantId) return [];
-
-  try {
-    const [invitationsRes, teamsRes] = await Promise.all([
-      db.from('workspace_invitations')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false }),
-      db.from('teams')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('is_active', true)
-    ]);
-
-    if (invitationsRes.error) return [];
-    const invitations = invitationsRes.data || [];
-    const teams = teamsRes.data || [];
-    const teamMap = new Map<string, Team>(teams.map((t: any) => [t.id, t]));
-
-    return invitations.map((inv: any) => {
-      const teamIds: string[] = Array.isArray(inv.team_ids) ? inv.team_ids : [];
-      const assignedTeams = teamIds.map((tid) => teamMap.get(tid)).filter(Boolean) as Team[];
-      return {
-        ...inv,
-        teams: assignedTeams
-      };
-    });
-  } catch (err) {
-    return [];
-  }
+  const data = await getTeamManagementDataServer(tenantId);
+  return data.invitations;
 }
 
 /**

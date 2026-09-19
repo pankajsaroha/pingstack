@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { dbPublic } from '@/lib/db';
+import { getRealtimeToken } from '@/lib/realtime-token';
 
 interface UseInboxDataProps {
   initialConversations: any[];
+  initialMessages?: any[];
   initialContacts: any[];
   initialTemplates: any[];
   initialTeams?: any[];
@@ -14,6 +16,7 @@ interface UseInboxDataProps {
 
 export function useInboxData({
   initialConversations,
+  initialMessages = [],
   initialContacts,
   initialTemplates,
   initialTeams = [],
@@ -23,7 +26,7 @@ export function useInboxData({
   // ── Data states ──────────────────────────────────────────────────
   const [conversations, setConversations] = useState<any[]>(initialConversations);
   const [allContacts, setAllContacts] = useState<any[]>(initialContacts);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>(initialMessages);
   const [templates, setTemplates] = useState<any[]>(initialTemplates);
   const [teams, setTeams] = useState<any[]>(initialTeams);
   const [members, setMembers] = useState<any[]>(initialMembers);
@@ -57,6 +60,9 @@ export function useInboxData({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialSelectionMade = useRef(initialConversations.length > 0);
+  const initialMessagesLoadedRef = useRef<boolean>(
+    initialMessages.length > 0 && initialConversations.length > 0 && initialConversations[0]?.contact?.id === (initialConversations.length > 0 ? initialConversations[0].contact.id : null)
+  );
   const activeContactIdRef = useRef<string | null>(activeContactId);
   const pendingAssignmentsRef = useRef<Map<string, {
     assignment: any;
@@ -103,6 +109,24 @@ export function useInboxData({
     }
   }, [teams, activeFilter, activeTeamId]);
 
+  // ── Message & Pagination State Refs (prevents dependency recreation loops) ──
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const hasMoreRef = useRef(hasMore);
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  const loadingMoreRef = useRef(loadingMore);
+  useEffect(() => {
+    loadingMoreRef.current = loadingMore;
+  }, [loadingMore]);
+
+  const prevContactIdRef = useRef<string | null>(null);
+
   // ── Scroll to bottom helper ──────────────────────────────────────
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -130,7 +154,7 @@ export function useInboxData({
 
   // ── Fetch messages helper ────────────────────────────────────────
   const fetchMessages = useCallback(async (contactId: string, isLoadMore = false) => {
-    if (isLoadMore && (!hasMore || loadingMore)) return;
+    if (isLoadMore && (!hasMoreRef.current || loadingMoreRef.current)) return;
     if (isLoadMore) setLoadingMore(true);
 
     const container = chatContainerRef.current;
@@ -138,8 +162,9 @@ export function useInboxData({
     const previousScrollTop = container ? container.scrollTop : 0;
 
     try {
-      const before = isLoadMore && messages.length > 0 ? messages[0].created_at : '';
-      const limit = isLoadMore ? 30 : 15;
+      const currentMsgs = messagesRef.current;
+      const before = isLoadMore && currentMsgs.length > 0 ? currentMsgs[0].created_at : '';
+      const limit = isLoadMore ? 30 : 20;
       const url = `/api/chat/${contactId}?limit=${limit}${before ? `&before=${before}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
@@ -166,7 +191,7 @@ export function useInboxData({
     } finally {
       if (isLoadMore) setLoadingMore(false);
     }
-  }, [messages, hasMore, loadingMore, scrollToBottom]);
+  }, [scrollToBottom]);
 
   // ── Fallback polling data fetchers ───────────────────────────────
   const fetchStatusAndData = useCallback(async () => {
@@ -198,7 +223,7 @@ export function useInboxData({
 
       // Re-fetch active contact's messages to auto-update delivery & error statuses
       if (activeContactId) {
-        const msgRes = await fetch(`/api/chat/${activeContactId}?limit=30`, { credentials: 'include' });
+        const msgRes = await fetch(`/api/chat/${activeContactId}?limit=20`, { credentials: 'include' });
         if (msgRes.ok) {
           const freshMsgs = await msgRes.json();
           setMessages(freshMsgs);
@@ -231,12 +256,60 @@ export function useInboxData({
     }
   }, []);
 
+  const fetchTeams = useCallback(async () => {
+    try {
+      const res = await fetch('/api/teams', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setTeams(data.teams || data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch teams:', e);
+    }
+  }, []);
+
+  const fetchMembers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/team-members', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.members || data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch members:', e);
+    }
+  }, []);
+
+  // Background non-blocking fetch of teams & members if not provided on SSR
+  useEffect(() => {
+    if (!initialTeams || initialTeams.length === 0) {
+      fetchTeams();
+    }
+    if (!initialMembers || initialMembers.length === 0) {
+      fetchMembers();
+    }
+  }, [fetchTeams, fetchMembers, initialTeams, initialMembers]);
+
+  // Lazy fetch templates when template drawer is toggled
+  useEffect(() => {
+    if (showTemplates && templates.length === 0) {
+      fetchTemplates();
+    }
+  }, [showTemplates, templates.length, fetchTemplates]);
+
+  // Lazy fetch contacts when user searches contacts or opens new chat
+  useEffect(() => {
+    if (searchQuery.trim().length > 0 && allContacts.length === 0) {
+      fetchContacts();
+    }
+  }, [searchQuery, allContacts.length, fetchContacts]);
+
   const fetchStatusAndDataRef = useRef(fetchStatusAndData);
   useEffect(() => {
     fetchStatusAndDataRef.current = fetchStatusAndData;
   }, [fetchStatusAndData]);
 
-  // ── Visibility & Polling ──────────────────────────────────────────
+  // ── Visibility & Polling (No immediate 0s duplicate fetch on mount) ─
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
 
@@ -266,9 +339,7 @@ export function useInboxData({
       }
     };
 
-    if (document.visibilityState === 'visible') {
-      startPolling();
-    }
+    startPolling();
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -278,7 +349,7 @@ export function useInboxData({
     };
   }, []);
 
-  // ── Realtime subscription ─────────────────────────────────────────
+  // ── Realtime subscription (Deduplicated token) ────────────────────
   useEffect(() => {
     if (!tenant?.id) return;
     let isMounted = true;
@@ -324,12 +395,7 @@ export function useInboxData({
 
     const subscribeToMessages = async () => {
       try {
-        const res = await fetch('/api/realtime/token', { method: 'POST', credentials: 'include' });
-        if (!res.ok) {
-          console.error('[realtime] token failed', await res.text());
-          return;
-        }
-        const { token } = await res.json();
+        const token = await getRealtimeToken(tenant.id);
         if (!token || !isMounted) return;
 
         dbPublic.realtime.setAuth(token);
@@ -350,15 +416,28 @@ export function useInboxData({
     };
   }, [tenant?.id, scrollToBottom]);
 
-  // ── Load messages when active contact changes ─────────────────────
+  // ── Load messages when active contact changes (Skips duplicate on SSR fast-path) ──
   useEffect(() => {
-    if (activeContactId) {
+    if (!activeContactId) {
+      prevContactIdRef.current = null;
+      return;
+    }
+
+    if (initialMessagesLoadedRef.current) {
+      initialMessagesLoadedRef.current = false;
+      prevContactIdRef.current = activeContactId;
+      markAsRead(activeContactId);
+      return;
+    }
+
+    if (prevContactIdRef.current !== activeContactId) {
+      prevContactIdRef.current = activeContactId;
       setMessages([]);
       setHasMore(true);
       fetchMessages(activeContactId);
       markAsRead(activeContactId);
     }
-  }, [activeContactId]);
+  }, [activeContactId, fetchMessages, markAsRead]);
 
   // ── Window-closed check ───────────────────────────────────────────
   useEffect(() => {
@@ -368,18 +447,21 @@ export function useInboxData({
         const lastReceived = conversation.contact.last_received_at;
         const isClosed = !lastReceived || (Date.now() - new Date(lastReceived).getTime() > 24 * 60 * 60 * 1000);
         setWindowError(isClosed);
-        if (isClosed && newMessage !== 'Chat window closed') setNewMessage('Chat window closed');
-        else if (!isClosed && newMessage === 'Chat window closed') setNewMessage('');
+        if (isClosed) {
+          setNewMessage(prev => prev === '' ? 'Chat window closed' : prev);
+        } else {
+          setNewMessage(prev => prev === 'Chat window closed' ? '' : prev);
+        }
       }
     }
-  }, [activeContactId, conversations, newMessage]);
+  }, [activeContactId, conversations]);
 
   // ── Event Handlers ────────────────────────────────────────────────
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    if (e.currentTarget.scrollTop === 0 && hasMore && !loadingMore && messages.length > 0) {
+    if (e.currentTarget.scrollTop === 0 && hasMoreRef.current && !loadingMoreRef.current && messagesRef.current.length > 0) {
       fetchMessages(activeContactId!, true);
     }
-  }, [activeContactId, fetchMessages, hasMore, loadingMore, messages.length]);
+  }, [activeContactId, fetchMessages]);
 
   const handleSelectContact = useCallback((contactId: string) => {
     setActiveContactId(contactId);
