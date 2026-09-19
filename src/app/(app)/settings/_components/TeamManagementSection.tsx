@@ -150,25 +150,22 @@ export default function TeamManagementSection({ tenant }: TeamManagementSectionP
     setLoading(true);
     setError(null);
     try {
-      const [teamsRes, membersRes] = await Promise.all([
-        fetch('/api/teams'),
-        fetch('/api/team-members')
-      ]);
-
-      if (teamsRes.ok) {
-        const tData = await teamsRes.json();
-        const updatedTeams: Team[] = tData.teams || [];
+      const res = await fetch('/api/team-members');
+      if (res.ok) {
+        const data = await res.json();
+        const updatedTeams: Team[] = data.teams || [];
         setTeams(updatedTeams);
+        setMembers(data.members || []);
+        setInvitations(data.invitations || []);
+
         // If currently managing a team, refresh its reference
         if (managingTeam) {
           const freshManaging = updatedTeams.find(t => t.id === managingTeam.id);
           if (freshManaging) setManagingTeam(freshManaging);
         }
-      }
-      if (membersRes.ok) {
-        const mData = await membersRes.json();
-        setMembers(mData.members || []);
-        setInvitations(mData.invitations || []);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Failed to load team data');
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to load team data');

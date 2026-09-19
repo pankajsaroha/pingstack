@@ -1,10 +1,7 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getTenantServer } from '@/lib/server/tenant';
-import { getConversationsServer } from '@/lib/server/chat';
-import { getContactsServer } from '@/lib/server/contacts';
-import { getTemplatesServer } from '@/lib/server/templates';
-import { getTeamsServer, getWorkspaceMembersServer } from '@/lib/server/teams';
+import { getConversationsServer, getInitialMessagesServer } from '@/lib/server/chat';
 import InboxClient from './_components/InboxClient';
 
 export default async function InboxPage() {
@@ -16,29 +13,30 @@ export default async function InboxPage() {
     redirect('/login');
   }
 
-  // Pre-fetch all layout states in parallel to prevent database query waterfalls
-  const [tenant, conversations, contactsData, templates, teams, members] = await Promise.all([
+  // Fast-Path: Resolve authenticated tenant and authorized conversations in parallel
+  const [tenant, conversations] = await Promise.all([
     getTenantServer(),
     getConversationsServer(tenantId, userId || undefined),
-    getContactsServer(tenantId, 50),
-    getTemplatesServer(tenantId),
-    getTeamsServer(tenantId, userId || undefined),
-    getWorkspaceMembersServer(tenantId)
   ]);
-
-  const contacts = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || []);
 
   if (!tenant) {
     redirect('/login');
   }
 
+  // Pre-load first page of messages for initial selected conversation so chat renders with list
+  const firstContactId = conversations.length > 0 ? conversations[0].contact.id : null;
+  const initialMessages = firstContactId
+    ? await getInitialMessagesServer(tenantId, firstContactId, 20)
+    : [];
+
   return (
     <InboxClient
       initialConversations={conversations}
-      initialContacts={contacts}
-      initialTemplates={templates}
-      initialTeams={teams}
-      initialMembers={members}
+      initialMessages={initialMessages}
+      initialContacts={[]}
+      initialTemplates={[]}
+      initialTeams={[]}
+      initialMembers={[]}
       tenant={tenant}
     />
   );

@@ -1,32 +1,58 @@
 import { dbAdmin as db } from '@/lib/db';
 import { Conversation } from '@/types';
+import { getUserWorkspaceAuthServer } from '@/lib/server/teams';
+
+/**
+ * Pre-fetch initial messages for the active conversation during SSR.
+ */
+export async function getInitialMessagesServer(
+  tenantId: string,
+  contactId: string,
+  limit: number = 20
+): Promise<any[]> {
+  if (!db || !tenantId || !contactId) return [];
+  try {
+    const { data, error } = await db
+      .from('messages')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('contact_id', contactId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+    return data.reverse();
+  } catch (err) {
+    console.error('[getInitialMessagesServer] error:', err);
+    return [];
+  }
+}
 
 export async function getConversationsServer(tenantId: string, userId?: string, teamId?: string): Promise<Conversation[]> {
   if (!db || !tenantId) return [];
 
   try {
+    // 1. Launch authorization resolution and conversations_view query in parallel
+    const [authResult, latestMessagesRes] = await Promise.all([
+      userId ? getUserWorkspaceAuthServer(userId, tenantId) : Promise.resolve(null),
+      db.from('conversations_view').select('*').eq('tenant_id', tenantId)
+    ]);
+
     let userTeamIds: string[] = [];
     let isWorkspaceAdmin = false;
 
-    if (userId) {
-      const { hasWorkspacePermission, getUserTeamIdsServer, getEffectiveWorkspaceRole } = await import('@/lib/server/teams');
-      const canViewInbox = await hasWorkspacePermission(userId, tenantId, 'inbox_view');
-      if (!canViewInbox) {
+    if (authResult) {
+      if (!authResult.isAuthorized || !authResult.permissions.inbox_view) {
         return [];
       }
-
-      const role = await getEffectiveWorkspaceRole(userId, tenantId);
-      isWorkspaceAdmin = role === 'admin';
-      if (!isWorkspaceAdmin) {
-        userTeamIds = await getUserTeamIdsServer(userId, tenantId);
-      }
+      isWorkspaceAdmin = authResult.isWorkspaceAdmin;
+      userTeamIds = authResult.userTeamIds;
     }
 
     if (teamId && !isWorkspaceAdmin && !userTeamIds.includes(teamId)) {
       return [];
     }
 
-    const latestMessagesRes = await db.from('conversations_view').select('*').eq('tenant_id', tenantId);
     if (latestMessagesRes.error) throw latestMessagesRes.error;
     
     // Filter out messages that have no associated contact_id (due to deleted contacts)
