@@ -62,14 +62,23 @@ export default function TemplateCard({
 
         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-800/40">
           <div className="flex items-center gap-2">
-            {template.status !== 'APPROVED' && onEditRejected && (
+            {onEditRejected && (
               <button
                 type="button"
+                disabled={template.status === 'PENDING'}
+                title={template.status === 'PENDING' ? 'Templates currently under Meta review cannot be edited until reviewed' : 'Edit template'}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (template.status === 'PENDING') return;
                   onEditRejected(template);
                 }}
-                className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/20 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  template.status === 'PENDING'
+                    ? 'opacity-40 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700'
+                    : template.status === 'APPROVED'
+                    ? 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20 cursor-pointer'
+                    : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/20 cursor-pointer'
+                }`}
               >
                 <Pencil className="w-3 h-3" />
                 <span>{isRejected ? 'Edit & Resubmit' : 'Edit'}</span>

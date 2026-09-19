@@ -416,6 +416,13 @@ async function handleTemplateEditWithBody(req: Request, body: any) {
       return NextResponse.json({ error: 'Template lacks a valid Meta ID. Please sync with Meta first.' }, { status: 400 });
     }
 
+    if (existing.status === 'PENDING') {
+      return NextResponse.json({
+        error: 'Meta does not allow editing templates that are currently under review (Status: PENDING). Please wait for Meta to approve or reject the template before editing, or create a new template.',
+        code: 'TEMPLATE_IN_REVIEW'
+      }, { status: 400 });
+    }
+
     // 2. Fetch Meta credentials
     const { data: whatsappAccount, error: wError } = await db
       .from('whatsapp_accounts')

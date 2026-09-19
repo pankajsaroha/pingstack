@@ -60,6 +60,9 @@ export default function EditRejectedTemplateModal({
     }
   };
 
+  const isApproved = template.status === 'APPROVED';
+  const isRejected = template.status === 'REJECTED';
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200 overflow-y-auto">
       <div className="bg-bg/95 backdrop-blur-md border border-glass-border rounded-[2.5rem] shadow-2xl max-w-lg w-full p-8 relative my-8 text-left animate-in zoom-in-95 duration-300">
@@ -75,13 +78,19 @@ export default function EditRejectedTemplateModal({
             <RefreshCw className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-xl font-black text-fg tracking-tight">Edit &amp; Resubmit Template</h3>
-            <p className="text-[11px] text-muted font-medium">Update this template and resubmit it to Meta for review.</p>
+            <h3 className="text-xl font-black text-fg tracking-tight">
+              {isApproved ? 'Edit Approved Template' : isRejected ? 'Edit & Resubmit Template' : 'Edit Template'}
+            </h3>
+            <p className="text-[11px] text-muted font-medium">
+              {isApproved
+                ? 'Update template content or category. Changes will be submitted to Meta for review.'
+                : 'Update this template and resubmit it to Meta for review.'}
+            </p>
           </div>
         </div>
 
         {/* Informational Rejection Diagnostics Banner */}
-        {template.status === 'REJECTED' && (
+        {isRejected && (
           <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl mb-6 text-left shadow-xs">
             <div className="flex items-start space-x-3">
               <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
@@ -182,7 +191,11 @@ export default function EditRejectedTemplateModal({
               className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center border-0 outline-none"
             >
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {submitting ? 'Resubmitting to Meta...' : 'Save & Resubmit'}
+              {submitting
+                ? 'Submitting to Meta...'
+                : isApproved
+                ? 'Save & Submit to Meta'
+                : 'Save & Resubmit'}
             </button>
           </div>
         </form>

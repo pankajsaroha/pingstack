@@ -263,24 +263,131 @@ export default function CreateCampaignModal({
     }
   }, [parsedExcelFile?.fileName, parsedExcelFile?.phoneHeader, varsDetected]);
 
-  // Filter contacts by search
-  const filteredContacts = useMemo(() => {
-    if (!contactSearch.trim()) return contacts;
-    const q = contactSearch.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        (c.name && c.name.toLowerCase().includes(q)) ||
-        (c.phone_number && c.phone_number.includes(q))
-    );
-  }, [contacts, contactSearch]);
+  // Dynamic contact search results & registry
+  const [serverSearchResults, setServerSearchResults] = useState<any[] | null>(null);
+  const [isSearchingContacts, setIsSearchingContacts] = useState(false);
+  const searchSeqRef = useRef(0);
+  const [knownContacts, setKnownContacts] = useState<Record<string, any>>(() => {
+    const initialMap: Record<string, any> = {};
+    (contacts || []).forEach((c) => {
+      if (c && c.id) initialMap[c.id] = c;
+    });
+    return initialMap;
+  });
+
+  // Keep knownContacts registry synced with contacts prop
+  useEffect(() => {
+    if (contacts && contacts.length > 0) {
+      setKnownContacts((prev) => {
+        const next = { ...prev };
+        contacts.forEach((c) => {
+          if (c && c.id) next[c.id] = c;
+        });
+        return next;
+      });
+    }
+  }, [contacts]);
+
+  // Clean normalized search query
+  const cleanSearchQuery = contactSearch.trim().toLowerCase();
+  const digitsSearchQuery = cleanSearchQuery.replace(/\D/g, '');
+
+  // Instant local filtering over all currently loaded & known contacts (0ms latency)
+  const localMatches = useMemo(() => {
+    if (!cleanSearchQuery) return contacts;
+    const sourceList = Object.values(knownContacts).length > 0 ? Object.values(knownContacts) : contacts;
+    return sourceList.filter((c: any) => {
+      const nameMatch = c.name && c.name.toLowerCase().includes(cleanSearchQuery);
+      const rawPhone = c.phone_number || '';
+      const phoneMatch = rawPhone.includes(cleanSearchQuery) || (digitsSearchQuery.length > 0 && rawPhone.includes(digitsSearchQuery));
+      return nameMatch || phoneMatch;
+    });
+  }, [contacts, knownContacts, cleanSearchQuery, digitsSearchQuery]);
+
+  // Debounced server-side search across ALL workspace contacts (non-blocking background search)
+  useEffect(() => {
+    if (!cleanSearchQuery) {
+      setServerSearchResults(null);
+      setIsSearchingContacts(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsSearchingContacts(true);
+
+    const timer = setTimeout(async () => {
+      const currentSeq = ++searchSeqRef.current;
+      try {
+        const res = await fetch(`/api/contacts?search=${encodeURIComponent(cleanSearchQuery)}`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data.contacts || []);
+          if (isMounted && searchSeqRef.current === currentSeq) {
+            setServerSearchResults(list);
+            setKnownContacts((prev) => {
+              const next = { ...prev };
+              list.forEach((c: any) => {
+                if (c && c.id) next[c.id] = c;
+              });
+              return next;
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Campaign contact search error:', err);
+      } finally {
+        if (isMounted && searchSeqRef.current === currentSeq) {
+          setIsSearchingContacts(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [cleanSearchQuery]);
+
+  // Hybrid displayed contacts: immediately renders localMatches, seamlessly merges remote results on arrival
+  const displayedContacts = useMemo(() => {
+    if (!cleanSearchQuery) {
+      return contacts;
+    }
+
+    if (serverSearchResults !== null) {
+      const seenIds = new Set<string>();
+      const merged: any[] = [];
+
+      // 1. Add local matches first
+      localMatches.forEach((c) => {
+        if (c && c.id && !seenIds.has(c.id)) {
+          seenIds.add(c.id);
+          merged.push(c);
+        }
+      });
+
+      // 2. Merge server search results (e.g. contacts beyond initial 100)
+      serverSearchResults.forEach((c) => {
+        if (c && c.id && !seenIds.has(c.id)) {
+          seenIds.add(c.id);
+          merged.push(c);
+        }
+      });
+
+      return merged;
+    }
+
+    // While background server query is debouncing / in-flight, return local matches instantly
+    return localMatches;
+  }, [cleanSearchQuery, contacts, localMatches, serverSearchResults]);
 
   // Authoritative resolved list of unique recipients for Groups & Contacts
   const resolvedContactsList = useMemo(() => {
     const byPhone = new Map<string, { id?: string; name: string; phone: string }>();
 
-    // 1. Direct contacts
+    // 1. Direct contacts (resolves from full knownContacts registry)
     selectedContactIds.forEach((cId) => {
-      const found = contacts.find((c) => c.id === cId);
+      const found = knownContacts[cId] || contacts.find((c) => c.id === cId);
       if (found && found.phone_number) {
         const clean = String(found.phone_number).replace(/\D/g, '');
         if (clean.length >= 7) {
@@ -311,7 +418,7 @@ export default function CreateCampaignModal({
     });
 
     return Array.from(byPhone.values());
-  }, [contacts, selectedContactIds, selectedGroupIds, groupContactsMap]);
+  }, [knownContacts, contacts, selectedContactIds, selectedGroupIds, groupContactsMap]);
 
   // Clean digits helper for phone number matching
   const cleanDigits = (val: any) => String(val || '').replace(/\D/g, '');
@@ -1015,20 +1122,42 @@ export default function CreateCampaignModal({
                       ) : (
                         <div className="space-y-2">
                           <div className="relative">
-                            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted" />
+                            {isSearchingContacts ? (
+                              <Loader2 className="w-3.5 h-3.5 absolute left-3 top-2.5 text-indigo-400 animate-spin" />
+                            ) : (
+                              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted" />
+                            )}
                             <input
                               type="text"
                               placeholder="Search contacts by name or phone..."
                               value={contactSearch}
                               onChange={(e) => setContactSearch(e.target.value)}
-                              className="w-full bg-glass-input border border-glass-border rounded-xl pl-9 pr-3 py-1.5 text-xs text-fg focus:outline-none"
+                              className="w-full bg-glass-input border border-glass-border rounded-xl pl-9 pr-8 py-1.5 text-xs text-fg focus:outline-none"
                             />
+                            {contactSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setContactSearch('')}
+                                className="absolute right-2.5 top-2 text-muted hover:text-fg transition-colors cursor-pointer bg-transparent border-0 p-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                           <div className="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
-                            {filteredContacts.length === 0 ? (
-                              <p className="text-xs text-muted p-2">No contacts found.</p>
+                            {displayedContacts.length === 0 ? (
+                              isSearchingContacts ? (
+                                <div className="flex items-center justify-center p-4 text-xs text-muted">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-2 text-indigo-400" />
+                                  <span>Searching workspace contacts...</span>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted p-2">
+                                  {contactSearch.trim() ? `No contacts matching "${contactSearch}"` : 'No contacts found.'}
+                                </p>
+                              )
                             ) : (
-                              filteredContacts.map((c) => {
+                              displayedContacts.map((c) => {
                                 const isChecked = selectedContactIds.includes(c.id);
                                 return (
                                   <label
