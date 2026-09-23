@@ -609,7 +609,11 @@ export default function CreateCampaignModal({
       }
     } catch (err: any) {
       console.error('Upload dynamic values error:', err);
-      onToast('Upload failed: ' + err.message, 'error');
+      const rawMsg = String(err?.message || '');
+      const friendlyMsg = (!rawMsg || rawMsg === 'Load failed' || rawMsg === 'Failed to fetch' || rawMsg.includes('NetworkError'))
+        ? 'Failed to read spreadsheet file. Please check file format and try again.'
+        : `Upload failed: ${rawMsg}`;
+      onToast(friendlyMsg, 'error');
     } finally {
       setParsingDynamicExcel(false);
     }
@@ -885,7 +889,21 @@ export default function CreateCampaignModal({
 
       onClose();
     } catch (err: any) {
-      onToast(err.message || 'Failed to create campaign', 'error');
+      console.error('[CreateCampaignModal] Campaign submit failed:', err);
+      const rawMsg = String(err?.message || '');
+      let friendlyMsg = rawMsg;
+
+      if (!rawMsg || rawMsg === 'Load failed' || rawMsg === 'Failed to fetch' || rawMsg.includes('NetworkError') || rawMsg.includes('Failed to load resource')) {
+        friendlyMsg = 'Connection was interrupted while creating the campaign. Please check your network and try again.';
+      } else if (rawMsg.includes('LIMIT_EXCEEDED') || rawMsg.toLowerCase().includes('daily template send limit')) {
+        friendlyMsg = 'Daily template send limit reached for your plan. Please upgrade to continue sending campaigns.';
+      } else if (rawMsg.includes('FEATURE_GATED') || rawMsg.toLowerCase().includes('growth plan feature')) {
+        friendlyMsg = 'Campaign scheduling is a Growth plan feature. Please upgrade your plan to schedule campaigns in advance.';
+      } else if (rawMsg.includes('PERMISSION_DENIED') || rawMsg.toLowerCase().includes('permission')) {
+        friendlyMsg = 'You do not have permission to create or send campaigns in this workspace.';
+      }
+
+      onToast(friendlyMsg, 'error');
     } finally {
       setSubmitting(false);
     }

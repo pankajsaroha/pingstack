@@ -141,7 +141,10 @@ export default function CampaignsClient({
       })
     });
 
-    if (!cRes.ok) throw new Error('Failed to create campaign');
+    if (!cRes.ok) {
+      const errData = await cRes.json().catch(() => ({}));
+      throw new Error(errData.error || `Failed to create campaign (${cRes.status})`);
+    }
     const campaign = await cRes.json();
 
     const sRes = await fetch('/api/campaigns/send', {
@@ -158,14 +161,15 @@ export default function CampaignsClient({
     });
 
     if (!sRes.ok) {
-      const errorData = await sRes.json();
-      fireToast('Error: ' + errorData.error, 'error');
+      const errorData = await sRes.json().catch(() => ({}));
+      const errorMsg = errorData.error || `Failed to dispatch campaign (${sRes.status})`;
+      throw new Error(errorMsg);
+    }
+
+    if (campaignData.scheduled_at) {
+      fireToast('Campaign scheduled successfully!', 'success');
     } else {
-      if (campaignData.scheduled_at) {
-        fireToast('Campaign scheduled successfully!', 'success');
-      } else {
-        fireToast('Campaign queued for dispatch!', 'success');
-      }
+      fireToast('Campaign queued for dispatch!', 'success');
     }
 
     await fetchCampaigns();

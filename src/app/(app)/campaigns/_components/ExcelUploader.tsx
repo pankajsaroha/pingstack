@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Upload, CheckCircle2, FileText, AlertTriangle, RefreshCw, Eye } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { isValidPhoneNumber, normalizePhoneNumber, detectPhoneColumn } from '@/lib/phone';
 
 export interface ParsedExcelFile {
@@ -80,12 +81,11 @@ export default function ExcelUploader({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(true);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      const XLSX = await import('xlsx');
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
@@ -279,29 +279,29 @@ export default function ExcelUploader({
 
           {/* Validation & Column Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div className="p-2.5 rounded-xl bg-black/20 border border-white/5 space-y-0.5">
+            <div className="min-w-0 p-2.5 rounded-xl bg-black/20 border border-white/5 space-y-0.5">
               <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Recipients Detected</p>
               {parsedFile.validPhoneCount > 0 ? (
-                <p className="text-xs font-black text-emerald-400">
+                <p className="text-xs font-black text-emerald-400 truncate">
                   ✓ {parsedFile.validPhoneCount} valid recipients ({parsedFile.headers.length} columns)
                 </p>
               ) : (
                 <p className="text-xs font-bold text-amber-400 flex items-center gap-1">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  0 valid recipients in &ldquo;{parsedFile.phoneHeader}&rdquo;
+                  <span className="truncate">0 valid recipients in &ldquo;{parsedFile.phoneHeader}&rdquo;</span>
                 </p>
               )}
             </div>
 
-            <div className="p-2.5 rounded-xl bg-black/20 border border-white/5 space-y-1">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Phone Column</p>
-                <span className="text-[9px] text-muted">Change if needed</span>
+            <div className="min-w-0 p-2.5 rounded-xl bg-black/20 border border-white/5 space-y-1">
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[10px] text-muted font-bold uppercase tracking-wider truncate">Phone Column</p>
+                <span className="text-[9px] text-muted shrink-0">Change if needed</span>
               </div>
               <select
                 value={parsedFile.phoneHeader}
                 onChange={(e) => handlePhoneHeaderChange(e.target.value)}
-                className="w-full bg-bg border border-glass-border rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-fg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 cursor-pointer"
+                className="w-full max-w-full min-w-0 truncate bg-bg border border-glass-border rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-fg focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 cursor-pointer"
               >
                 {parsedFile.headers.map((h) => (
                   <option key={h} value={h}>
