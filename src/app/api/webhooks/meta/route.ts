@@ -236,19 +236,19 @@ export async function POST(req: Request) {
                 textContext = '[Interactive Message]';
               }
             } else if (msg.type === 'image') {
-              textContext = msg.image?.caption || '[Photo]';
+              textContext = msg.image?.caption || '';
               msgType = 'image';
               mediaUrl = msg.image?.id;
             } else if (msg.type === 'video') {
-              textContext = msg.video?.caption || '[Video]';
+              textContext = msg.video?.caption || '';
               msgType = 'video';
               mediaUrl = msg.video?.id;
             } else if (msg.type === 'audio') {
-              textContext = msg.audio?.voice ? '[Voice message]' : '[Audio]';
+              textContext = msg.audio?.voice ? '[Voice message]' : '';
               msgType = 'audio';
               mediaUrl = msg.audio?.id;
             } else if (msg.type === 'document') {
-              textContext = msg.document?.caption || (msg.document?.filename ? `[Document: ${msg.document.filename}]` : '[Document]');
+              textContext = msg.document?.caption || '';
               msgType = 'document';
               mediaUrl = msg.document?.id;
             } else if (msg.type === 'location') {
@@ -291,6 +291,33 @@ export async function POST(req: Request) {
 
               if (existingMsg) {
                 return;
+              }
+            }
+
+            // Inbound media retrieval: download and store document/media to Supabase storage
+            let mediaPath: string | null = null;
+            let mediaSizeBytes: number | null = null;
+
+            if (mediaUrl && ['document', 'image', 'video', 'audio'].includes(msgType)) {
+              try {
+                const { downloadAndStoreMetaMedia } = await import('@/lib/server/meta-media');
+                const rawFilename = msg.document?.filename || msg.image?.filename || msg.video?.filename;
+                const rawMime = msg.document?.mime_type || msg.image?.mime_type || msg.video?.mime_type || msg.audio?.mime_type;
+                const dlResult = await downloadAndStoreMetaMedia({
+                  tenantId,
+                  mediaId: mediaUrl,
+                  filename: rawFilename,
+                  mimeType: rawMime,
+                });
+                if (dlResult) {
+                  mediaPath = dlResult.filePath;
+                  mediaSizeBytes = dlResult.fileSize;
+                }
+              } catch (dlErr: any) {
+                console.error('[Meta Webhook] Inbound media download error:', dlErr);
+                if (!msgError) {
+                  msgError = 'Attachment download unavailable from WhatsApp';
+                }
               }
             }
 
@@ -346,7 +373,9 @@ export async function POST(req: Request) {
                 content: textContext,
                 status: 'received',
                 provider_message_id: msgId,
-                message_type: msgType
+                message_type: msgType,
+                media_path: mediaPath,
+                media_size_bytes: mediaSizeBytes
               };
               if (msgError) {
                 messagePayload.error = msgError;
