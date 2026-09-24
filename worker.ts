@@ -902,9 +902,58 @@ const retryFailedJobs = async () => {
   }
 };
 
+const backfillInboundMedia = async () => {
+  console.log('[Startup] Checking for pending inbound media to download...');
+  try {
+    const { data: messages, error } = await db
+      .from('messages')
+      .select('id, tenant_id, media_url, message_type, content')
+      .eq('direction', 'inbound')
+      .is('media_path', null)
+      .not('media_url', 'is', null)
+      .limit(50);
+
+    if (error || !messages || messages.length === 0) {
+      return;
+    }
+
+    console.log(`[Startup] Found ${messages.length} inbound media messages to download...`);
+    const { downloadAndStoreMetaMedia } = await import('./src/lib/server/meta-media');
+
+    for (const msg of messages) {
+      if (!msg.media_url || !msg.tenant_id) continue;
+      try {
+        let filename = '';
+        if (msg.content?.includes('[Document: ')) {
+          filename = msg.content.replace('[Document: ', '').replace(']', '').trim();
+        }
+        const res = await downloadAndStoreMetaMedia({
+          tenantId: msg.tenant_id,
+          mediaId: msg.media_url,
+          filename: filename || undefined,
+        });
+
+        if (res && res.filePath) {
+          await db.from('messages').update({
+            media_path: res.filePath,
+            media_size_bytes: res.fileSize,
+            error: null,
+          }).eq('id', msg.id);
+          console.log(`✅ [Startup] Backfilled inbound media for message ${msg.id}`);
+        }
+      } catch (mErr: any) {
+        console.warn(`[Startup] Could not backfill media for msg ${msg.id}:`, mErr.message);
+      }
+    }
+  } catch (err) {
+    console.error('[Startup] Inbound media backfill error:', err);
+  }
+};
+
 // Start all routines
 (async () => {
   await backfillMissingContent();
+  await backfillInboundMedia();
   await requeuePendingMessages();
   await retryFailedJobs();
 })();

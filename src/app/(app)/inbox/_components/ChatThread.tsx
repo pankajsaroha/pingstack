@@ -505,6 +505,7 @@ export default function ChatThread({
                     ) : (
                       <MessageBubble
                         msg={item.data}
+                        contactId={activeConversation?.contact?.id}
                         isSelected={selectedMessageIds.has(item.id)}
                         selectionActive={selectedMessageIds.size > 0}
                         onToggleSelect={onToggleMessageSelect}

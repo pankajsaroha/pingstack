@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Send, Clock, Check, CheckCheck, AlertCircle,
-  Trash2, Image, FileText, Paperclip, X
+  Trash2, Image, FileText, Paperclip, X, Download, ExternalLink
 } from 'lucide-react';
 import { WhatsAppFormattedText } from '@/lib/whatsapp-formatter';
 
@@ -16,8 +16,11 @@ interface MessageBubbleProps {
     status: string;
     error?: string | null;
     media_path?: string | null;
+    media_size_bytes?: number | null;
     message_type?: string;
+    contact_id?: string;
   };
+  contactId?: string;
   isSelected: boolean;
   selectionActive: boolean; // true when ANY message is selected (show checkboxes)
   onToggleSelect: (id: string) => void;
@@ -26,13 +29,24 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({
   msg,
+  contactId: propContactId,
   isSelected,
   selectionActive,
   onToggleSelect,
   onDelete,
 }: MessageBubbleProps) {
   const isOutbound = msg.direction === 'outbound';
+  const effectiveContactId = msg.contact_id || propContactId;
   const [showErrorPopover, setShowErrorPopover] = useState(false);
+
+  // Attachment details helper
+  const rawFileName = msg.media_path ? msg.media_path.split('/').pop()?.replace(/^\d+_/, '') || 'attachment' : '';
+  const fileExt = rawFileName.includes('.') ? rawFileName.split('.').pop()?.toUpperCase() || '' : (msg.message_type === 'document' ? 'DOC' : '');
+  const formattedSize = msg.media_size_bytes 
+    ? (msg.media_size_bytes < 1024 * 1024 
+        ? `${Math.max(1, Math.round(msg.media_size_bytes / 1024))} KB` 
+        : `${(msg.media_size_bytes / (1024 * 1024)).toFixed(1)} MB`)
+    : '';
 
   // Long-press detection for mobile/touch
   const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -155,27 +169,90 @@ export default function MessageBubble({
       >
         {/* Attachment preview */}
         {msg.media_path && (
-          <div className={`mb-2 p-2 rounded-lg border flex items-center ${
+          <div className={`mb-2 p-2.5 rounded-xl border flex items-center justify-between gap-2.5 transition-all ${
             isOutbound 
-              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20' 
-              : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-700/60'
+              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20 hover:bg-white/15' 
+              : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-700/60 hover:bg-zinc-100 dark:hover:bg-zinc-900'
           }`}>
-            <div className={`w-7 h-7 rounded-md flex items-center justify-center mr-2.5 shrink-0 ${
-              isOutbound 
-                ? 'bg-white/20 dark:bg-black/20 text-white dark:text-zinc-900' 
-                : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-            }`}>
-              {msg.message_type === 'image' && <Image className="w-3.5 h-3.5" />}
-              {msg.message_type === 'video' && <Send className="w-3.5 h-3.5 rotate-90" />}
-              {msg.message_type === 'document' && <FileText className="w-3.5 h-3.5" />}
-              {!['image', 'video', 'document'].includes(msg.message_type || '') && <Paperclip className="w-3.5 h-3.5" />}
+            <div className="flex items-center min-w-0 gap-2.5 flex-1">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                isOutbound 
+                  ? 'bg-white/20 dark:bg-black/20 text-white dark:text-zinc-900' 
+                  : fileExt === 'PDF' 
+                    ? 'bg-red-500/10 text-red-500 dark:text-red-400'
+                    : (fileExt === 'DOC' || fileExt === 'DOCX')
+                      ? 'bg-blue-500/10 text-blue-500 dark:text-blue-400'
+                      : (fileExt === 'XLS' || fileExt === 'XLSX' || fileExt === 'CSV')
+                        ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400'
+                        : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+              }`}>
+                {msg.message_type === 'image' && <Image className="w-4 h-4" />}
+                {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
+                {msg.message_type === 'document' && <FileText className="w-4 h-4" />}
+                {!['image', 'video', 'document'].includes(msg.message_type || '') && <Paperclip className="w-4 h-4" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  {fileExt && (
+                    <span className={`text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded ${
+                      isOutbound
+                        ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-900'
+                        : fileExt === 'PDF'
+                          ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+                          : (fileExt === 'DOC' || fileExt === 'DOCX')
+                            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                            : (fileExt === 'XLS' || fileExt === 'XLSX' || fileExt === 'CSV')
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'
+                    }`}>
+                      {fileExt}
+                    </span>
+                  )}
+                  {formattedSize && (
+                    <span className={`text-[9px] font-mono ${isOutbound ? 'text-white/60 dark:text-zinc-900/60' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                      {formattedSize}
+                    </span>
+                  )}
+                </div>
+                <p className={`text-xs font-semibold truncate mt-0.5 ${isOutbound ? 'text-white dark:text-zinc-900' : 'text-zinc-900 dark:text-zinc-100'}`} title={rawFileName}>
+                  {rawFileName}
+                </p>
+              </div>
+            </div>
+
+            {effectiveContactId && (
+              <a
+                href={`/api/chat/${effectiveContactId}/attachment?messageId=${msg.id}&download=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className={`p-1.5 rounded-lg transition-colors shrink-0 flex items-center justify-center cursor-pointer ${
+                  isOutbound
+                    ? 'bg-white/10 hover:bg-white/25 text-white dark:text-zinc-900'
+                    : 'bg-zinc-200/80 dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400'
+                }`}
+                title={fileExt === 'PDF' ? 'Open / Download PDF' : `Download ${rawFileName}`}
+              >
+                {fileExt === 'PDF' ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Inbound Document without media_path fallback */}
+        {!msg.media_path && msg.message_type === 'document' && (
+          <div className={`mb-2 p-2.5 rounded-xl border flex items-center gap-2.5 ${
+            isOutbound 
+              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20 text-white dark:text-zinc-900' 
+              : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-700/60 text-zinc-800 dark:text-zinc-200'
+          }`}>
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-[8px] font-bold uppercase tracking-wider ${isOutbound ? 'text-white/60 dark:text-zinc-900/60' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                {msg.message_type || 'Media file'}
-              </p>
-              <p className={`text-[11px] font-semibold truncate ${isOutbound ? 'text-white dark:text-zinc-900' : 'text-zinc-900 dark:text-zinc-100'}`}>
-                {msg.media_path.split('/').pop()}
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Document</p>
+              <p className="text-[11px] font-medium truncate text-zinc-500 dark:text-zinc-400">
+                {msg.error || 'Document received — attachment unavailable'}
               </p>
             </div>
           </div>
@@ -196,10 +273,10 @@ export default function MessageBubble({
           </div>
         ) : (
           <div className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-normal break-words [overflow-wrap:anywhere] min-w-0">
-            {msg.content ? (
+            {msg.content && !['[Document]', '[Photo]', '[Video]', '[Voice message]', '[Audio]'].includes(msg.content.trim()) ? (
               <WhatsAppFormattedText text={msg.content} />
             ) : (
-              msg.media_path ? '' : '[Template Message]'
+              (msg.media_path || msg.message_type === 'document') ? null : '[Template Message]'
             )}
           </div>
         )}

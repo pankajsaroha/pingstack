@@ -4,6 +4,96 @@ import { messageQueue } from '@/lib/queue';
 import { PLANS, PlanType, getActivePlanType } from '@/lib/plans';
 import { enforceRateLimit } from '@/lib/rate-limit';
 
+export async function GET(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
+  const tenantId = req.headers.get('x-tenant-id');
+  const userId = req.headers.get('x-user-id');
+  if (!tenantId || !userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!db) return NextResponse.json({ error: 'Server error: database client unavailable' }, { status: 500 });
+
+  const { contactId: rawId } = await params;
+  const contactId = rawId?.trim();
+  const url = new URL(req.url);
+  const messageId = url.searchParams.get('messageId');
+
+  if (!contactId || !messageId) {
+    return NextResponse.json({ error: 'Missing contactId or messageId' }, { status: 400 });
+  }
+
+  try {
+    // 1. Authorization: Verify inbox_view permission
+    const { hasWorkspacePermission, getUserTeamIdsServer, getEffectiveWorkspaceRole } = await import('@/lib/server/teams');
+    const canViewInbox = await hasWorkspacePermission(userId, tenantId, 'inbox_view');
+    if (!canViewInbox) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to view conversation attachments.', code: 'PERMISSION_DENIED' }, { status: 403 });
+    }
+
+    // 2. Authorization: Verify Conversation Access
+    const effectiveRole = await getEffectiveWorkspaceRole(userId, tenantId);
+    const isWorkspaceAdmin = effectiveRole === 'admin';
+    if (!isWorkspaceAdmin) {
+      const { data: assignment } = await db
+        .from('conversation_assignments')
+        .select('team_id, assigned_user_id')
+        .eq('tenant_id', tenantId)
+        .eq('contact_id', contactId)
+        .maybeSingle();
+
+      if (assignment) {
+        const userTeams = await getUserTeamIdsServer(userId, tenantId);
+        const isAssignedDirectly = assignment.assigned_user_id === userId;
+        const isInAssignedTeam = assignment.team_id ? userTeams.includes(assignment.team_id) : false;
+
+        if (assignment.team_id && !isInAssignedTeam && !isAssignedDirectly) {
+          return NextResponse.json({ error: 'Forbidden: You do not have access to this conversation.', code: 'PERMISSION_DENIED' }, { status: 403 });
+        }
+        if (assignment.assigned_user_id && !assignment.team_id && !isAssignedDirectly) {
+          return NextResponse.json({ error: 'Forbidden: You do not have access to this conversation.', code: 'PERMISSION_DENIED' }, { status: 403 });
+        }
+      }
+    }
+
+    // 3. Locate message attachment
+    const { data: message, error: msgError } = await db
+      .from('messages')
+      .select('id, media_path, message_type, content')
+      .eq('id', messageId)
+      .eq('contact_id', contactId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    if (msgError || !message || !message.media_path) {
+      return NextResponse.json({ error: 'Attachment not found or unavailable' }, { status: 404 });
+    }
+
+    // 4. Generate 1-hour signed URL from private storage bucket
+    const { data: signedData, error: signedError } = await db.storage
+      .from('chat-media')
+      .createSignedUrl(message.media_path, 3600);
+
+    if (signedError || !signedData?.signedUrl) {
+      console.error('[Attachment API] Failed to create signed URL:', signedError);
+      return NextResponse.json({ error: 'Failed to generate download link' }, { status: 500 });
+    }
+
+    // If browser requested direct redirection, redirect to signed URL
+    const acceptHeader = req.headers.get('accept') || '';
+    if (url.searchParams.has('download') || acceptHeader.includes('text/html')) {
+      return NextResponse.redirect(signedData.signedUrl, 307);
+    }
+
+    return NextResponse.json({
+      success: true,
+      url: signedData.signedUrl,
+      fileName: message.media_path.split('/').pop()?.replace(/^\d+_/, ''),
+      messageType: message.message_type
+    });
+  } catch (err: any) {
+    console.error('[Attachment GET API Error]:', err);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+
 export async function POST(req: Request, { params }: { params: Promise<{ contactId: string }> }) {
   const tenantId = req.headers.get('x-tenant-id');
   if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
