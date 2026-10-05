@@ -571,12 +571,14 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
   // Update campaign status to running upon execution start
   await db.from('campaigns').update({ status: 'running' }).eq('id', campaignId);
 
-  // Deduplication map by normalized phone number
-  const recipientsByPhone = new Map<string, {
+  // Resolved recipients list preserving all direct rows (e.g. multi-student rows with same phone)
+  const resolvedRecipients: Array<{
     contactId?: string;
     phone: string;
     variables: any[];
-  }>();
+  }> = [];
+
+  const directPhonesSet = new Set<string>();
 
   // Helper to resolve template variables for a contact
   const resolveContactVariables = (contact: any): string[] => {
@@ -601,13 +603,38 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
           const fakeContact = { name: row.name || 'Customer', phone_number: cleanPhone };
           rowVars = resolveContactVariables(fakeContact);
         }
-        recipientsByPhone.set(cleanPhone, {
+        resolvedRecipients.push({
           contactId: row.contactId || row.contact_id || undefined,
           phone: cleanPhone,
           variables: rowVars,
         });
+        directPhonesSet.add(cleanPhone);
       }
     });
+  }
+
+  // Precedence Step 1.5: Attach contactId for direct recipient phone numbers if existing contacts exist in workspace
+  const directPhonesList = Array.from(directPhonesSet);
+  if (directPhonesList.length > 0) {
+    const { data: directContacts } = await db
+      .from('contacts')
+      .select('id, phone_number')
+      .in('phone_number', directPhonesList)
+      .eq('tenant_id', tenantId);
+
+    if (directContacts && directContacts.length > 0) {
+      const phoneToContactMap = new Map<string, string>();
+      directContacts.forEach((c: any) => {
+        const clean = String(c.phone_number || '').replace(/\D/g, '');
+        phoneToContactMap.set(clean, c.id);
+      });
+
+      resolvedRecipients.forEach((r) => {
+        if (!r.contactId && phoneToContactMap.has(r.phone)) {
+          r.contactId = phoneToContactMap.get(r.phone);
+        }
+      });
+    }
   }
 
   // Precedence Step 2: Process Contacts and Groups for any recipients not already added with custom row data
@@ -623,15 +650,17 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
     (contacts || []).forEach((c: any) => {
       const cleanPhone = String(c.phone_number || '').replace(/\D/g, '');
       if (cleanPhone.length >= 7) {
-        if (recipientsByPhone.has(cleanPhone)) {
+        if (directPhonesSet.has(cleanPhone)) {
           // If already in directData, preserve the custom per-row variables but attach the real contactId
-          const existing = recipientsByPhone.get(cleanPhone)!;
-          if (!existing.contactId) {
-            existing.contactId = c.id;
-          }
+          resolvedRecipients.forEach((r) => {
+            if (r.phone === cleanPhone && !r.contactId) {
+              r.contactId = c.id;
+            }
+          });
         } else {
           // New contact not in directData, resolve variables from group/contact templateVariables
-          recipientsByPhone.set(cleanPhone, {
+          directPhonesSet.add(cleanPhone);
+          resolvedRecipients.push({
             contactId: c.id,
             phone: cleanPhone,
             variables: resolveContactVariables(c),
@@ -643,7 +672,7 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
 
   const templateRawContent = (campaign.templates as any)?.content || '[Template Message]';
 
-  const messagesToInsert: any[] = Array.from(recipientsByPhone.values()).map((r) => {
+  const messagesToInsert: any[] = resolvedRecipients.map((r) => {
     const resolvedContent = renderTemplateBody(templateRawContent, r.variables);
     return {
       tenant_id: tenantId,
@@ -672,14 +701,14 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
 
   for (let i = 0; i < messagesToInsert.length; i += batchSize) {
     const batch = messagesToInsert.slice(i, i + batchSize);
-    let { data, error: mErr } = await db.from('messages').insert(batch).select('id, phone_number');
+    let { data, error: mErr } = await db.from('messages').insert(batch).select('id, phone_number, variables');
     
     if (mErr && mErr.message.includes('message_type')) {
       const fallback = batch.map(({ message_type, ...rest }: any) => {
         const copy = { ...rest };
         return copy;
       });
-      const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select('id, phone_number');
+      const { data: retryData, error: retryErr } = await db.from('messages').insert(fallback).select('id, phone_number, variables');
       data = retryData;
       mErr = retryErr;
     }
@@ -695,9 +724,8 @@ const campaignWorker = new Worker('campaign-queue', async (job: Job) => {
   }
 
   // Push individual message sending jobs to BullMQ message-queue in bulk
-  const jobs = insertedMsgs.map((m: any) => {
-    const rawMsg = messagesToInsert.find(rti => rti.phone_number === m.phone_number);
-    const variables = rawMsg?.variables || [];
+  const jobs = insertedMsgs.map((m: any, idx: number) => {
+    const variables = Array.isArray(m.variables) ? m.variables : (messagesToInsert[idx]?.variables || []);
     
     return {
       name: 'send-whatsapp',

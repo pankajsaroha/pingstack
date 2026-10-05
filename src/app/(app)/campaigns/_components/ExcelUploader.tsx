@@ -1,9 +1,17 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Upload, CheckCircle2, FileText, AlertTriangle, RefreshCw, Eye } from 'lucide-react';
+import { useRef, useState, useMemo } from 'react';
+import { Upload, CheckCircle2, FileText, AlertTriangle, RefreshCw, Eye, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { isValidPhoneNumber, normalizePhoneNumber, detectPhoneColumn } from '@/lib/phone';
+
+export interface DuplicateGroup {
+  phone: string;
+  rows: Array<{
+    rowIndex: number;
+    data: Record<string, any>;
+  }>;
+}
 
 export interface ParsedExcelFile {
   fileName: string;
@@ -12,8 +20,34 @@ export interface ParsedExcelFile {
   rows: Record<string, any>[];
   validPhoneCount: number;
   invalidPhoneCount: number;
+  uniquePhoneCount: number;
+  duplicatePhoneCount: number;
+  duplicateRowCount: number;
+  duplicateGroups: DuplicateGroup[];
   phoneHeader: string;
   detectedPhoneHeader: string;
+}
+
+/**
+ * Resolves effective recipient rows from parsed Excel data and duplicate handling policy.
+ */
+export function getEffectiveExcelRows(
+  rows: Record<string, any>[],
+  duplicateHandling: 'KEEP_ALL' | 'REMOVE_DUPLICATES' | null | undefined
+): Record<string, any>[] {
+  const validRows = rows.filter((r) => r._isPhoneValid && r._phone);
+  if (duplicateHandling === 'REMOVE_DUPLICATES') {
+    const seen = new Set<string>();
+    const deduped: Record<string, any>[] = [];
+    validRows.forEach((r) => {
+      if (!seen.has(r._phone)) {
+        seen.add(r._phone);
+        deduped.push(r);
+      }
+    });
+    return deduped;
+  }
+  return validRows;
 }
 
 /**
@@ -27,14 +61,19 @@ export function evaluateExcelRecipients(
   rows: Record<string, any>[];
   validPhoneCount: number;
   invalidPhoneCount: number;
+  uniquePhoneCount: number;
+  duplicatePhoneCount: number;
+  duplicateRowCount: number;
+  duplicateGroups: DuplicateGroup[];
 } {
   let validPhoneCount = 0;
   let invalidPhoneCount = 0;
   const parsedRows: Record<string, any>[] = [];
+  const phoneMap = new Map<string, Array<{ rowIndex: number; data: Record<string, any> }>>();
 
   const phoneColIdx = headers.indexOf(phoneHeader);
 
-  dataMatrix.forEach((row) => {
+  dataMatrix.forEach((row, rIdx) => {
     const rawPhone = phoneColIdx >= 0 && row[phoneColIdx] !== undefined ? String(row[phoneColIdx]).trim() : '';
     const isValValid = isValidPhoneNumber(rawPhone);
     const cleanPhone = isValValid ? normalizePhoneNumber(rawPhone) : '';
@@ -42,6 +81,7 @@ export function evaluateExcelRecipients(
     const rowObj: Record<string, any> = {
       _phone: cleanPhone,
       _isPhoneValid: isValValid,
+      _rawRowIndex: rIdx + 2,
     };
 
     headers.forEach((header, hIdx) => {
@@ -51,21 +91,47 @@ export function evaluateExcelRecipients(
     if (isValValid) {
       validPhoneCount++;
       parsedRows.push(rowObj);
+
+      const existing = phoneMap.get(cleanPhone) || [];
+      existing.push({ rowIndex: rIdx + 2, data: rowObj });
+      phoneMap.set(cleanPhone, existing);
     } else if (rawPhone.length > 0) {
       invalidPhoneCount++;
     }
   });
 
+  const uniquePhoneCount = phoneMap.size;
+  const duplicateGroups: DuplicateGroup[] = [];
+  let duplicatePhoneCount = 0;
+
+  phoneMap.forEach((occurrences, phone) => {
+    if (occurrences.length > 1) {
+      duplicatePhoneCount++;
+      duplicateGroups.push({
+        phone,
+        rows: occurrences,
+      });
+    }
+  });
+
+  const duplicateRowCount = validPhoneCount - uniquePhoneCount;
+
   return {
     rows: parsedRows,
     validPhoneCount,
     invalidPhoneCount,
+    uniquePhoneCount,
+    duplicatePhoneCount,
+    duplicateRowCount,
+    duplicateGroups,
   };
 }
 
 interface ExcelUploaderProps {
   parsedFile: ParsedExcelFile | null;
   varsDetected?: string[];
+  duplicateHandling?: 'KEEP_ALL' | 'REMOVE_DUPLICATES' | null;
+  onOpenDuplicateModal?: () => void;
   onParsed: (data: ParsedExcelFile) => void;
   onClear: () => void;
   onToast: (msg: string, type: 'success' | 'error' | 'info') => void;
@@ -74,12 +140,19 @@ interface ExcelUploaderProps {
 export default function ExcelUploader({
   parsedFile,
   varsDetected = [],
+  duplicateHandling,
+  onOpenDuplicateModal,
   onParsed,
   onClear,
   onToast,
 }: ExcelUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(true);
+
+  const effectiveRows = useMemo(() => {
+    if (!parsedFile) return [];
+    return getEffectiveExcelRows(parsedFile.rows, duplicateHandling);
+  }, [parsedFile, duplicateHandling]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -134,12 +207,18 @@ export default function ExcelUploader({
             rows: evaluated.rows,
             validPhoneCount: evaluated.validPhoneCount,
             invalidPhoneCount: evaluated.invalidPhoneCount,
+            uniquePhoneCount: evaluated.uniquePhoneCount,
+            duplicatePhoneCount: evaluated.duplicatePhoneCount,
+            duplicateRowCount: evaluated.duplicateRowCount,
+            duplicateGroups: evaluated.duplicateGroups,
             phoneHeader: initialPhoneHeader,
             detectedPhoneHeader: initialPhoneHeader,
           });
 
           if (evaluated.validPhoneCount === 0) {
             onToast(`File loaded. Please select the correct phone column below (${evaluated.invalidPhoneCount} invalid/empty numbers).`, 'info');
+          } else if (evaluated.duplicateRowCount > 0) {
+            onToast(`Loaded ${evaluated.validPhoneCount} rows from ${file.name} (${evaluated.duplicatePhoneCount} duplicate phone numbers found).`, 'info');
           } else {
             onToast(`Loaded ${evaluated.validPhoneCount} valid recipients from ${file.name}`, 'success');
           }
@@ -163,9 +242,13 @@ export default function ExcelUploader({
       rows: evaluated.rows,
       validPhoneCount: evaluated.validPhoneCount,
       invalidPhoneCount: evaluated.invalidPhoneCount,
+      uniquePhoneCount: evaluated.uniquePhoneCount,
+      duplicatePhoneCount: evaluated.duplicatePhoneCount,
+      duplicateRowCount: evaluated.duplicateRowCount,
+      duplicateGroups: evaluated.duplicateGroups,
     });
     if (evaluated.validPhoneCount > 0) {
-      onToast(`Selected "${newHeader}" (${evaluated.validPhoneCount} valid recipients)`, 'success');
+      onToast(`Selected "${newHeader}" (${evaluated.validPhoneCount} valid rows)`, 'success');
     } else {
       onToast(`Selected "${newHeader}" (0 valid recipients found)`, 'info');
     }
@@ -319,11 +402,47 @@ export default function ExcelUploader({
             </div>
           )}
 
+          {/* Duplicate Phone Numbers Banner */}
+          {parsedFile.duplicateRowCount > 0 && (
+            <div className={`p-3 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
+              duplicateHandling === 'KEEP_ALL'
+                ? 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100'
+                : duplicateHandling === 'REMOVE_DUPLICATES'
+                ? 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100'
+                : 'bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/30 text-zinc-900 dark:text-zinc-100'
+            }`}>
+              <div className="flex items-start gap-2.5 min-w-0">
+                <Users className="w-4 h-4 shrink-0 mt-0.5 text-amber-500 dark:text-amber-400" />
+                <div className="space-y-0.5 min-w-0">
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs">
+                    {parsedFile.duplicatePhoneCount} duplicate phone number{parsedFile.duplicatePhoneCount === 1 ? '' : 's'} found across {parsedFile.duplicateGroups.reduce((acc, g) => acc + g.rows.length, 0)} rows
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {duplicateHandling === 'KEEP_ALL'
+                      ? `Setting: Keeping all ${parsedFile.validPhoneCount} rows (the same number may receive multiple messages)`
+                      : duplicateHandling === 'REMOVE_DUPLICATES'
+                      ? `Setting: Deduplicated to ${parsedFile.uniquePhoneCount} unique recipients (1 message per number)`
+                      : 'Action required: Choose whether to keep all rows or remove duplicates.'}
+                  </p>
+                </div>
+              </div>
+              {onOpenDuplicateModal && (
+                <button
+                  type="button"
+                  onClick={onOpenDuplicateModal}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-2xs transition-colors cursor-pointer shrink-0 self-start sm:self-center"
+                >
+                  {duplicateHandling ? 'Change Selection' : 'Review & Choose'}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Data Preview Table (First 5 Rows) */}
-          {showPreview && parsedFile.rows.length > 0 && (
+          {showPreview && effectiveRows.length > 0 && (
             <div className="pt-2">
               <p className="text-[9px] font-black uppercase tracking-wider text-muted mb-1.5">
-                Data Preview (First {Math.min(5, parsedFile.rows.length)} of {parsedFile.rows.length} rows)
+                Data Preview (First {Math.min(5, effectiveRows.length)} of {effectiveRows.length} rows)
               </p>
               <div className="overflow-x-auto rounded-xl border border-glass-border bg-black/30">
                 <table className="w-full text-[10px] text-left">
@@ -342,7 +461,7 @@ export default function ExcelUploader({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-fg/90">
-                    {parsedFile.rows.slice(0, 5).map((row, rIdx) => (
+                    {effectiveRows.slice(0, 5).map((row, rIdx) => (
                       <tr key={rIdx} className="hover:bg-white/[0.02]">
                         {parsedFile.headers.map((h) => (
                           <td key={h} className={`px-3 py-1.5 font-mono whitespace-nowrap ${h === parsedFile.phoneHeader ? 'text-emerald-300 font-bold' : 'text-muted hover:text-fg'}`}>
