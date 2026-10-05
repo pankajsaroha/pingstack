@@ -5,6 +5,7 @@ import { signToken, verifyToken } from '@/lib/jwt';
 import { checkRateLimit, getTenantPlan, invalidateTenantCache } from '@/lib/rate-limit';
 import { parseWhatsAppFormatting } from '@/lib/whatsapp-formatter';
 import { normalizePhoneNumber, isValidPhoneNumber } from '@/lib/phone';
+import { evaluateExcelRecipients } from '@/app/(app)/campaigns/_components/ExcelUploader';
 
 /**
  * Helper to execute a single test step and measure timing
@@ -4306,13 +4307,320 @@ export async function runTeamsAndSharedInboxTests(correlationId: string, adminEm
     })
   );
 
+  // Step 82: Excel Campaign: Zero Duplicates Flow
+  steps.push(
+    await runStep('excel_campaign_zero_duplicates', '82. Excel Campaign Parsing: Zero Duplicates Flow', async () => {
+      const headers = ['Name', 'Phone', 'Course'];
+      const dataMatrix = [
+        ['Rahul', '9876543210', 'Math'],
+        ['Priya', '9876543211', 'Science'],
+        ['Amit', '9876543212', 'English'],
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Phone');
+      const passed =
+        evaluated.validPhoneCount === 3 &&
+        evaluated.uniquePhoneCount === 3 &&
+        evaluated.duplicatePhoneCount === 0 &&
+        evaluated.duplicateRowCount === 0 &&
+        evaluated.duplicateGroups.length === 0;
+
+      return {
+        success: passed,
+        message: passed ? 'Zero-duplicate spreadsheets evaluate cleanly with equal valid and unique counts' : 'Zero duplicates test failed',
+        diagnostics: { evaluated }
+      };
+    })
+  );
+
+  // Step 83: Excel Campaign: Duplicate Phone Detection & Grouping
+  steps.push(
+    await runStep('excel_campaign_duplicate_detection', '83. Excel Campaign Parsing: Duplicate Phone Detection & Counts', async () => {
+      const headers = ['Student', 'Phone', 'Fee'];
+      const dataMatrix = [
+        ['Rahul', '9876543210', '5000'],
+        ['Priya', '9876543210', '7000'], // duplicate of Rahul
+        ['Amit', '9876543211', '6000'],
+        ['Neha', '9876543212', '4000'],
+        ['Rohan', '9876543212', '4500'], // duplicate of Neha
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Phone');
+      const passed =
+        evaluated.validPhoneCount === 5 &&
+        evaluated.uniquePhoneCount === 3 &&
+        evaluated.duplicatePhoneCount === 2 &&
+        evaluated.duplicateRowCount === 2 &&
+        evaluated.duplicateGroups.length === 2 &&
+        evaluated.duplicateGroups[0].rows.length === 2 &&
+        evaluated.duplicateGroups[1].rows.length === 2;
+
+      return {
+        success: passed,
+        message: passed ? 'Duplicate phone numbers across rows grouped and counted with exact mathematical precision' : 'Duplicate detection failed',
+        diagnostics: { evaluated }
+      };
+    })
+  );
+
+  // Step 84: Excel Campaign: Keep All Rows Variable Preservation
+  steps.push(
+    await runStep('excel_campaign_keep_all_vars', '84. Excel Campaign Keep All Rows: Full Row Variables & Multi-Student Preservation', async () => {
+      const headers = ['Student', 'Phone', 'Fee'];
+      const dataMatrix = [
+        ['Rahul', '9876543210', '₹5,000'],
+        ['Priya', '9876543210', '₹7,000'],
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Phone');
+      // Keep all rows: every valid row produces an independent recipient with its own row variables
+      const directData = evaluated.rows
+        .filter((r) => r._isPhoneValid && r._phone)
+        .map((r) => ({
+          phone: r._phone,
+          variables: [r['Student'], r['Fee']],
+        }));
+
+      const passed =
+        directData.length === 2 &&
+        directData[0].phone === '919876543210' &&
+        directData[0].variables[0] === 'Rahul' &&
+        directData[0].variables[1] === '₹5,000' &&
+        directData[1].phone === '919876543210' &&
+        directData[1].variables[0] === 'Priya' &&
+        directData[1].variables[1] === '₹7,000';
+
+      return {
+        success: passed,
+        message: passed ? 'Keep All Rows preserves all recipient rows with isolated per-student variable values' : 'Keep all rows failed',
+        diagnostics: { directData }
+      };
+    })
+  );
+
+  // Step 85: Excel Campaign: Remove Duplicates First Occurrence Retained
+  steps.push(
+    await runStep('excel_campaign_remove_duplicates', '85. Excel Campaign Remove Duplicates: First Valid Row Retained', async () => {
+      const headers = ['Student', 'Phone', 'Fee'];
+      const dataMatrix = [
+        ['Rahul', '9876543210', '₹5,000'],
+        ['Priya', '9876543210', '₹7,000'], // duplicate
+        ['Amit', '9876543211', '₹6,000'],
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Phone');
+      // Deduplicate: retain first valid occurrence per normalized phone
+      const seen = new Set<string>();
+      const dedupedRows: Record<string, any>[] = [];
+      evaluated.rows.forEach((r) => {
+        if (r._isPhoneValid && r._phone && !seen.has(r._phone)) {
+          seen.add(r._phone);
+          dedupedRows.push(r);
+        }
+      });
+
+      const passed =
+        dedupedRows.length === 2 &&
+        dedupedRows[0].Student === 'Rahul' &&
+        dedupedRows[0]._phone === '919876543210' &&
+        dedupedRows[1].Student === 'Amit' &&
+        dedupedRows[1]._phone === '919876543211';
+
+      return {
+        success: passed,
+        message: passed ? 'Remove Duplicates retains strictly the first valid occurrence for each phone number' : 'Remove duplicates failed',
+        diagnostics: { dedupedRows }
+      };
+    })
+  );
+
+  // Step 86: Excel Campaign: Phone Normalization Across Formats
+  steps.push(
+    await runStep('excel_campaign_normalization_equivalence', '86. Excel Campaign Normalization Across Formats (+91, Spaces, Raw 10-digit)', async () => {
+      const headers = ['Name', 'Contact'];
+      const dataMatrix = [
+        ['Student A', '+91 98765 43210'],
+        ['Student B', '919876543210'],
+        ['Student C', '9876543210'],
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Contact');
+      // All 3 formats normalize to the same E.164 standard phone
+      const passed =
+        evaluated.validPhoneCount === 3 &&
+        evaluated.uniquePhoneCount === 1 &&
+        evaluated.duplicatePhoneCount === 1 &&
+        evaluated.duplicateRowCount === 2 &&
+        evaluated.duplicateGroups[0].rows.length === 3;
+
+      return {
+        success: passed,
+        message: passed ? 'Different formatting styles for the same number normalize identically and detect duplicates' : 'Normalization test failed',
+        diagnostics: { evaluated }
+      };
+    })
+  );
+
+  // Step 87: Excel Campaign: Invalid Phone Skipped Without Counting as Duplicate
+  steps.push(
+    await runStep('excel_campaign_invalid_phone_filtering', '87. Excel Campaign Invalid Phone Number Filtering Without Duplication Counting', async () => {
+      const headers = ['Name', 'Phone'];
+      const dataMatrix = [
+        ['Valid 1', '9876543210'],
+        ['Invalid 1', '123'], // invalid
+        ['Invalid 2', ''], // empty
+        ['Invalid 3', 'abcde'], // invalid
+        ['Valid 2', '9876543211'],
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Phone');
+      const passed =
+        evaluated.validPhoneCount === 2 &&
+        evaluated.invalidPhoneCount === 2 &&
+        evaluated.uniquePhoneCount === 2 &&
+        evaluated.duplicatePhoneCount === 0 &&
+        evaluated.duplicateRowCount === 0;
+
+      return {
+        success: passed,
+        message: passed ? 'Invalid and missing phone rows are filtered out safely without corrupting duplicate calculations' : 'Invalid phone test failed',
+        diagnostics: { evaluated }
+      };
+    })
+  );
+
+  // Step 88: Excel Campaign Keep All: End-to-End Resolution Preserves Every Duplicate Phone Row with Custom Variables
+  steps.push(
+    await runStep('excel_campaign_keep_all_e2e_pipeline', '88. Excel Campaign Keep All: End-to-End Pipeline Preserves Every Duplicate Phone Row with Custom Variables', async () => {
+      const headers = ['Name', 'Phone', 'Amount'];
+      const dataMatrix = [
+        ['Rahul', '9876543210', '5000'],
+        ['Amit', '9123456789', '7000'],
+        ['Priya', '9876543210', '3000'], // Duplicate of Rahul
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Phone');
+      const { getEffectiveExcelRows } = await import('@/app/(app)/campaigns/_components/ExcelUploader');
+      const effectiveRows = getEffectiveExcelRows(evaluated.rows, 'KEEP_ALL');
+
+      const directData = effectiveRows.map((r) => ({
+        phone: r._phone,
+        variables: [r['Name'], r['Amount']],
+      }));
+
+      // Simulate worker resolved recipients building
+      const resolvedRecipients: any[] = [];
+      directData.forEach((row: any) => {
+        const cleanPhone = String(row.phone || '').replace(/\D/g, '');
+        resolvedRecipients.push({
+          phone: cleanPhone,
+          variables: row.variables,
+        });
+      });
+
+      const templateRaw = 'Hello {{1}}, your pending balance is {{2}}.';
+      const { renderTemplateBody } = await import('@/lib/templates');
+      const messagesToInsert = resolvedRecipients.map((r) => ({
+        phone_number: r.phone,
+        variables: r.variables,
+        content: renderTemplateBody(templateRaw, r.variables),
+      }));
+
+      const passed =
+        effectiveRows.length === 3 &&
+        directData.length === 3 &&
+        messagesToInsert.length === 3 &&
+        messagesToInsert[0].phone_number === '919876543210' &&
+        messagesToInsert[0].variables[0] === 'Rahul' &&
+        messagesToInsert[0].content.includes('Hello Rahul, your pending balance is 5000.') &&
+        messagesToInsert[1].phone_number === '919123456789' &&
+        messagesToInsert[1].variables[0] === 'Amit' &&
+        messagesToInsert[1].content.includes('Hello Amit, your pending balance is 7000.') &&
+        messagesToInsert[2].phone_number === '919876543210' &&
+        messagesToInsert[2].variables[0] === 'Priya' &&
+        messagesToInsert[2].content.includes('Hello Priya, your pending balance is 3000.');
+
+      return {
+        success: passed,
+        message: passed ? 'Keep All Rows preserves all 3 independent recipient messages with row-level isolated variables' : 'Keep All pipeline test failed',
+        diagnostics: { messagesToInsert }
+      };
+    })
+  );
+
+  // Step 89: Excel Campaign Remove Duplicates: Deduplication Leaves Exactly 1 Message per Phone Number
+  steps.push(
+    await runStep('excel_campaign_remove_duplicates_pipeline', '89. Excel Campaign Remove Duplicates: Pipeline Retains Exactly 1 Message per Phone Number', async () => {
+      const headers = ['Name', 'Phone', 'Amount'];
+      const dataMatrix = [
+        ['Rahul', '9876543210', '5000'],
+        ['Amit', '9123456789', '7000'],
+        ['Priya', '9876543210', '3000'], // Duplicate of Rahul
+      ];
+
+      const evaluated = evaluateExcelRecipients(headers, dataMatrix, 'Phone');
+      const { getEffectiveExcelRows } = await import('@/app/(app)/campaigns/_components/ExcelUploader');
+      const effectiveRows = getEffectiveExcelRows(evaluated.rows, 'REMOVE_DUPLICATES');
+
+      const directData = effectiveRows.map((r) => ({
+        phone: r._phone,
+        variables: [r['Name'], r['Amount']],
+      }));
+
+      const passed =
+        effectiveRows.length === 2 &&
+        directData.length === 2 &&
+        directData[0].phone === '919876543210' &&
+        directData[0].variables[0] === 'Rahul' &&
+        directData[1].phone === '919123456789' &&
+        directData[1].variables[0] === 'Amit';
+
+      return {
+        success: passed,
+        message: passed ? 'Remove Duplicates correctly filters duplicate rows to single occurrence per phone number' : 'Remove duplicates pipeline failed',
+        diagnostics: { directData }
+      };
+    })
+  );
+
+  // Step 90: Excel Campaign Send Payload: Schema Validation Preserves Complete Duplicate Row Sequences
+  steps.push(
+    await runStep('excel_campaign_payload_validation', '90. Excel Campaign Send Payload: Schema Validation Preserves Complete Duplicate Row Sequences', async () => {
+      const { validateCampaignSendPayload } = await import('@/lib/validation');
+
+      const rawPayload = {
+        campaignId: 'e2e-camp-uuid-001',
+        directData: [
+          { phone: '919876543210', variables: ['Rahul', '5000'] },
+          { phone: '919123456789', variables: ['Amit', '7000'] },
+          { phone: '919876543210', variables: ['Priya', '3000'] },
+        ],
+      };
+
+      const validation = validateCampaignSendPayload(rawPayload);
+      const passed =
+        validation.valid &&
+        validation.data?.directData?.length === 3 &&
+        validation.data.directData[0].phone === '919876543210' &&
+        validation.data.directData[0].variables?.[0] === 'Rahul' &&
+        validation.data.directData[2].phone === '919876543210' &&
+        validation.data.directData[2].variables?.[0] === 'Priya';
+
+      return {
+        success: passed,
+        message: passed ? 'Campaign send payload validation preserves duplicate phone records without collapsing them' : 'Payload validation failed',
+        diagnostics: { validation }
+      };
+    })
+  );
+
   const durationMs = Math.round(performance.now() - startTime);
   const passedCount = steps.filter((s) => s.status === 'passed').length;
   const failedCount = steps.filter((s) => s.status === 'failed').length;
 
   return {
     suiteId: 'teams_and_assignments',
-    name: 'Teams, Shared Inbox, Invitations & Permissions Suite (81 Tests)',
+    name: 'Teams, Shared Inbox, Invitations & Permissions Suite (90 Tests)',
     category: 'automated',
     isRealProviderTest: false,
     status: failedCount === 0 ? 'passed' : 'failed',

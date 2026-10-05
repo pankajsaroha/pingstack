@@ -24,7 +24,7 @@ import {
   Info,
   HelpCircle
 } from 'lucide-react';
-import ExcelUploader, { ParsedExcelFile, evaluateExcelRecipients } from './ExcelUploader';
+import ExcelUploader, { ParsedExcelFile, evaluateExcelRecipients, getEffectiveExcelRows } from './ExcelUploader';
 import { getActivePlanType } from '@/lib/plans';
 
 interface CreateCampaignModalProps {
@@ -102,6 +102,12 @@ export default function CreateCampaignModal({
   // Excel / CSV state
   const [parsedExcelFile, setParsedExcelFile] = useState<ParsedExcelFile | null>(null);
   const [excelColMapping, setExcelColMapping] = useState<Record<string, string>>({});
+  const [duplicateHandling, setDuplicateHandling] = useState<'KEEP_ALL' | 'REMOVE_DUPLICATES' | null>(null);
+  const [selectedDuplicateOption, setSelectedDuplicateOption] = useState<'KEEP_ALL' | 'REMOVE_DUPLICATES'>('KEEP_ALL');
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [showDuplicateReviewModal, setShowDuplicateReviewModal] = useState(false);
+  const [duplicateSearchQuery, setDuplicateSearchQuery] = useState('');
+  const [duplicateReviewPage, setDuplicateReviewPage] = useState(1);
 
   // Preview Recipient Index Pager (for multi-recipient preview)
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -229,17 +235,98 @@ export default function CreateCampaignModal({
     };
   }, [selectedGroupIds]);
 
+  const handleExcelParsed = (file: ParsedExcelFile) => {
+    setParsedExcelFile(file);
+    if (file.duplicateRowCount > 0) {
+      setDuplicateHandling(null);
+      setSelectedDuplicateOption('KEEP_ALL');
+      setShowDuplicateModal(true);
+      setShowDuplicateReviewModal(false);
+      setDuplicateSearchQuery('');
+      setDuplicateReviewPage(1);
+    } else {
+      setDuplicateHandling('KEEP_ALL');
+      setShowDuplicateModal(false);
+      setShowDuplicateReviewModal(false);
+    }
+  };
+
+  const handleExcelClear = () => {
+    setParsedExcelFile(null);
+    setDuplicateHandling(null);
+    setSelectedDuplicateOption('KEEP_ALL');
+    setShowDuplicateModal(false);
+    setShowDuplicateReviewModal(false);
+  };
+
   const handleExcelPhoneHeaderChange = (newHeader: string) => {
     if (!parsedExcelFile) return;
     const evaluated = evaluateExcelRecipients(parsedExcelFile.headers, parsedExcelFile.dataMatrix, newHeader);
-    setParsedExcelFile({
+    const updated: ParsedExcelFile = {
       ...parsedExcelFile,
       phoneHeader: newHeader,
       rows: evaluated.rows,
       validPhoneCount: evaluated.validPhoneCount,
       invalidPhoneCount: evaluated.invalidPhoneCount,
-    });
+      uniquePhoneCount: evaluated.uniquePhoneCount,
+      duplicatePhoneCount: evaluated.duplicatePhoneCount,
+      duplicateRowCount: evaluated.duplicateRowCount,
+      duplicateGroups: evaluated.duplicateGroups,
+    };
+    setParsedExcelFile(updated);
+    if (evaluated.duplicateRowCount > 0) {
+      setDuplicateHandling(null);
+      setSelectedDuplicateOption('KEEP_ALL');
+      setShowDuplicateModal(true);
+      setShowDuplicateReviewModal(false);
+      setDuplicateSearchQuery('');
+      setDuplicateReviewPage(1);
+    } else {
+      setDuplicateHandling('KEEP_ALL');
+      setShowDuplicateModal(false);
+      setShowDuplicateReviewModal(false);
+    }
   };
+
+  const handleOpenDuplicateModal = () => {
+    setSelectedDuplicateOption(duplicateHandling || 'KEEP_ALL');
+    setShowDuplicateModal(true);
+    setShowDuplicateReviewModal(false);
+    setDuplicateSearchQuery('');
+    setDuplicateReviewPage(1);
+  };
+
+  const handleConfirmDuplicateChoice = () => {
+    setDuplicateHandling(selectedDuplicateOption);
+    setShowDuplicateModal(false);
+    setShowDuplicateReviewModal(false);
+    if (selectedDuplicateOption === 'KEEP_ALL') {
+      onToast(`Keeping all ${parsedExcelFile?.validPhoneCount || 0} rows.`, 'info');
+    } else {
+      onToast(`Removed duplicate phone numbers (${parsedExcelFile?.uniquePhoneCount || 0} unique recipients).`, 'info');
+    }
+  };
+
+  const filteredDuplicateGroups = useMemo(() => {
+    if (!parsedExcelFile?.duplicateGroups) return [];
+    const query = duplicateSearchQuery.trim().toLowerCase();
+    if (!query) return parsedExcelFile.duplicateGroups;
+    return parsedExcelFile.duplicateGroups.filter((g) => {
+      const phoneMatch = g.phone.toLowerCase().includes(query);
+      const rowMatch = g.rows.some((r) => {
+        return Object.values(r.data).some((val) => String(val || '').toLowerCase().includes(query));
+      });
+      return phoneMatch || rowMatch;
+    });
+  }, [parsedExcelFile?.duplicateGroups, duplicateSearchQuery]);
+
+  const GROUPS_PER_PAGE = 8;
+  const totalDuplicatePages = Math.ceil(filteredDuplicateGroups.length / GROUPS_PER_PAGE) || 1;
+  const paginatedDuplicateGroups = useMemo(() => {
+    const page = Math.min(duplicateReviewPage, totalDuplicatePages);
+    const start = (page - 1) * GROUPS_PER_PAGE;
+    return filteredDuplicateGroups.slice(start, start + GROUPS_PER_PAGE);
+  }, [filteredDuplicateGroups, duplicateReviewPage, totalDuplicatePages]);
 
   // Auto-map Excel columns when file is parsed or template/phone header changes
   useEffect(() => {
@@ -632,14 +719,20 @@ export default function CreateCampaignModal({
     return resolvedContactsList.length;
   }, [resolvedContactsList, loadingGroupContacts, selectedGroupIds, groups, selectedContactIds]);
 
+  // Effective Excel rows based on duplicate handling setting (KEEP_ALL vs REMOVE_DUPLICATES)
+  const effectiveExcelRows = useMemo(() => {
+    if (!parsedExcelFile) return [];
+    return getEffectiveExcelRows(parsedExcelFile.rows, duplicateHandling);
+  }, [parsedExcelFile, duplicateHandling]);
+
   // Total recipients count across current mode
   const totalRecipientsCount = useMemo(() => {
     if (recipientSource === 'CONTACTS_GROUPS') {
       return cgTotalEstimatedCount;
     } else {
-      return parsedExcelFile?.validPhoneCount || 0;
+      return effectiveExcelRows.length;
     }
-  }, [recipientSource, cgTotalEstimatedCount, parsedExcelFile]);
+  }, [recipientSource, cgTotalEstimatedCount, effectiveExcelRows]);
 
   // Current preview recipient data
   const currentPreviewRecipient = useMemo(() => {
@@ -656,7 +749,7 @@ export default function CreateCampaignModal({
         name: recipient?.name || 'Customer',
       };
     } else {
-      const rows = parsedExcelFile?.rows || [];
+      const rows = effectiveExcelRows;
       if (rows.length === 0) {
         return { index: 0, total: 1, phone: '+91XXXXXXXXXX', row: {} };
       }
@@ -669,7 +762,7 @@ export default function CreateCampaignModal({
         row: row || {},
       };
     }
-  }, [recipientSource, resolvedContactsList, parsedExcelFile, previewIndex]);
+  }, [recipientSource, resolvedContactsList, effectiveExcelRows, previewIndex]);
 
   // Rendered Message Live Preview
   const resolvedMessagePreview = useMemo(() => {
@@ -711,7 +804,7 @@ export default function CreateCampaignModal({
     excelColMapping,
   ]);
 
-  // Validation State & Readiness
+  // Overall readiness validation for submit button
   const readinessCheck = useMemo(() => {
     if (!templateId) return { ready: false, text: 'Select an approved WhatsApp template to continue' };
 
@@ -726,6 +819,7 @@ export default function CreateCampaignModal({
             return { ready: false, text: `Enter value for variable {{${missingVars[0]}}}` };
           }
         } else {
+          // Per-recipient mode check
           const rows = resolvedContactsList;
           if (rows.length === 0) return { ready: false, text: 'No contacts resolved to customize' };
           let missingCount = 0;
@@ -734,6 +828,7 @@ export default function CreateCampaignModal({
             const isMissing = varsDetected.some((v) => !rowVals[v]?.trim());
             if (isMissing) missingCount++;
           });
+
           if (missingCount > 0) {
             return {
               ready: false,
@@ -763,6 +858,10 @@ export default function CreateCampaignModal({
         return { ready: false, text: 'Upload a spreadsheet with valid phone numbers' };
       }
 
+      if (parsedExcelFile.duplicateRowCount > 0 && !duplicateHandling) {
+        return { ready: false, text: 'Choose whether to keep all rows or remove duplicates' };
+      }
+
       if (varsDetected.length > 0) {
         const unmapped = varsDetected.filter((v) => !excelColMapping[v]);
         if (unmapped.length > 0) {
@@ -780,9 +879,10 @@ export default function CreateCampaignModal({
         }
       }
 
+      const count = effectiveExcelRows.length;
       return {
         ready: true,
-        text: `✓ ${parsedExcelFile.validPhoneCount} recipients ready from ${parsedExcelFile.fileName}`,
+        text: `✓ ${count} recipient${count === 1 ? '' : 's'} ready from ${parsedExcelFile.fileName}${duplicateHandling === 'REMOVE_DUPLICATES' ? ' (deduplicated)' : ''}`,
       };
     }
   }, [
@@ -795,6 +895,8 @@ export default function CreateCampaignModal({
     perRecipientVarValues,
     resolvedContactsList,
     parsedExcelFile,
+    effectiveExcelRows,
+    duplicateHandling,
     excelColMapping,
     isScheduled,
     scheduledAt,
@@ -858,18 +960,21 @@ export default function CreateCampaignModal({
           });
         }
       } else {
-        const directData = (parsedExcelFile?.rows || [])
-          .filter((row) => row._isPhoneValid && row._phone)
-          .map((row) => {
-            const variables = varsDetected.map((varNum) => {
-              const col = excelColMapping[varNum];
-              return col && row[col] !== undefined ? String(row[col]) : '';
-            });
-            return {
-              phone: row._phone,
-              variables,
-            };
+        if (parsedExcelFile?.duplicateRowCount && parsedExcelFile.duplicateRowCount > 0 && !duplicateHandling) {
+          setShowDuplicateModal(true);
+          return;
+        }
+
+        const directData = effectiveExcelRows.map((row) => {
+          const variables = varsDetected.map((varNum) => {
+            const col = excelColMapping[varNum];
+            return col && row[col] !== undefined ? String(row[col]) : '';
           });
+          return {
+            phone: row._phone,
+            variables,
+          };
+        });
 
         if (directData.length === 0) {
           throw new Error('No valid recipients found. Please select a column containing valid phone numbers.');
@@ -1227,8 +1332,10 @@ export default function CreateCampaignModal({
                 <ExcelUploader
                   parsedFile={parsedExcelFile}
                   varsDetected={varsDetected}
-                  onParsed={setParsedExcelFile}
-                  onClear={() => setParsedExcelFile(null)}
+                  duplicateHandling={duplicateHandling}
+                  onOpenDuplicateModal={handleOpenDuplicateModal}
+                  onParsed={handleExcelParsed}
+                  onClear={handleExcelClear}
                   onToast={onToast}
                 />
               </div>
@@ -1767,6 +1874,282 @@ export default function CreateCampaignModal({
         </form>
       </div>
     </div>
+
+    {/* Primary Duplicate Phone Numbers Resolution Modal */}
+    {showDuplicateModal && !showDuplicateReviewModal && parsedExcelFile && parsedExcelFile.duplicateRowCount > 0 && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[70] overflow-y-auto p-4 text-left animate-in fade-in duration-200 flex items-center justify-center">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl max-w-md w-full p-6 relative text-left animate-in zoom-in-95 duration-200 space-y-5">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                Duplicate phone numbers
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                {parsedExcelFile.duplicateGroups.reduce((acc, g) => acc + g.rows.length, 0)} rows use the same phone number.
+                <br />
+                How would you like to continue?
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDuplicateModal(false)}
+              className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 border-0"
+              title="Close"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Option Cards */}
+          <div className="space-y-2.5">
+            {/* Option 1: Keep all rows */}
+            <button
+              type="button"
+              onClick={() => setSelectedDuplicateOption('KEEP_ALL')}
+              className={`w-full p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                selectedDuplicateOption === 'KEEP_ALL'
+                  ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-500/70 dark:border-indigo-500/70 shadow-xs ring-1 ring-indigo-500/20'
+                  : 'bg-zinc-50/50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+              }`}
+            >
+              {/* Radio Indicator */}
+              <div className="mt-0.5 shrink-0">
+                <div
+                  className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                    selectedDuplicateOption === 'KEEP_ALL'
+                      ? 'border-indigo-600 dark:border-indigo-400 bg-white dark:bg-zinc-900'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-transparent'
+                  }`}
+                >
+                  {selectedDuplicateOption === 'KEEP_ALL' && (
+                    <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Keep all rows
+                  </span>
+                  <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 font-mono">
+                    {parsedExcelFile.validPhoneCount} recipients
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                  Send to every valid Excel row. The same number may receive multiple messages.
+                </p>
+              </div>
+            </button>
+
+            {/* Option 2: Remove duplicates */}
+            <button
+              type="button"
+              onClick={() => setSelectedDuplicateOption('REMOVE_DUPLICATES')}
+              className={`w-full p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                selectedDuplicateOption === 'REMOVE_DUPLICATES'
+                  ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-500/70 dark:border-indigo-500/70 shadow-xs ring-1 ring-indigo-500/20'
+                  : 'bg-zinc-50/50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+              }`}
+            >
+              {/* Radio Indicator */}
+              <div className="mt-0.5 shrink-0">
+                <div
+                  className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                    selectedDuplicateOption === 'REMOVE_DUPLICATES'
+                      ? 'border-indigo-600 dark:border-indigo-400 bg-white dark:bg-zinc-900'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-transparent'
+                  }`}
+                >
+                  {selectedDuplicateOption === 'REMOVE_DUPLICATES' && (
+                    <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Remove duplicates
+                  </span>
+                  <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 font-mono">
+                    {parsedExcelFile.uniquePhoneCount} recipients
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                  Keep one row per phone number.
+                </p>
+              </div>
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setShowDuplicateReviewModal(true);
+                setDuplicateSearchQuery('');
+                setDuplicateReviewPage(1);
+              }}
+              className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors cursor-pointer bg-transparent border-0 p-0 flex items-center gap-1 underline underline-offset-2"
+            >
+              Review duplicate rows ({parsedExcelFile.duplicatePhoneCount || parsedExcelFile.duplicateGroups.length})
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDuplicateModal(false)}
+                className="px-3.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDuplicateChoice}
+                className="px-4 py-1.5 text-xs font-medium bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg shadow-xs transition-colors cursor-pointer border-0"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Duplicate Phone Numbers Secondary Review Modal */}
+    {showDuplicateReviewModal && parsedExcelFile && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[75] overflow-y-auto p-4 text-left animate-in fade-in duration-200 flex items-center justify-center">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 sm:p-6 relative text-left animate-in zoom-in-95 duration-200 space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                Duplicate phone numbers
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {parsedExcelFile.duplicatePhoneCount} phone number{parsedExcelFile.duplicatePhoneCount === 1 ? '' : 's'} across {parsedExcelFile.duplicateGroups.reduce((acc, g) => acc + g.rows.length, 0)} rows in {parsedExcelFile.fileName}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDuplicateReviewModal(false)}
+              className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 border-0"
+              title="Close"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={duplicateSearchQuery}
+              onChange={(e) => {
+                setDuplicateSearchQuery(e.target.value);
+                setDuplicateReviewPage(1);
+              }}
+              placeholder="Search by phone number or row data..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          {/* Grouped Phone Numbers List */}
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 divide-y divide-zinc-200/80 dark:divide-zinc-800/80 p-1">
+            {paginatedDuplicateGroups.length === 0 ? (
+              <div className="py-8 text-center text-xs text-zinc-400">
+                No duplicate records matching &ldquo;{duplicateSearchQuery}&rdquo;
+              </div>
+            ) : (
+              paginatedDuplicateGroups.map((group, gIdx) => (
+                <div key={gIdx} className="p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                      {group.phone}
+                    </span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                      {group.rows.length} rows
+                    </span>
+                  </div>
+
+                  <div className="space-y-1 pl-2 border-l-2 border-zinc-200 dark:border-zinc-800">
+                    {group.rows.map((r, rIdx) => {
+                      const otherCols = parsedExcelFile.headers
+                        .filter((h) => h !== parsedExcelFile.phoneHeader && r.data[h])
+                        .slice(0, 3)
+                        .map((h) => `${h}: ${r.data[h]}`)
+                        .join(' · ');
+
+                      return (
+                        <div key={rIdx} className="text-[11px] flex items-center justify-between gap-2 text-zinc-600 dark:text-zinc-400">
+                          <span className="font-mono text-zinc-400 dark:text-zinc-500 shrink-0">
+                            Row {r.rowIndex}
+                          </span>
+                          <span className="truncate max-w-[300px] text-zinc-700 dark:text-zinc-300 text-right">
+                            {otherCols || 'No additional data'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Pagination Controls (if > 1 page) */}
+          {totalDuplicatePages > 1 && (
+            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 px-1">
+              <span>
+                Page {duplicateReviewPage} of {totalDuplicatePages} ({filteredDuplicateGroups.length} groups)
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={duplicateReviewPage <= 1}
+                  onClick={() => setDuplicateReviewPage((p) => Math.max(1, p - 1))}
+                  className="px-2 py-1 rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-xs"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={duplicateReviewPage >= totalDuplicatePages}
+                  onClick={() => setDuplicateReviewPage((p) => Math.min(totalDuplicatePages, p + 1))}
+                  className="px-2 py-1 rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer text-xs"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer Back Button */}
+          <div className="flex items-center justify-between pt-2 border-t border-zinc-200/80 dark:border-zinc-800/80">
+            <button
+              type="button"
+              onClick={() => setShowDuplicateReviewModal(false)}
+              className="text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer bg-transparent border-0 p-0 flex items-center gap-1"
+            >
+              ← Back to confirmation
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDuplicateReviewModal(false)}
+              className="px-4 py-1.5 text-xs font-medium bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg shadow-xs transition-colors cursor-pointer border-0"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 }
