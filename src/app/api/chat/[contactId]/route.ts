@@ -38,20 +38,53 @@ export async function GET(req: Request, { params }: { params: Promise<{ contactI
   const limit = parseInt(searchParams.get('limit') || '50');
   const before = searchParams.get('before');
 
+  // Resolve contact phone number for comprehensive conversation history (including campaign messages)
+  const { data: contact } = await db
+    .from('contacts')
+    .select('id, phone_number')
+    .eq('id', contactId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  const phoneVariants: string[] = [];
+  if (contact?.phone_number) {
+    const raw = String(contact.phone_number).trim();
+    const clean = raw.replace(/\D/g, '');
+    if (raw) phoneVariants.push(raw);
+    if (clean && clean !== raw) phoneVariants.push(clean);
+    if (clean) phoneVariants.push(`+${clean}`);
+  }
+
   let query = db.from('messages')
     .select('*')
-    .eq('tenant_id', tenantId)
-    .eq('contact_id', contactId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    .eq('tenant_id', tenantId);
+
+  if (phoneVariants.length > 0) {
+    const uniqueVariants = Array.from(new Set(phoneVariants));
+    const orConditions = [`contact_id.eq.${contactId}`, ...uniqueVariants.map((p) => `phone_number.eq.${p}`)];
+    query = query.or(orConditions.join(','));
+  } else {
+    query = query.eq('contact_id', contactId);
+  }
 
   if (before) {
     query = query.lt('created_at', before);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  
+
+  // Auto-heal unlinked campaign messages matching this contact in the background
+  if (contact && data && data.length > 0) {
+    const unlinkedIds = data.filter((m: any) => !m.contact_id).map((m: any) => m.id);
+    if (unlinkedIds.length > 0) {
+      void db.from('messages').update({ contact_id: contactId }).in('id', unlinkedIds).then(() => {}, () => {});
+    }
+  }
+
   // Return reversed to maintain chronological order in UI
   return NextResponse.json(data?.reverse() || []);
 }
