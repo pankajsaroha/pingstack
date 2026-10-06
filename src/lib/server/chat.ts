@@ -12,15 +12,49 @@ export async function getInitialMessagesServer(
 ): Promise<any[]> {
   if (!db || !tenantId || !contactId) return [];
   try {
-    const { data, error } = await db
+    const { data: contact } = await db
+      .from('contacts')
+      .select('id, phone_number')
+      .eq('id', contactId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    const phoneVariants: string[] = [];
+    if (contact?.phone_number) {
+      const raw = String(contact.phone_number).trim();
+      const clean = raw.replace(/\D/g, '');
+      if (raw) phoneVariants.push(raw);
+      if (clean && clean !== raw) phoneVariants.push(clean);
+      if (clean) phoneVariants.push(`+${clean}`);
+    }
+
+    let query = db
       .from('messages')
       .select('*')
-      .eq('tenant_id', tenantId)
-      .eq('contact_id', contactId)
+      .eq('tenant_id', tenantId);
+
+    if (phoneVariants.length > 0) {
+      const uniqueVariants = Array.from(new Set(phoneVariants));
+      const orConditions = [`contact_id.eq.${contactId}`, ...uniqueVariants.map((p) => `phone_number.eq.${p}`)];
+      query = query.or(orConditions.join(','));
+    } else {
+      query = query.eq('contact_id', contactId);
+    }
+
+    const { data, error } = await query
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error || !data) return [];
+
+    // Auto-heal unlinked messages for this contact in background
+    if (contact && data.length > 0) {
+      const unlinkedIds = data.filter((m: any) => !m.contact_id).map((m: any) => m.id);
+      if (unlinkedIds.length > 0) {
+        void db.from('messages').update({ contact_id: contactId }).in('id', unlinkedIds).then(() => {}, () => {});
+      }
+    }
+
     return data.reverse();
   } catch (err) {
     console.error('[getInitialMessagesServer] error:', err);

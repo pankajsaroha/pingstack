@@ -37,6 +37,7 @@ export function useInboxData({
 
   // ── UI states ────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -59,6 +60,7 @@ export function useInboxData({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fetchSeqRef = useRef<number>(0);
   const initialSelectionMade = useRef(initialConversations.length > 0);
   const initialMessagesLoadedRef = useRef<boolean>(
     initialMessages.length > 0 && initialConversations.length > 0 && initialConversations[0]?.contact?.id === (initialConversations.length > 0 ? initialConversations[0].contact.id : null)
@@ -155,8 +157,13 @@ export function useInboxData({
   // ── Fetch messages helper ────────────────────────────────────────
   const fetchMessages = useCallback(async (contactId: string, isLoadMore = false) => {
     if (isLoadMore && (!hasMoreRef.current || loadingMoreRef.current)) return;
-    if (isLoadMore) setLoadingMore(true);
+    if (isLoadMore) {
+      setLoadingMore(true);
+    } else {
+      setLoadingMessages(true);
+    }
 
+    const reqSeq = ++fetchSeqRef.current;
     const container = chatContainerRef.current;
     const previousScrollHeight = container ? container.scrollHeight : 0;
     const previousScrollTop = container ? container.scrollTop : 0;
@@ -167,8 +174,16 @@ export function useInboxData({
       const limit = isLoadMore ? 30 : 20;
       const url = `/api/chat/${contactId}?limit=${limit}${before ? `&before=${before}` : ''}`;
       const res = await fetch(url, { credentials: 'include' });
+
+      // Stale request check: discard if user switched to another contact during in-flight fetch
+      if (reqSeq !== fetchSeqRef.current || contactId !== activeContactIdRef.current) {
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
+        if (reqSeq !== fetchSeqRef.current || contactId !== activeContactIdRef.current) return;
+
         if (data.length < limit) setHasMore(false);
         if (isLoadMore) {
           setMessages(prev => [...data, ...prev]);
@@ -189,7 +204,10 @@ export function useInboxData({
     } catch (e) {
       console.error(e);
     } finally {
-      if (isLoadMore) setLoadingMore(false);
+      if (reqSeq === fetchSeqRef.current) {
+        if (isLoadMore) setLoadingMore(false);
+        else setLoadingMessages(false);
+      }
     }
   }, [scrollToBottom]);
 
@@ -427,6 +445,8 @@ export function useInboxData({
       initialMessagesLoadedRef.current = false;
       prevContactIdRef.current = activeContactId;
       markAsRead(activeContactId);
+      // Ensure initial SSR messages are positioned at the bottom (latest message) on mount
+      setTimeout(() => scrollToBottom('auto'), 50);
       return;
     }
 
@@ -437,7 +457,7 @@ export function useInboxData({
       fetchMessages(activeContactId);
       markAsRead(activeContactId);
     }
-  }, [activeContactId, fetchMessages, markAsRead]);
+  }, [activeContactId, fetchMessages, markAsRead, scrollToBottom]);
 
   // ── Window-closed check ───────────────────────────────────────────
   useEffect(() => {
@@ -464,7 +484,12 @@ export function useInboxData({
   }, [activeContactId, fetchMessages]);
 
   const handleSelectContact = useCallback((contactId: string) => {
-    setActiveContactId(contactId);
+    if (contactId !== activeContactIdRef.current) {
+      setActiveContactId(contactId);
+      setMessages([]);
+      setHasMore(true);
+      setLoadingMessages(true);
+    }
     setShowChatOnMobile(true);
   }, []);
 
@@ -762,6 +787,7 @@ export function useInboxData({
     activeTeamId,
     setActiveTeamId,
     loading,
+    loadingMessages,
     sending,
     uploading,
     loadingMore,

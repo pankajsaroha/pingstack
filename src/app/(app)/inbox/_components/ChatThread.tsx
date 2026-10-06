@@ -12,6 +12,7 @@ import { formatSeparatorDate } from './utils';
 interface ChatThreadProps {
   activeConversation: any | null;
   messages: any[];
+  loadingMessages?: boolean;
   loadingMore: boolean;
   hasMore: boolean;
   sending: boolean;
@@ -74,6 +75,7 @@ function MeasuredItem({
 export default function ChatThread({
   activeConversation,
   messages,
+  loadingMessages = false,
   loadingMore,
   sending,
   uploading,
@@ -112,6 +114,7 @@ export default function ChatThread({
   const assignMenuRef = useRef<HTMLDivElement>(null);
   const measuredHeightsRef = useRef<Record<string, number>>({});
   const [renderTrigger, setRenderTrigger] = useState(0);
+  const prevActiveContactIdRef = useRef<string | null>(null);
 
   // Close assignment popup on outside click or Escape key
   useEffect(() => {
@@ -143,16 +146,42 @@ export default function ChatThread({
     };
   }, [showAssignMenu]);
 
-  // Reset measurements & close popup when shifting conversations to avoid stale coordinates
+  // Reset measurements & close popup when shifting conversations
   useEffect(() => {
     setShowAssignMenu(false);
     measuredHeightsRef.current = {};
     setRenderTrigger(0);
-    setScrollTop(0);
-    if (chatContainerRef?.current) {
-      chatContainerRef.current.scrollTop = 0;
+  }, [activeConversation?.contact?.id]);
+
+  // Ensure viewport lands on latest message on conversation change or initial load
+  useEffect(() => {
+    const currentContactId = activeConversation?.contact?.id;
+    if (!currentContactId) return;
+
+    if (prevActiveContactIdRef.current !== currentContactId) {
+      prevActiveContactIdRef.current = currentContactId;
+      if (messages.length > 0 && chatContainerRef?.current) {
+        requestAnimationFrame(() => {
+          if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+            setScrollTop(chatContainerRef.current.scrollTop);
+          }
+        });
+      }
     }
-  }, [activeConversation?.contact?.id, chatContainerRef]);
+  }, [activeConversation?.contact?.id, messages.length, chatContainerRef]);
+
+  // Initial SSR mount landing on latest message
+  useEffect(() => {
+    if (chatContainerRef?.current && messages.length > 0) {
+      requestAnimationFrame(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+          setScrollTop(chatContainerRef.current.scrollTop);
+        }
+      });
+    }
+  }, [chatContainerRef]);
 
   // Track container height changes
   useEffect(() => {
@@ -473,7 +502,12 @@ export default function ChatThread({
           </div>
         )}
 
-        {messages.length === 0 ? (
+        {loadingMessages ? (
+          <div className="h-full flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 space-y-2">
+            <Loader2 className="w-5 h-5 animate-spin text-zinc-400 dark:text-zinc-500" />
+            <span className="text-[11px] font-medium tracking-wide">Loading messages...</span>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-xs font-bold uppercase tracking-widest">
             Session initialized
           </div>

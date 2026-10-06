@@ -37,6 +37,7 @@ export default function InboxClient({
     setActiveFilter,
     activeTeamId,
     setActiveTeamId,
+    loadingMessages,
     sending,
     uploading,
     loadingMore,
@@ -192,6 +193,7 @@ export default function InboxClient({
         <ChatThread
           activeConversation={activeConversation}
           messages={messages}
+          loadingMessages={loadingMessages}
           loadingMore={loadingMore}
           hasMore={hasMore}
           sending={sending}

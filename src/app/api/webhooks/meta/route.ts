@@ -384,11 +384,20 @@ export async function POST(req: Request) {
                 messagePayload.media_url = mediaUrl;
               }
 
+              const cleanPhoneDigits = fromPhone.replace(/\D/g, '');
+              const linkVariants = Array.from(new Set([fromPhone, cleanPhoneDigits, `+${cleanPhoneDigits}`]));
+
               await Promise.all([
                 db!.from('messages').insert(messagePayload),
                 db!.from('contacts')
                   .update({ last_received_at: new Date().toISOString() })
-                  .eq('id', contactId)
+                  .eq('id', contactId),
+                // Auto-link any previous unlinked campaign messages for this phone number to the newly resolved contact
+                db!.from('messages')
+                  .update({ contact_id: contactId })
+                  .eq('tenant_id', tenantId)
+                  .is('contact_id', null)
+                  .in('phone_number', linkVariants)
               ]);
 
               // 2. Durably enqueue push notification into Redis background queue (~2ms, non-blocking)

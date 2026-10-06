@@ -38,8 +38,10 @@ export function TenantProvider({
       if (res.ok) {
         setTenant(await res.json());
       }
-    } catch (e) {
-      console.error('[TenantContext] Failed to refresh tenant:', e);
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        console.warn('[TenantContext] Tenant refresh temporarily unavailable');
+      }
     }
   }, []);
 
@@ -62,8 +64,10 @@ export function TenantProvider({
         unreadContactIdsRef.current = new Set(contactIds);
         setUnreadConversationsCount(contactIds.length);
       }
-    } catch (e) {
-      console.error('[TenantContext] Failed to fetch unread count:', e);
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        console.warn('[TenantContext] Unread count refresh deferred (network reconnecting)');
+      }
     }
   }, [tenant?.id, tenant?.user_id]);
 
