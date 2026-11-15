@@ -38,44 +38,44 @@ export async function POST(req: Request) {
       if (msgType === 'text') {
         const textContext = msgPayload.text;
 
-        let contactId;
+        const cleanPhone = fromPhone.replace(/^\+/, '');
+        const cleanPhoneDigits = fromPhone.replace(/\D/g, '');
+
+        let contactId: string | null = null;
         const { data: existingContact } = await db.from('contacts')
           .select('id, name')
           .eq('tenant_id', tenant.id)
-          .eq('phone_number', fromPhone)
-          .single();
+          .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${cleanPhone},phone_number.eq.${cleanPhoneDigits}`)
+          .maybeSingle();
 
         if (existingContact) {
           contactId = existingContact.id;
-        } else {
-          const { data: newContact } = await db.from('contacts').insert({
-            tenant_id: tenant.id,
-            name: payload.sender?.name || fromPhone,
-            phone_number: fromPhone
-          }).select('id').single();
-          contactId = newContact?.id;
         }
+
+        await db.from('messages').insert({
+          tenant_id: tenant.id,
+          contact_id: contactId || null,
+          phone_number: fromPhone,
+          direction: 'inbound',
+          content: textContext,
+          status: 'received',
+          provider_message_id: payload.id
+        });
 
         if (contactId) {
-          await db.from('messages').insert({
-            tenant_id: tenant.id,
-            contact_id: contactId,
-            phone_number: fromPhone,
-            direction: 'inbound',
-            content: textContext,
-            status: 'received',
-            provider_message_id: payload.id
-          });
-
-          await enqueueInboundMessagePushNotification({
-            tenantId: tenant.id,
-            contactId,
-            messageId: payload.id,
-            senderName: payload.sender?.name || fromPhone,
-            senderPhone: fromPhone,
-            messageText: textContext,
-          }).catch((err) => console.error('[Gupshup Webhook Push Enqueue Error]:', err));
+          await db.from('contacts')
+            .update({ last_received_at: new Date().toISOString() })
+            .eq('id', contactId);
         }
+
+        await enqueueInboundMessagePushNotification({
+          tenantId: tenant.id,
+          contactId: contactId || undefined,
+          messageId: payload.id,
+          senderName: payload.sender?.name || existingContact?.name || fromPhone,
+          senderPhone: fromPhone,
+          messageText: textContext,
+        }).catch((err) => console.error('[Gupshup Webhook Push Enqueue Error]:', err));
       }
     }
 

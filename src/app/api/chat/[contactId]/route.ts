@@ -38,17 +38,35 @@ export async function GET(req: Request, { params }: { params: Promise<{ contactI
   const limit = parseInt(searchParams.get('limit') || '50');
   const before = searchParams.get('before');
 
-  // Resolve contact phone number for comprehensive conversation history (including campaign messages)
-  const { data: contact } = await db
-    .from('contacts')
-    .select('id, phone_number')
-    .eq('id', contactId)
-    .eq('tenant_id', tenantId)
-    .maybeSingle();
+  // Resolve contact by ID or phone number
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contactId);
+  let contact: any = null;
+
+  if (isUuid) {
+    const { data } = await db
+      .from('contacts')
+      .select('id, phone_number')
+      .eq('id', contactId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    contact = data;
+  }
+
+  if (!contact) {
+    const cleanId = contactId.replace(/\D/g, '');
+    const { data } = await db
+      .from('contacts')
+      .select('id, phone_number')
+      .eq('tenant_id', tenantId)
+      .or(`phone_number.eq.${contactId},phone_number.eq.${cleanId},phone_number.eq.+${cleanId}`)
+      .maybeSingle();
+    contact = data;
+  }
 
   const phoneVariants: string[] = [];
-  if (contact?.phone_number) {
-    const raw = String(contact.phone_number).trim();
+  const targetPhone = contact?.phone_number || contactId;
+  if (targetPhone) {
+    const raw = String(targetPhone).trim();
     const clean = raw.replace(/\D/g, '');
     if (raw) phoneVariants.push(raw);
     if (clean && clean !== raw) phoneVariants.push(clean);
@@ -59,10 +77,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ contactI
     .select('*')
     .eq('tenant_id', tenantId);
 
-  if (phoneVariants.length > 0) {
-    const uniqueVariants = Array.from(new Set(phoneVariants));
-    const orConditions = [`contact_id.eq.${contactId}`, ...uniqueVariants.map((p) => `phone_number.eq.${p}`)];
-    query = query.or(orConditions.join(','));
+  const orConditions: string[] = [];
+  if (contact?.id) {
+    orConditions.push(`contact_id.eq.${contact.id}`);
+  }
+  if (isUuid && contactId !== contact?.id) {
+    orConditions.push(`contact_id.eq.${contactId}`);
+  }
+  phoneVariants.forEach((p) => {
+    orConditions.push(`phone_number.eq.${p}`);
+  });
+
+  if (orConditions.length > 0) {
+    const uniqueConditions = Array.from(new Set(orConditions));
+    query = query.or(uniqueConditions.join(','));
   } else {
     query = query.eq('contact_id', contactId);
   }
@@ -81,7 +109,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ contactI
   if (contact && data && data.length > 0) {
     const unlinkedIds = data.filter((m: any) => !m.contact_id).map((m: any) => m.id);
     if (unlinkedIds.length > 0) {
-      void db.from('messages').update({ contact_id: contactId }).in('id', unlinkedIds).then(() => {}, () => {});
+      void db.from('messages').update({ contact_id: contact.id }).in('id', unlinkedIds).then(() => {}, () => {});
     }
   }
 
@@ -125,15 +153,56 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   const { content } = await req.json();
   if (!content) return NextResponse.json({ error: 'Message content required' }, { status: 400 });
 
-  const { data: contact } = await db.from('contacts')
-    .select('phone_number, last_received_at')
-    .eq('id', contactId)
-    .single();
-  
-  if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+  // Resolve contact by UUID or phone
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contactId);
+  let contact: any = null;
+
+  if (isUuid) {
+    const { data } = await db.from('contacts')
+      .select('id, phone_number, last_received_at')
+      .eq('id', contactId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    contact = data;
+  }
+
+  if (!contact) {
+    const cleanId = contactId.replace(/\D/g, '');
+    const { data } = await db.from('contacts')
+      .select('id, phone_number, last_received_at')
+      .eq('tenant_id', tenantId)
+      .or(`phone_number.eq.${contactId},phone_number.eq.${cleanId},phone_number.eq.+${cleanId}`)
+      .maybeSingle();
+    contact = data;
+  }
+
+  const recipientPhone = contact?.phone_number || contactId;
+  const cleanPhone = recipientPhone.replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 7) {
+    return NextResponse.json({ error: 'Valid recipient phone number is required' }, { status: 400 });
+  }
 
   // WHATSAPP 24-HOUR WINDOW ENFORCEMENT
-  const lastReceived = contact.last_received_at;
+  // Check latest inbound message from messages table for ground truth
+  const phoneVariants = Array.from(new Set([recipientPhone, cleanPhone, `+${cleanPhone}`]));
+  let inboundCheck = db.from('messages')
+    .select('created_at')
+    .eq('tenant_id', tenantId)
+    .eq('direction', 'inbound');
+
+  if (contact?.id) {
+    const orConds = [`contact_id.eq.${contact.id}`, ...phoneVariants.map((p) => `phone_number.eq.${p}`)];
+    inboundCheck = inboundCheck.or(orConds.join(','));
+  } else {
+    inboundCheck = inboundCheck.in('phone_number', phoneVariants);
+  }
+
+  const { data: latestInboundMsg } = await inboundCheck
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const lastReceived = latestInboundMsg?.created_at || contact?.last_received_at;
   const now = new Date();
   const windowLimit = 24 * 60 * 60 * 1000; // 24 hours in ms
 
@@ -156,8 +225,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
 
   const insertData = {
     tenant_id: tenantId,
-    contact_id: contactId,
-    phone_number: contact.phone_number,
+    contact_id: contact?.id || null,
+    phone_number: recipientPhone,
     direction: 'outbound',
     content: content,
     status: 'pending',
@@ -176,10 +245,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   if (error || !msg) return NextResponse.json({ error: 'Failed' }, { status: 500 });
 
   const { messageQueue } = await import('@/lib/queue');
-  console.log(`[Queue] Adding direct message job to Redis for contact ${contactId}...`);
+  console.log(`[Queue] Adding direct message job to Redis for phone ${recipientPhone}...`);
   await messageQueue.add('send-whatsapp', {
     messageId: msg.id,
-    phone: contact.phone_number,
+    phone: recipientPhone,
     isDirectText: true,
     textContent: content
   });
@@ -225,11 +294,15 @@ export async function DELETE(
   }
 
   try {
+    const cleanId = contactId.replace(/\D/g, '');
+    const phoneVars = Array.from(new Set([contactId, cleanId, `+${cleanId}`].filter(Boolean)));
+    const orConditions = [`contact_id.eq.${contactId}`, ...phoneVars.map((p) => `phone_number.eq.${p}`)];
+
     const { error } = await db
       .from('messages')
       .delete()
-      .eq('contact_id', contactId)
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', tenantId)
+      .or(orConditions.join(','));
 
     if (error) throw error;
 

@@ -9,11 +9,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
   const { contactId } = await params;
 
   try {
+    const cleanPhone = contactId.replace(/\D/g, '');
+    const phoneVariants = Array.from(new Set([contactId, cleanPhone, `+${cleanPhone}`].filter(Boolean)));
+    const orConditions = [`contact_id.eq.${contactId}`, ...phoneVariants.map((p) => `phone_number.eq.${p}`)];
+
     const { error } = await db
       .from('messages')
       .update({ status: 'read' })
       .eq('tenant_id', tenantId)
-      .eq('contact_id', contactId)
+      .or(orConditions.join(','))
       .eq('direction', 'inbound')
       .eq('status', 'received');
 

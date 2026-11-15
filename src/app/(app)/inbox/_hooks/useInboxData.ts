@@ -376,7 +376,14 @@ export function useInboxData({
       const message = payload.new || payload.record;
       if (!message || !message.id) return;
 
-      if (message.contact_id === activeContactIdRef.current) {
+      const cleanActiveId = activeContactIdRef.current ? activeContactIdRef.current.replace(/\D/g, '') : '';
+      const cleanMsgPhone = message.phone_number ? message.phone_number.replace(/\D/g, '') : '';
+
+      const isCurrentConversation =
+        (message.contact_id && message.contact_id === activeContactIdRef.current) ||
+        (cleanActiveId && cleanMsgPhone && cleanActiveId === cleanMsgPhone);
+
+      if (isCurrentConversation) {
         setMessages(prev => {
           const existingIndex = prev.findIndex((m: any) => m.id === message.id);
           if (existingIndex >= 0) {
@@ -392,8 +399,15 @@ export function useInboxData({
       }
 
       setConversations(prev => {
-        const idx = prev.findIndex(c => c.contact.id === message.contact_id);
-        if (idx === -1) return prev;
+        const idx = prev.findIndex(c =>
+          (message.contact_id && c.contact.id === message.contact_id) ||
+          (cleanMsgPhone && c.contact.phone_number && c.contact.phone_number.replace(/\D/g, '') === cleanMsgPhone) ||
+          (cleanMsgPhone && c.contact.id === cleanMsgPhone)
+        );
+        if (idx === -1) {
+          fetchStatusAndDataRef.current();
+          return prev;
+        }
         const next = [...prev];
         const conversation = next[idx];
         const newCreatedAt = new Date(message.created_at).getTime();

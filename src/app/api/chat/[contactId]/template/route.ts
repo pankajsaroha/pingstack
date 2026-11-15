@@ -25,14 +25,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
       }, { status: 403 });
     }
 
-    // 1. Get contact info
-    const { data: contact } = await db.from('contacts')
-      .select('id, name, phone_number')
-      .eq('id', contactId)
-      .eq('tenant_id', tenantId)
-      .single();
+    // 1. Get contact info (support UUID or phone number)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contactId);
+    let contact: any = null;
 
-    if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+    if (isUuid) {
+      const { data } = await db.from('contacts')
+        .select('id, name, phone_number')
+        .eq('id', contactId)
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+      contact = data;
+    }
+
+    if (!contact) {
+      const cleanId = contactId.replace(/\D/g, '');
+      const { data } = await db.from('contacts')
+        .select('id, name, phone_number')
+        .eq('tenant_id', tenantId)
+        .or(`phone_number.eq.${contactId},phone_number.eq.${cleanId},phone_number.eq.+${cleanId}`)
+        .maybeSingle();
+      contact = data;
+    }
+
+    const recipientPhone = contact?.phone_number || contactId;
+    const recipientName = contact?.name || recipientPhone;
+    const cleanPhone = recipientPhone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 7) {
+      return NextResponse.json({ error: 'Valid recipient phone number is required' }, { status: 400 });
+    }
 
     // 2. Get the template content for the inbox record
     const { data: template } = await db.from('templates')
@@ -44,15 +65,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
     // 3. Resolve template body variables for exact inbox display
     const rawContent = template?.content || `[Template: ${templateName}]`;
     const resolvedContent = renderTemplateBody(rawContent, variables, {
-      name: contact.name,
-      phone: contact.phone_number
+      name: recipientName,
+      phone: recipientPhone
     });
 
     // 4. Create the message record with the rendered content
     const { data: msg, error } = await db.from('messages').insert({
       tenant_id: tenantId,
-      contact_id: contactId,
-      phone_number: contact.phone_number,
+      contact_id: contact?.id || null,
+      phone_number: recipientPhone,
       direction: 'outbound',
       content: resolvedContent,
       message_type: 'template',
@@ -70,10 +91,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
     const components = metaParams.length > 0 ? [{ type: 'body', parameters: metaParams }] : [];
 
     // 6. Queue the job
-    console.log(`[Queue] Adding template message job to Redis for contact ${contactId}...`);
+    console.log(`[Queue] Adding template message job to Redis for phone ${recipientPhone}...`);
     await messageQueue.add('send-whatsapp', {
       messageId: msg.id,
-      phone: contact.phone_number,
+      phone: recipientPhone,
       templateId: templateName,
       templateLanguage: language || 'en_US',
       isDirectText: false,

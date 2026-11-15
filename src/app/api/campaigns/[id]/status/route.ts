@@ -12,19 +12,48 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params;
 
-  // Aggregate message statuses for the campaign
-  const { data: stats, error: sErr } = await db.from('messages')
-    .select('status')
-    .eq('campaign_id', id)
-    .eq('tenant_id', tenantId);
-    
-  if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
-  
-  const summary = (stats as MessageStatusRow[]).reduce<Record<string, number>>((acc, curr) => {
+  // Aggregate message statuses for the campaign (chunked to prevent 1,000-row limit truncation)
+  let allStats: Array<{ status: string | null }> = [];
+  let from = 0;
+  const CHUNK_SIZE = 1000;
+
+  while (true) {
+    const { data: chunk, error: sErr } = await db
+      .from('messages')
+      .select('status')
+      .eq('campaign_id', id)
+      .eq('tenant_id', tenantId)
+      .range(from, from + CHUNK_SIZE - 1);
+
+    if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
+    if (!chunk || chunk.length === 0) break;
+    allStats.push(...chunk);
+    if (chunk.length < CHUNK_SIZE) break;
+    from += CHUNK_SIZE;
+  }
+
+  const raw = allStats.reduce<Record<string, number>>((acc, curr) => {
     const status = curr.status || 'unknown';
     acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {});
-  
+
+  const rawPending = raw.pending || 0;
+  const rawSent = raw.sent || 0;
+  const rawDelivered = raw.delivered || 0;
+  const rawRead = raw.read || 0;
+  const rawFailed = raw.failed || 0;
+
+  const summary = {
+    ...raw,
+    total: rawPending + rawSent + rawDelivered + rawRead + rawFailed,
+    sent: rawSent + rawDelivered + rawRead,
+    delivered: rawDelivered + rawRead,
+    read: rawRead,
+    failed: rawFailed,
+    pending: rawPending,
+    raw
+  };
+
   return NextResponse.json(summary);
 }

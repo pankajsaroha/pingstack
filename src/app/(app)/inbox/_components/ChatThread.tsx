@@ -1,13 +1,13 @@
 'use client';
 
 import { Fragment, useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { User, Loader2, MessageCircle, Trash2, ChevronLeft, Users, Check, ChevronDown } from 'lucide-react';
+import { User, Loader2, MessageCircle, Trash2, ChevronLeft, Users, Check, ChevronDown, Copy, X } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
 import ChatComposer from './ChatComposer';
 import TemplateSelector from './TemplateSelector';
 import ContactAvatar from '@/components/ContactAvatar';
-import { formatSeparatorDate } from './utils';
+import { formatSeparatorDate, copyToClipboard, getCopyableMessageText } from './utils';
 
 interface ChatThreadProps {
   activeConversation: any | null;
@@ -110,11 +110,29 @@ export default function ChatThread({
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
+  const [copiedSelected, setCopiedSelected] = useState(false);
   const assignButtonRef = useRef<HTMLButtonElement>(null);
   const assignMenuRef = useRef<HTMLDivElement>(null);
   const measuredHeightsRef = useRef<Record<string, number>>({});
   const [renderTrigger, setRenderTrigger] = useState(0);
   const prevActiveContactIdRef = useRef<string | null>(null);
+
+  const handleCopySelected = async () => {
+    const selectedMsgs = messages.filter((m: any) => selectedMessageIds.has(m.id));
+    const texts = selectedMsgs
+      .map((m: any) => getCopyableMessageText(m))
+      .filter((t: any): t is string => Boolean(t));
+    if (texts.length === 0) return;
+    const combined = texts.join('\n\n');
+    const success = await copyToClipboard(combined);
+    if (success) {
+      setCopiedSelected(true);
+      setTimeout(() => {
+        setCopiedSelected(false);
+        onClearSelection();
+      }, 1200);
+    }
+  };
 
   // Close assignment popup on outside click or Escape key
   useEffect(() => {
@@ -237,7 +255,7 @@ export default function ChatThread({
       const item = listItems[i];
       const itemHeight =
         measuredHeightsRef.current[item.id] || (item.type === 'date' ? 44 : 110);
-        
+
       if (item.type === 'date') {
         dateHeaders.push({
           id: item.id,
@@ -270,7 +288,7 @@ export default function ChatThread({
     const header = dateHeaders[i];
     if (header.offset <= scrollTop + 8) {
       activeDateHeader = header;
-      
+
       const nextHeader = dateHeaders[i + 1];
       if (nextHeader) {
         const distance = nextHeader.offset - (scrollTop + 8);
@@ -307,7 +325,58 @@ export default function ChatThread({
     <>
       {/* Header */}
       <div className="h-14 sm:h-16 px-4 sm:px-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md z-10 sticky top-0 justify-between">
-        <div className="flex items-center min-w-0">
+        {/* Mobile Selection Action Bar (dedicated full-width bar when messages are selected) */}
+        {selectedMessageIds.size > 0 && (
+          <div className="flex sm:hidden items-center justify-between w-full min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={onClearSelection}
+                className="p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Cancel selection"
+                aria-label="Cancel selection"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">
+                {selectedMessageIds.size} Selected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleCopySelected}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs ${
+                  copiedSelected
+                    ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : 'border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700/80 text-zinc-700 dark:text-zinc-200'
+                }`}
+                title="Copy selected messages"
+              >
+                {copiedSelected ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                )}
+                <span>{copiedSelected ? 'Copied' : 'Copy'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onBulkDelete}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-red-500/25 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+                title="Delete selected messages"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Standard Contact Info (visible on desktop; hidden on mobile when messages are selected) */}
+        <div className={`items-center min-w-0 ${selectedMessageIds.size > 0 ? 'hidden sm:flex' : 'flex'}`}>
           <button
             onClick={onBackMobile}
             className="md:hidden p-1.5 -ml-1.5 mr-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -331,7 +400,8 @@ export default function ChatThread({
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        {/* Header Right Actions (visible on desktop; hidden on mobile when messages are selected) */}
+        <div className={`items-center space-x-2 sm:space-x-3 ${selectedMessageIds.size > 0 ? 'hidden sm:flex' : 'flex'}`}>
           {/* Assignment dropdown (Progressive disclosure: visible only if teams exist or multiple members exist) */}
           {(teams.length > 0 || members.length > 1) && activeConversation?.contact?.id && (() => {
             const currentAssignment = activeConversation.assignment;
@@ -363,7 +433,7 @@ export default function ChatThread({
 
                 {/* Assignment popover */}
                 {showAssignMenu && (
-                  <div 
+                  <div
                     ref={assignMenuRef}
                     className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 p-2 text-xs animate-in fade-in zoom-in-95 duration-100"
                     onClick={e => e.stopPropagation()}
@@ -446,17 +516,35 @@ export default function ChatThread({
             );
           })()}
 
-          {/* Bulk-delete toolbar */}
+          {/* Bulk-delete & Copy toolbar (desktop only when selection active) */}
           {selectedMessageIds.size > 0 && (
             <div className="flex items-center space-x-2 sm:space-x-3">
               <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">{selectedMessageIds.size} Selected</span>
               <button
+                type="button"
                 onClick={onClearSelection}
-                className="text-[10px] font-bold uppercase text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 tracking-wider cursor-pointer"
+                className="text-[10px] font-bold uppercase text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 tracking-wider cursor-pointer px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
               >
                 Clear
               </button>
               <button
+                type="button"
+                onClick={handleCopySelected}
+                className={`flex items-center px-2.5 sm:px-3 py-1.5 border rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors ${copiedSelected
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                  }`}
+                title="Copy selected message"
+              >
+                {copiedSelected ? (
+                  <Check className="w-3.5 h-3.5 mr-1 text-emerald-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 mr-1" />
+                )}
+                <span>{copiedSelected ? 'Copied' : 'Copy'}</span>
+              </button>
+              <button
+                type="button"
                 onClick={onBulkDelete}
                 className="flex items-center px-3 py-1.5 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
               >
