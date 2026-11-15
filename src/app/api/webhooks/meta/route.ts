@@ -323,72 +323,65 @@ export async function POST(req: Request) {
 
             // NORMALIZE: Meta sends 91..., but we might have stored +91...
             const cleanPhone = fromPhone.replace(/^\+/, '');
+            const cleanPhoneDigits = fromPhone.replace(/\D/g, '');
+            const phoneVariants = Array.from(new Set([fromPhone, cleanPhone, cleanPhoneDigits, `+${cleanPhoneDigits}`]));
 
-            // Find or create contact
-            let contactId: string | undefined;
+            // Find existing contact (do NOT auto-create; inbound messages must not create contacts or consume contacts quota)
+            let contactId: string | null = null;
             const { data: existingContact } = await db!
               .from('contacts')
               .select('id, name')
-              .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${cleanPhone}`)
+              .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${cleanPhone},phone_number.eq.${cleanPhoneDigits}`)
               .eq('tenant_id', tenantId)
               .maybeSingle();
 
             if (existingContact) {
               contactId = existingContact.id;
-            } else {
-              const { data: newContact } = await db!
-                .from('contacts')
-                .insert({
-                  tenant_id: tenantId,
-                  name: value.contacts?.[0]?.profile?.name || fromPhone,
-                  phone_number: fromPhone
-                })
-                .select('id')
-                .single();
-              contactId = newContact?.id;
             }
 
+            // Determine if this is the customer's first inbound message ever to this workspace
+            let priorInboundQuery = db!
+              .from('messages')
+              .select('id', { count: 'exact', head: true })
+              .eq('tenant_id', tenantId)
+              .eq('direction', 'inbound');
+
             if (contactId) {
-              // Determine if this is the customer's first inbound message ever
-              let isFirstMessage = false;
-              if (!existingContact) {
-                isFirstMessage = true;
-              } else {
-                const { count: priorInboundCount } = await db!
-                  .from('messages')
-                  .select('id', { count: 'exact', head: true })
-                  .eq('tenant_id', tenantId)
-                  .eq('contact_id', contactId)
-                  .eq('direction', 'inbound');
+              const orConditions = [`contact_id.eq.${contactId}`, ...phoneVariants.map((p) => `phone_number.eq.${p}`)];
+              priorInboundQuery = priorInboundQuery.or(orConditions.join(','));
+            } else {
+              priorInboundQuery = priorInboundQuery.in('phone_number', phoneVariants);
+            }
 
-                isFirstMessage = (priorInboundCount || 0) === 0;
-              }
+            const { count: priorInboundCount } = await priorInboundQuery;
+            const isFirstMessage = (priorInboundCount || 0) === 0;
 
-              // 1. Persist inbound message first (highest priority)
-              const messagePayload: any = {
-                tenant_id: tenantId,
-                contact_id: contactId,
-                phone_number: fromPhone,
-                direction: 'inbound',
-                content: textContext,
-                status: 'received',
-                provider_message_id: msgId,
-                message_type: msgType,
-                media_path: mediaPath,
-                media_size_bytes: mediaSizeBytes
-              };
-              if (msgError) {
-                messagePayload.error = msgError;
-              }
-              if (mediaUrl) {
-                messagePayload.media_url = mediaUrl;
-              }
+            // 1. Persist inbound message (highest priority)
+            const messagePayload: any = {
+              tenant_id: tenantId,
+              contact_id: contactId || null,
+              phone_number: fromPhone,
+              direction: 'inbound',
+              content: textContext,
+              status: 'received',
+              provider_message_id: msgId,
+              message_type: msgType,
+              media_path: mediaPath,
+              media_size_bytes: mediaSizeBytes
+            };
+            if (msgError) {
+              messagePayload.error = msgError;
+            }
+            if (mediaUrl) {
+              messagePayload.media_url = mediaUrl;
+            }
 
-              const cleanPhoneDigits = fromPhone.replace(/\D/g, '');
-              const linkVariants = Array.from(new Set([fromPhone, cleanPhoneDigits, `+${cleanPhoneDigits}`]));
+            const dbOps: any[] = [
+              db!.from('messages').insert(messagePayload)
+            ];
 
-              await Promise.all([
-                db!.from('messages').insert(messagePayload),
+            if (contactId) {
+              dbOps.push(
                 db!.from('contacts')
                   .update({ last_received_at: new Date().toISOString() })
                   .eq('id', contactId),
@@ -397,47 +390,56 @@ export async function POST(req: Request) {
                   .update({ contact_id: contactId })
                   .eq('tenant_id', tenantId)
                   .is('contact_id', null)
-                  .in('phone_number', linkVariants)
-              ]);
+                  .in('phone_number', phoneVariants)
+              );
+            }
 
-              // 2. Durably enqueue push notification into Redis background queue (~2ms, non-blocking)
-              await enqueueInboundMessagePushNotification({
+            await Promise.all(dbOps);
+
+            const senderName = value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone;
+
+            // 2. Durably enqueue push notification into Redis background queue (~2ms, non-blocking)
+            await enqueueInboundMessagePushNotification({
+              tenantId,
+              contactId: contactId || undefined,
+              messageId: msgId,
+              whatsappMessageId: msgId,
+              senderName,
+              senderPhone: fromPhone,
+              messageText: textContext,
+            }).catch((err) => console.error('[Meta Webhook Push Enqueue Error]:', err));
+
+            // 3. Asynchronously dispatch developer webhook for inbound message
+            dispatchDeveloperWebhookEvent(tenantId, 'message.received', {
+              message_id: msgId,
+              contact_id: contactId || null,
+              from: fromPhone,
+              sender_name: senderName,
+              text: textContext,
+              timestamp: new Date().toISOString(),
+            }).catch(() => null);
+
+            // 4. Immediately evaluate automations and enqueue auto-reply jobs into Redis queue
+            try {
+              await evaluateAndExecuteAutomations({
                 tenantId,
-                contactId,
-                messageId: msgId,
-                whatsappMessageId: msgId,
-                senderName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
-                senderPhone: fromPhone,
+                contactId: contactId || '',
+                fromPhone,
                 messageText: textContext,
-              }).catch((err) => console.error('[Meta Webhook Push Enqueue Error]:', err));
-
-              // 3. Asynchronously dispatch developer webhook for inbound message
-              dispatchDeveloperWebhookEvent(tenantId, 'message.received', {
-                message_id: msgId,
-                contact_id: contactId,
-                from: fromPhone,
-                sender_name: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
-                text: textContext,
-                timestamp: new Date().toISOString(),
-              }).catch(() => null);
-
-              // 4. Immediately evaluate automations and enqueue auto-reply jobs into Redis queue
-              try {
-                await evaluateAndExecuteAutomations({
-                  tenantId,
-                  contactId,
-                  fromPhone,
-                  messageText: textContext,
-                  contactName: value.contacts?.[0]?.profile?.name || existingContact?.name || fromPhone,
-                  isFirstMessage,
-                });
-              } catch (autoErr) {
-                console.error('[Meta Webhook Automation Error]:', autoErr);
-              }
+                contactName: senderName,
+                isFirstMessage,
+              });
+            } catch (autoErr) {
+              console.error('[Meta Webhook Automation Error]:', autoErr);
             }
           });
 
           await Promise.all([...statusPromises, ...messagePromises]);
+
+          if (value.statuses && value.statuses.length > 0) {
+            const { invalidateCampaignsCache } = await import('@/lib/server/campaigns');
+            await invalidateCampaignsCache(tenantId!).catch(() => null);
+          }
         });
 
         await Promise.all(changePromises);

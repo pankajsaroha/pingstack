@@ -53,12 +53,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ contactI
     }
 
     // 3. Locate message attachment
+    const cleanId = contactId.replace(/\D/g, '');
+    const phoneVars = Array.from(new Set([contactId, cleanId, `+${cleanId}`].filter(Boolean)));
+    const orConditions = [`contact_id.eq.${contactId}`, ...phoneVars.map((p) => `phone_number.eq.${p}`)];
+
     const { data: message, error: msgError } = await db
       .from('messages')
       .select('id, media_path, message_type, content')
       .eq('id', messageId)
-      .eq('contact_id', contactId)
       .eq('tenant_id', tenantId)
+      .or(orConditions.join(','))
       .maybeSingle();
 
     if (msgError || !message || !message.media_path) {
@@ -156,18 +160,57 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
 
     if (uploadError) throw uploadError;
 
-    // 4. Get contact info and check 24h window
-    const { data: contact } = await db.from('contacts')
-      .select('phone_number, last_received_at')
-      .eq('id', contactId)
-      .single();
+    // 4. Resolve contact and verify 24h WhatsApp window
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contactId);
+    let contact: any = null;
 
-    if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+    if (isUuid) {
+      const { data } = await db.from('contacts')
+        .select('id, phone_number, last_received_at')
+        .eq('id', contactId)
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+      contact = data;
+    }
 
-    // 24 Hour Window Check
-    const lastInbound = contact.last_received_at ? new Date(contact.last_received_at) : null;
+    if (!contact) {
+      const cleanId = contactId.replace(/\D/g, '');
+      const { data } = await db.from('contacts')
+        .select('id, phone_number, last_received_at')
+        .eq('tenant_id', tenantId)
+        .or(`phone_number.eq.${contactId},phone_number.eq.${cleanId},phone_number.eq.+${cleanId}`)
+        .maybeSingle();
+      contact = data;
+    }
+
+    const recipientPhone = contact?.phone_number || contactId;
+    const cleanPhone = recipientPhone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 7) {
+      return NextResponse.json({ error: 'Valid recipient phone number is required' }, { status: 400 });
+    }
+
+    // Check latest inbound message from messages table for ground truth
+    const phoneVariants = Array.from(new Set([recipientPhone, cleanPhone, `+${cleanPhone}`]));
+    let inboundCheck = db.from('messages')
+      .select('created_at')
+      .eq('tenant_id', tenantId)
+      .eq('direction', 'inbound');
+
+    if (contact?.id) {
+      const orConds = [`contact_id.eq.${contact.id}`, ...phoneVariants.map((p) => `phone_number.eq.${p}`)];
+      inboundCheck = inboundCheck.or(orConds.join(','));
+    } else {
+      inboundCheck = inboundCheck.in('phone_number', phoneVariants);
+    }
+
+    const { data: latestInboundMsg } = await inboundCheck
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const lastReceived = latestInboundMsg?.created_at || contact?.last_received_at;
     const now = new Date();
-    const isWindowClosed = !lastInbound || (now.getTime() - lastInbound.getTime() > 24 * 60 * 60 * 1000);
+    const isWindowClosed = !lastReceived || (now.getTime() - new Date(lastReceived).getTime() > 24 * 60 * 60 * 1000);
 
     if (isWindowClosed) {
       return NextResponse.json({ 
@@ -179,8 +222,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
     // 5. Create message record
     const { data: msg, error: mError } = await db.from('messages').insert({
       tenant_id: tenantId,
-      contact_id: contactId,
-      phone_number: contact.phone_number,
+      contact_id: contact?.id || null,
+      phone_number: recipientPhone,
       direction: 'outbound',
       content: caption || '',
       message_type: mediaType,
@@ -199,7 +242,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ contact
     // 7. Queue the job
     await messageQueue.add('send-whatsapp', {
       messageId: msg.id,
-      phone: contact.phone_number,
+      phone: recipientPhone,
       isMedia: true,
       mediaType,
       mediaPath: filePath,

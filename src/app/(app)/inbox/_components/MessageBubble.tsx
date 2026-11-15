@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Send, Clock, Check, CheckCheck, AlertCircle,
-  Trash2, Image, FileText, Paperclip, X, Download, ExternalLink
+  Trash2, Image, FileText, Paperclip, X, Download, ExternalLink, Copy
 } from 'lucide-react';
 import { WhatsAppFormattedText } from '@/lib/whatsapp-formatter';
+import { copyToClipboard, getCopyableMessageText } from './utils';
 
 interface MessageBubbleProps {
   msg: {
@@ -38,17 +39,30 @@ export default function MessageBubble({
   const isOutbound = msg.direction === 'outbound';
   const effectiveContactId = msg.contact_id || propContactId;
   const [showErrorPopover, setShowErrorPopover] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copyableText = getCopyableMessageText(msg);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!copyableText) return;
+    const success = await copyToClipboard(copyableText);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   // Attachment details helper
   const rawFileName = msg.media_path ? msg.media_path.split('/').pop()?.replace(/^\d+_/, '') || 'attachment' : '';
   const fileExt = rawFileName.includes('.') ? rawFileName.split('.').pop()?.toUpperCase() || '' : (msg.message_type === 'document' ? 'DOC' : '');
-  const formattedSize = msg.media_size_bytes 
-    ? (msg.media_size_bytes < 1024 * 1024 
-        ? `${Math.max(1, Math.round(msg.media_size_bytes / 1024))} KB` 
-        : `${(msg.media_size_bytes / (1024 * 1024)).toFixed(1)} MB`)
+  const formattedSize = msg.media_size_bytes
+    ? (msg.media_size_bytes < 1024 * 1024
+      ? `${Math.max(1, Math.round(msg.media_size_bytes / 1024))} KB`
+      : `${(msg.media_size_bytes / (1024 * 1024)).toFixed(1)} MB`)
     : '';
 
-  // Long-press detection for mobile/touch
+  // Long-press detection for mobile/touch across the entire message bubble
   const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const isLongPressRef = useRef(false);
@@ -68,7 +82,7 @@ export default function MessageBubble({
       touchTimerRef.current = setTimeout(() => {
         isLongPressRef.current = true;
         if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-          try { navigator.vibrate(40); } catch (_) {}
+          try { navigator.vibrate(40); } catch (_) { }
         }
         onToggleSelect(msg.id);
       }, 500);
@@ -101,6 +115,7 @@ export default function MessageBubble({
       isLongPressRef.current = false;
       return;
     }
+
     if (selectionActive) {
       e.stopPropagation();
       onToggleSelect(msg.id);
@@ -111,81 +126,88 @@ export default function MessageBubble({
     <div className={`flex group items-center w-full min-w-0 py-1.5 sm:py-2 px-1 ${isOutbound ? 'justify-end' : 'justify-start'}`}>
 
       {/* Checkbox — visible when selection is active or on hover */}
-      <div 
+      <div
         onClick={(e) => {
           e.stopPropagation();
           onToggleSelect(msg.id);
         }}
-        className={`mr-2.5 transition-all duration-200 shrink-0 cursor-pointer flex items-center justify-center select-none ${
-          selectionActive || isSelected 
-            ? 'opacity-100 w-5.5' 
+        className={`mr-2.5 transition-all duration-200 shrink-0 cursor-pointer flex items-center justify-center select-none ${selectionActive || isSelected
+            ? 'opacity-100 w-5.5'
             : 'opacity-0 w-0 group-hover:opacity-70 hover:!opacity-100 group-hover:w-5.5 overflow-hidden'
-        }`}
+          }`}
         title={isSelected ? 'Deselect message' : 'Select message'}
       >
         <div
-          className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center shadow-2xs ${
-            isSelected
+          className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center shadow-2xs ${isSelected
               ? 'border-indigo-600 bg-indigo-600 dark:border-indigo-500 dark:bg-indigo-500 text-white scale-105'
               : 'border-zinc-400 dark:border-zinc-500 bg-white/90 dark:bg-zinc-800/90 hover:border-indigo-500 dark:hover:border-indigo-400'
-          }`}
+            }`}
         >
           {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
         </div>
       </div>
 
-      {/* Delete button (single delete on desktop hover when selection mode is inactive) */}
+      {/* Inbound message actions — hover on desktop */}
       {!isOutbound && !selectionActive && (
-        <button
-          onClick={() => onDelete(msg.id)}
-          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-opacity self-center mr-1.5 cursor-pointer shrink-0 hidden sm:block"
-          title="Delete message"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <div className="hidden sm:flex items-center gap-0.5 self-center mr-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {copyableText && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className={`p-1 rounded-md transition-colors cursor-pointer ${copied ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40' : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                }`}
+              title={copied ? 'Copied!' : 'Copy message'}
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onDelete(msg.id)}
+            className="p-1 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+            title="Delete message"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )}
 
       {/* Bubble */}
-      <div 
+      <div
         onClick={handleBubbleClick}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
         onContextMenu={(e) => {
-          if (selectionActive) e.preventDefault();
+          e.preventDefault();
         }}
-        className={`max-w-[85%] sm:max-w-[70%] min-w-0 rounded-2xl px-4 py-2.5 sm:px-4.5 sm:py-3 shadow-2xs relative border break-words transition-all duration-150 ${
-          selectionActive ? 'cursor-pointer select-none' : ''
-        } ${
-          isSelected 
+        className={`max-w-[85%] sm:max-w-[70%] min-w-0 rounded-2xl px-4 py-2.5 sm:px-4.5 sm:py-3 shadow-2xs relative border break-words transition-all duration-150 select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${selectionActive ? 'cursor-pointer' : ''
+          } ${isSelected
             ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-zinc-900'
             : ''
-        } ${
-          isOutbound
+          } ${isOutbound
             ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 rounded-br-xs ml-8 sm:ml-12'
             : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700/80 text-zinc-900 dark:text-zinc-100 rounded-bl-xs mr-8 sm:mr-12'
-        }`}
+          }`}
       >
         {/* Attachment preview */}
         {msg.media_path && (
-          <div className={`mb-2 p-2.5 rounded-xl border flex items-center justify-between gap-2.5 transition-all ${
-            isOutbound 
-              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20 hover:bg-white/15' 
+          <div className={`mb-2 p-2.5 rounded-xl border flex items-center justify-between gap-2.5 transition-all ${isOutbound
+              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20 hover:bg-white/15'
               : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-700/60 hover:bg-zinc-100 dark:hover:bg-zinc-900'
-          }`}>
+            }`}>
             <div className="flex items-center min-w-0 gap-2.5 flex-1">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                isOutbound 
-                  ? 'bg-white/20 dark:bg-black/20 text-white dark:text-zinc-900' 
-                  : fileExt === 'PDF' 
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isOutbound
+                  ? 'bg-white/20 dark:bg-black/20 text-white dark:text-zinc-900'
+                  : fileExt === 'PDF'
                     ? 'bg-red-500/10 text-red-500 dark:text-red-400'
                     : (fileExt === 'DOC' || fileExt === 'DOCX')
                       ? 'bg-blue-500/10 text-blue-500 dark:text-blue-400'
                       : (fileExt === 'XLS' || fileExt === 'XLSX' || fileExt === 'CSV')
                         ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400'
                         : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-              }`}>
+                }`}>
                 {msg.message_type === 'image' && <Image className="w-4 h-4" />}
                 {msg.message_type === 'video' && <Send className="w-4 h-4 rotate-90" />}
                 {msg.message_type === 'document' && <FileText className="w-4 h-4" />}
@@ -194,8 +216,7 @@ export default function MessageBubble({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   {fileExt && (
-                    <span className={`text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded ${
-                      isOutbound
+                    <span className={`text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded ${isOutbound
                         ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-900'
                         : fileExt === 'PDF'
                           ? 'bg-red-500/15 text-red-600 dark:text-red-400'
@@ -204,7 +225,7 @@ export default function MessageBubble({
                             : (fileExt === 'XLS' || fileExt === 'XLSX' || fileExt === 'CSV')
                               ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                               : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'
-                    }`}>
+                      }`}>
                       {fileExt}
                     </span>
                   )}
@@ -226,11 +247,10 @@ export default function MessageBubble({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className={`p-1.5 rounded-lg transition-colors shrink-0 flex items-center justify-center cursor-pointer ${
-                  isOutbound
+                className={`p-1.5 rounded-lg transition-colors shrink-0 flex items-center justify-center cursor-pointer ${isOutbound
                     ? 'bg-white/10 hover:bg-white/25 text-white dark:text-zinc-900'
                     : 'bg-zinc-200/80 dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400'
-                }`}
+                  }`}
                 title={fileExt === 'PDF' ? 'Open / Download PDF' : `Download ${rawFileName}`}
               >
                 {fileExt === 'PDF' ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
@@ -241,11 +261,10 @@ export default function MessageBubble({
 
         {/* Inbound Document without media_path fallback */}
         {!msg.media_path && msg.message_type === 'document' && (
-          <div className={`mb-2 p-2.5 rounded-xl border flex items-center gap-2.5 ${
-            isOutbound 
-              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20 text-white dark:text-zinc-900' 
+          <div className={`mb-2 p-2.5 rounded-xl border flex items-center gap-2.5 ${isOutbound
+              ? 'bg-white/10 dark:bg-black/10 border-white/20 dark:border-black/20 text-white dark:text-zinc-900'
               : 'bg-zinc-50 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-700/60 text-zinc-800 dark:text-zinc-200'
-          }`}>
+            }`}>
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
               <FileText className="w-4 h-4" />
             </div>
@@ -272,7 +291,7 @@ export default function MessageBubble({
             </div>
           </div>
         ) : (
-          <div className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-normal break-words [overflow-wrap:anywhere] min-w-0">
+          <div className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed font-normal break-words [overflow-wrap:anywhere] min-w-0 select-none">
             {msg.content && !['[Document]', '[Photo]', '[Video]', '[Voice message]', '[Audio]'].includes(msg.content.trim()) ? (
               <WhatsAppFormattedText text={msg.content} />
             ) : (
@@ -282,17 +301,17 @@ export default function MessageBubble({
         )}
 
         {/* Timestamp + status */}
-        <div className={`flex items-center justify-end mt-1 space-x-1 ${isOutbound ? 'text-white/60 dark:text-zinc-900/60' : 'text-zinc-400 dark:text-zinc-500'}`}>
+        <div className={`flex items-center justify-end mt-1 space-x-1 select-none ${isOutbound ? 'text-white/60 dark:text-zinc-900/60' : 'text-zinc-400 dark:text-zinc-500'}`}>
           <span className="text-[9px] font-mono" suppressHydrationWarning>
             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           {isOutbound && (
             <span className="ml-1 flex items-center">
-              {msg.status === 'pending'   && <Clock className="w-3 h-3" />}
-              {msg.status === 'sent'      && <Check className="w-3 h-3" />}
+              {msg.status === 'pending' && <Clock className="w-3 h-3" />}
+              {msg.status === 'sent' && <Check className="w-3 h-3" />}
               {msg.status === 'delivered' && <CheckCheck className="w-3 h-3" />}
-              {msg.status === 'read'      && <CheckCheck className="w-3 h-3 text-indigo-400 dark:text-indigo-600" />}
-              {msg.status === 'failed'    && (
+              {msg.status === 'read' && <CheckCheck className="w-3 h-3 text-indigo-400 dark:text-indigo-600" />}
+              {msg.status === 'failed' && (
                 <div className="relative group/error">
                   <button
                     type="button"
@@ -307,11 +326,10 @@ export default function MessageBubble({
                   </button>
 
                   <div
-                    className={`absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 p-3 rounded-xl text-[11px] border border-red-500/30 shadow-lg transition-all z-50 pointer-events-auto ${
-                      showErrorPopover
+                    className={`absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 p-3 rounded-xl text-[11px] border border-red-500/30 shadow-lg transition-all z-50 pointer-events-auto ${showErrorPopover
                         ? 'opacity-100 translate-y-0 block'
                         : 'opacity-0 translate-y-2 pointer-events-none hidden sm:group-hover/error:block sm:group-hover/error:opacity-100 sm:group-hover/error:pointer-events-auto'
-                    }`}
+                      }`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-between mb-1.5 border-b border-zinc-200 dark:border-zinc-800 pb-1.5 text-red-500 font-bold uppercase text-[10px]">
@@ -339,15 +357,29 @@ export default function MessageBubble({
         </div>
       </div>
 
-      {/* Delete button — outbound side */}
+      {/* Outbound message actions — hover on desktop */}
       {isOutbound && !selectionActive && (
-        <button
-          onClick={() => onDelete(msg.id)}
-          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-opacity self-center ml-1.5 cursor-pointer shrink-0 hidden sm:block"
-          title="Delete message"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <div className="hidden sm:flex items-center gap-0.5 self-center ml-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {copyableText && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className={`p-1 rounded-md transition-colors cursor-pointer ${copied ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40' : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                }`}
+              title={copied ? 'Copied!' : 'Copy message'}
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onDelete(msg.id)}
+            className="p-1 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+            title="Delete message"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )}
     </div>
   );

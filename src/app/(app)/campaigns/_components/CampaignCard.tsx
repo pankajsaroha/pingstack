@@ -20,19 +20,27 @@ export default function CampaignCard({
   onRetryFailed,
   onDeleteCampaign,
 }: CampaignCardProps) {
+  const rawStats = campaign.stats?.raw;
+  const total = typeof campaign.stats?.total === 'number'
+    ? campaign.stats.total
+    : rawStats
+      ? (rawStats.sent || 0) + (rawStats.delivered || 0) + (rawStats.read || 0) + (rawStats.failed || 0) + (rawStats.pending || 0)
+      : ((campaign.stats?.sent || 0) + (campaign.stats?.delivered || 0) + (campaign.stats?.read || 0) + (campaign.stats?.failed || 0) + (campaign.stats?.pending || 0));
+
   const sent = campaign.stats?.sent || 0;
   const delivered = campaign.stats?.delivered || 0;
   const read = campaign.stats?.read || 0;
   const failed = campaign.stats?.failed || 0;
   const pending = campaign.stats?.pending || 0;
-  const total = sent + delivered + read + failed + pending;
+  const awaitingDelivery = rawStats?.sent ?? Math.max(0, sent - delivered);
 
   const failedCount = failed;
   const isFailedState = campaign.status === 'failed' || campaign.status === 'partially_failed' || failedCount > 0;
 
-  // Calculate delivery percentage
-  const successPct = total > 0 ? Math.round(((delivered + read) / Math.max(1, total)) * 100) : 0;
+  // Calculate delivery percentage: confirmed delivered (delivered + read) / total messages
+  const successPct = total > 0 ? Math.round((delivered / Math.max(1, total)) * 100) : 0;
   const failPct = total > 0 ? Math.round((failed / Math.max(1, total)) * 100) : 0;
+  const inTransitPct = total > 0 ? Math.round((Math.max(0, awaitingDelivery) / Math.max(1, total)) * 100) : 0;
 
   const getStatusBadge = () => {
     if (campaign.status === 'scheduled' || (campaign.scheduled_at && campaign.status === 'draft')) {
@@ -170,8 +178,8 @@ export default function CampaignCard({
               <span className="font-mono text-zinc-800 dark:text-zinc-200 font-semibold">{successPct}% Success</span>
             </div>
             <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden flex">
-              <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${successPct}%` }} title={`Delivered: ${delivered + read}`} />
-              <div className="bg-blue-500 transition-all duration-500" style={{ width: `${total > 0 ? (sent / total) * 100 : 0}%` }} title={`Sent: ${sent}`} />
+              <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${successPct}%` }} title={`Delivered: ${delivered}`} />
+              <div className="bg-blue-500 transition-all duration-500" style={{ width: `${inTransitPct}%` }} title={`Awaiting delivery: ${awaitingDelivery}`} />
               <div className="bg-rose-500 transition-all duration-500" style={{ width: `${failPct}%` }} title={`Failed: ${failed}`} />
             </div>
           </div>
@@ -194,11 +202,10 @@ export default function CampaignCard({
             <p className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{read}</p>
           </div>
 
-          <div className={`p-2.5 rounded-lg border transition-all ${
-            failed > 0
+          <div className={`p-2.5 rounded-lg border transition-all ${failed > 0
               ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200/80 dark:border-rose-900/40'
               : 'bg-zinc-100/70 dark:bg-zinc-800/60 border-zinc-200/80 dark:border-zinc-700/60'
-          }`}>
+            }`}>
             <p className={`text-[10px] font-mono uppercase ${failed > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
               Failed
             </p>

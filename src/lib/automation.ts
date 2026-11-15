@@ -37,6 +37,52 @@ export interface AutomationRule {
   created_at?: string;
 }
 
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Checks if the message contains the keyword as a complete word/phrase bounded by
+ * non-alphanumeric characters, whitespace, or string boundaries.
+ * Supports Unicode, Indian languages (Hindi, Devanagari) and punctuation boundaries.
+ */
+export function matchesExactWord(message: string, keyword: string): boolean {
+  const cleanKeyword = (keyword || '').trim().toLowerCase();
+  const cleanMessage = (message || '').trim().toLowerCase();
+  if (!cleanKeyword || !cleanMessage) return false;
+
+  const escaped = escapeRegExp(cleanKeyword);
+  const leftBoundary = /^[\p{L}\p{N}]/u.test(cleanKeyword) ? '(?:^|[^\\p{L}\\p{N}])' : '';
+  const rightBoundary = /[\p{L}\p{N}]$/u.test(cleanKeyword) ? '(?:$|[^\\p{L}\\p{N}])' : '';
+
+  const regex = new RegExp(`${leftBoundary}${escaped}${rightBoundary}`, 'u');
+  return regex.test(cleanMessage);
+}
+
+/**
+ * Normalizes text for exact keyword matching by converting to lowercase,
+ * collapsing whitespace, and stripping leading/trailing punctuation and symbols.
+ */
+export function normalizeForExactMatch(text: string): string {
+  if (!text) return '';
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+}
+
+/**
+ * Evaluates whether message text exactly matches a keyword, handling whitespace
+ * and edge punctuation symmetrically and case-insensitively.
+ */
+export function matchesExactKeyword(message: string, keyword: string): boolean {
+  const normKeyword = normalizeForExactMatch(keyword);
+  const normMessage = normalizeForExactMatch(message);
+  if (!normKeyword || !normMessage) return false;
+  return normMessage === normKeyword;
+}
+
 /**
  * Safely evaluates and executes matching automation rules for an incoming message.
  */
@@ -75,8 +121,28 @@ export async function evaluateAndExecuteAutomations({
     const normalizedText = (messageText || '').trim().toLowerCase();
     const cleanPhone = fromPhone.replace(/\D/g, '');
 
-    for (const rule of rules as AutomationRule[]) {
+    // Sort rules by priority:
+    // 1. exact_match (highest priority: specific single-keyword intent)
+    // 2. message_contains / keyword (medium priority: word boundary match)
+    // 3. first_inbound / welcome (fallback priority: greeting for new conversations)
+    const priorityWeight: Record<string, number> = {
+      exact_match: 1,
+      message_contains: 2,
+      keyword: 2,
+      first_inbound: 3,
+      welcome: 3,
+    };
+
+    const sortedRules = [...(rules as AutomationRule[])].sort((a, b) => {
+      const pA = priorityWeight[a.trigger_type] || 99;
+      const pB = priorityWeight[b.trigger_type] || 99;
+      if (pA !== pB) return pA - pB;
+      return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+    });
+
+    for (const rule of sortedRules) {
       const isMatched = matchTriggerAndConditions(rule, {
+        rawMessageText: messageText || '',
         normalizedText,
         cleanPhone,
         contactName: contactName || 'Customer',
@@ -84,7 +150,20 @@ export async function evaluateAndExecuteAutomations({
       });
 
       if (isMatched) {
-        console.log(`[Automation] Rule "${rule.name}" (${rule.id}) triggered for phone ${fromPhone}`);
+        // Guard first_inbound / welcome rules against race conditions and concurrent webhooks using Redis lock
+        if (rule.trigger_type === 'welcome' || rule.trigger_type === 'first_inbound') {
+          const { connection } = await import('./queue');
+          if (connection && connection.status === 'ready') {
+            const lockKey = `automation:first_inbound:${tenantId}:${cleanPhone}`;
+            const acquired = await connection.set(lockKey, '1', 'EX', 86400 * 30, 'NX');
+            if (!acquired) {
+              console.log(`[Automation] Skipped welcome rule: concurrent or prior welcome already sent to ${cleanPhone}`);
+              continue;
+            }
+          }
+        }
+
+        console.log(`[Automation] Executing rule "${rule.name}" (${rule.id}) [trigger: ${rule.trigger_type}] for phone ${fromPhone}`);
         await executeRuleActions(rule, {
           tenantId,
           contactId,
@@ -101,6 +180,9 @@ export async function evaluateAndExecuteAutomations({
             last_executed_at: new Date().toISOString(),
           })
           .eq('id', rule.id);
+
+        // Deterministic single-execution policy: execute at most 1 matching rule per incoming message
+        break;
       }
     }
   } catch (err: any) {
@@ -114,16 +196,17 @@ export async function evaluateAndExecuteAutomations({
 function matchTriggerAndConditions(
   rule: AutomationRule,
   context: {
+    rawMessageText: string;
     normalizedText: string;
     cleanPhone: string;
     contactName: string;
     isFirstMessage: boolean;
   }
 ): boolean {
-  const { normalizedText, isFirstMessage } = context;
+  const { rawMessageText, normalizedText, isFirstMessage } = context;
   const triggerType = rule.trigger_type;
   const triggerConfig = rule.trigger_config || {};
-  const keywords = (triggerConfig.keywords || []).map((k) => k.trim().toLowerCase()).filter(Boolean);
+  const keywords = (triggerConfig.keywords || []).map((k) => k.trim()).filter(Boolean);
 
   // 1. Evaluate Trigger
   let triggerMatched = false;
@@ -131,12 +214,12 @@ function matchTriggerAndConditions(
   if (triggerType === 'welcome' || triggerType === 'first_inbound') {
     triggerMatched = isFirstMessage;
   } else if (triggerType === 'exact_match') {
-    triggerMatched = keywords.some((k) => normalizedText === k);
+    triggerMatched = keywords.some((k) => matchesExactKeyword(rawMessageText, k));
   } else if (triggerType === 'message_contains' || triggerType === 'keyword') {
     if (keywords.length === 0) {
       triggerMatched = true; // Match all incoming if no keywords set
     } else {
-      triggerMatched = keywords.some((k) => normalizedText.includes(k));
+      triggerMatched = keywords.some((k) => matchesExactWord(rawMessageText, k));
     }
   }
 
@@ -210,7 +293,7 @@ async function executeRuleActions(
       // 3. Create outbound message in DB
       const { data: msg, error: mErr } = await db!.from('messages').insert({
         tenant_id: context.tenantId,
-        contact_id: context.contactId,
+        contact_id: context.contactId || null,
         phone_number: context.fromPhone,
         direction: 'outbound',
         content: resolvedContent,
@@ -253,7 +336,7 @@ async function executeRuleActions(
 
       const { data: msg, error: mErr } = await db!.from('messages').insert({
         tenant_id: context.tenantId,
-        contact_id: context.contactId,
+        contact_id: context.contactId || null,
         phone_number: context.fromPhone,
         direction: 'outbound',
         content: textBody,

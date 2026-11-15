@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { connection } from '@/lib/queue';
 import { generatePublicId } from '@/lib/utils';
 import { isFeatureAllowed } from '@/lib/limits';
+import { invalidateCampaignsCache } from '@/lib/server/campaigns';
 
 const PAGE_SIZE = 50;
 const CACHE_TTL = 60; // seconds
@@ -57,35 +58,77 @@ export async function GET(req: Request) {
     const list = campaigns || [];
 
     // 2. Fetch message status counts scoped ONLY to this page's campaign IDs
-    //    — avoids loading the full tenant message history
-    let statsMap: Record<string, Record<string, number>> = {};
+    //    Chunked pagination avoids the Supabase / PostgREST default 1,000-row query ceiling
+    let statsMap: Record<string, { total: number; sent: number; delivered: number; read: number; failed: number; pending: number; raw: Record<string, number> }> = {};
     if (list.length > 0) {
       const campaignIds = list.map((c: any) => c.id);
-      const { data: messages, error: mErr } = await db
-        .from('messages')
-        .select('campaign_id, status')
-        .in('campaign_id', campaignIds);   // ← scoped to current page only
+      let allMessages: Array<{ campaign_id: string; status: string | null }> = [];
+      let from = 0;
+      const CHUNK_SIZE = 1000;
 
-      if (mErr) {
-        console.error('[Campaigns List API] Failed to fetch message stats:', mErr);
+      while (true) {
+        const { data: chunk, error: mErr } = await db
+          .from('messages')
+          .select('campaign_id, status')
+          .eq('tenant_id', tenantId)
+          .in('campaign_id', campaignIds)
+          .range(from, from + CHUNK_SIZE - 1);
+
+        if (mErr) {
+          console.error('[Campaigns List API] Failed to fetch message stats:', mErr);
+          break;
+        }
+        if (!chunk || chunk.length === 0) break;
+        allMessages.push(...chunk);
+        if (chunk.length < CHUNK_SIZE) break;
+        from += CHUNK_SIZE;
       }
 
-      (messages || []).forEach((m: any) => {
+      const rawCounts: Record<string, Record<string, number>> = {};
+      allMessages.forEach((m: any) => {
         const campId = m.campaign_id;
         if (!campId) return;
-        if (!statsMap[campId]) statsMap[campId] = { sent: 0, delivered: 0, read: 0, failed: 0 };
+        if (!rawCounts[campId]) {
+          rawCounts[campId] = { pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 };
+        }
         const status = m.status || 'unknown';
-        statsMap[campId][status] = (statsMap[campId][status] || 0) + 1;
+        rawCounts[campId][status] = (rawCounts[campId][status] || 0) + 1;
+      });
+
+      // Calculate funnel metrics conforming to WhatsApp delivery semantics:
+      // - Sent: all messages accepted by WhatsApp Cloud API (sent + delivered + read)
+      // - Delivered: confirmed reached recipient device (delivered + read)
+      // - Read: confirmed opened/read by recipient (read)
+      // - Failed: delivery failure or rejection (failed)
+      // - Total: all recipient message logs (pending + sent + delivered + read + failed)
+      campaignIds.forEach((campId: string) => {
+        const raw = rawCounts[campId] || { pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 };
+        const rawPending = raw.pending || 0;
+        const rawSent = raw.sent || 0;
+        const rawDelivered = raw.delivered || 0;
+        const rawRead = raw.read || 0;
+        const rawFailed = raw.failed || 0;
+
+        statsMap[campId] = {
+          total: rawPending + rawSent + rawDelivered + rawRead + rawFailed,
+          sent: rawSent + rawDelivered + rawRead,
+          delivered: rawDelivered + rawRead,
+          read: rawRead,
+          failed: rawFailed,
+          pending: rawPending,
+          raw
+        };
       });
     }
 
     // 3. Merge stats into campaign objects and compute accurate campaign status
     const result = list.map((c: any) => {
-      const stats = statsMap[c.id] || { pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 };
-      const pendingCount = stats.pending || 0;
-      const failedCount = stats.failed || 0;
-      const successCount = (stats.sent || 0) + (stats.delivered || 0) + (stats.read || 0);
-      const totalMessages = pendingCount + failedCount + successCount;
+      const stats = statsMap[c.id] || { total: 0, sent: 0, delivered: 0, read: 0, failed: 0, pending: 0, raw: { pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 } };
+      const raw = stats.raw || { pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 };
+      const pendingCount = raw.pending || 0;
+      const failedCount = raw.failed || 0;
+      const successCount = (raw.sent || 0) + (raw.delivered || 0) + (raw.read || 0);
+      const totalMessages = stats.total || (pendingCount + failedCount + successCount);
 
       let computedStatus = c.status;
 
@@ -142,7 +185,7 @@ export async function POST(req: Request) {
     const { hasWorkspacePermission } = await import('@/lib/server/teams');
     const canCreateCampaign = await hasWorkspacePermission(userId, tenantId, 'campaigns_create');
     if (!canCreateCampaign) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Forbidden: You do not have permission to create campaigns.',
         code: 'PERMISSION_DENIED'
       }, { status: 403 });
@@ -170,14 +213,7 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   // Invalidate all campaign list cache pages for this tenant
-  if (connection && connection.status === 'ready') {
-    try {
-      const keys = await connection.keys(`campaigns:${tenantId}:*`);
-      if (keys.length > 0) await connection.del(...keys);
-    } catch (e) {
-      console.error('[Campaigns Cache] Failed to invalidate after POST:', e);
-    }
-  }
+  await invalidateCampaignsCache(tenantId);
 
   return NextResponse.json(data);
 }
@@ -192,7 +228,7 @@ export async function DELETE(req: Request) {
     const { hasWorkspacePermission } = await import('@/lib/server/teams');
     const canDelete = await hasWorkspacePermission(userId, tenantId, 'campaigns_create');
     if (!canDelete) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Forbidden: You do not have permission to delete campaigns.',
         code: 'PERMISSION_DENIED'
       }, { status: 403 });
@@ -216,14 +252,7 @@ export async function DELETE(req: Request) {
     if (error) throw error;
 
     // Invalidate Redis cache for this tenant
-    if (connection && connection.status === 'ready') {
-      try {
-        const keys = await connection.keys(`campaigns:${tenantId}:*`);
-        if (keys.length > 0) await connection.del(...keys);
-      } catch (e) {
-        console.error('[Campaigns Cache] Failed to invalidate after DELETE:', e);
-      }
-    }
+    await invalidateCampaignsCache(tenantId);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
